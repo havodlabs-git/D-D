@@ -43,6 +43,13 @@
       "when": 1769460020419,
       "tag": "0005_rich_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1769471513460,
+      "tag": "0006_condemned_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }

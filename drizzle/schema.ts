@@ -621,3 +621,34 @@ export const dungeonProgress = mysqlTable("dungeon_progress", {
 
 export type DungeonProgress = typeof dungeonProgress.$inferSelect;
 export type InsertDungeonProgress = typeof dungeonProgress.$inferInsert;
+
+
+// ============================================
+// GLOBAL CHAT TABLE (Chat messages)
+// ============================================
+export const globalChat = mysqlTable("global_chat", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  characterId: int("characterId"),
+  
+  // Message content
+  message: text("message").notNull(),
+  
+  // Message type
+  messageType: mysqlEnum("messageType", [
+    "normal", "system", "announcement", "whisper", "guild", "trade"
+  ]).default("normal").notNull(),
+  
+  // Character info at time of message (for display)
+  characterName: varchar("characterName", { length: 100 }),
+  characterClass: varchar("characterClass", { length: 50 }),
+  characterLevel: int("characterLevel"),
+  
+  // Optional target for whispers
+  targetUserId: int("targetUserId"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type GlobalChatMessage = typeof globalChat.$inferSelect;
+export type InsertGlobalChatMessage = typeof globalChat.$inferInsert;

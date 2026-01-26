@@ -17,6 +17,7 @@ import {
   castles, InsertCastle,
   characterSpells, InsertCharacterSpell,
   spellSlots, InsertSpellSlot,
+  globalChat, InsertGlobalChatMessage,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { CHARACTER_CLASSES, LEVEL_XP_REQUIREMENTS, STAT_POINTS_PER_LEVEL } from "../shared/gameConstants";
@@ -1101,4 +1102,70 @@ export async function createCastle(castle: InsertCastle): Promise<void> {
   if (!db) return;
 
   await db.insert(castles).values(castle);
+}
+
+
+// ============================================
+// GLOBAL CHAT FUNCTIONS
+// ============================================
+
+export async function sendChatMessage(data: {
+  userId: number;
+  characterId?: number;
+  message: string;
+  messageType?: "normal" | "system" | "announcement" | "whisper" | "guild" | "trade";
+  characterName?: string;
+  characterClass?: string;
+  characterLevel?: number;
+  targetUserId?: number;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(globalChat).values({
+    userId: data.userId,
+    characterId: data.characterId,
+    message: data.message,
+    messageType: data.messageType || "normal",
+    characterName: data.characterName,
+    characterClass: data.characterClass,
+    characterLevel: data.characterLevel,
+    targetUserId: data.targetUserId,
+  });
+}
+
+export async function getChatMessages(limit: number = 50, beforeId?: number): Promise<typeof globalChat.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  if (beforeId) {
+    return await db.select()
+      .from(globalChat)
+      .where(and(
+        eq(globalChat.messageType, "normal"),
+        sql`${globalChat.id} < ${beforeId}`
+      ))
+      .orderBy(desc(globalChat.createdAt))
+      .limit(limit);
+  }
+
+  return await db.select()
+    .from(globalChat)
+    .where(eq(globalChat.messageType, "normal"))
+    .orderBy(desc(globalChat.createdAt))
+    .limit(limit);
+}
+
+export async function getRecentChatMessages(sinceId: number): Promise<typeof globalChat.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select()
+    .from(globalChat)
+    .where(and(
+      eq(globalChat.messageType, "normal"),
+      sql`${globalChat.id} > ${sinceId}`
+    ))
+    .orderBy(desc(globalChat.createdAt))
+    .limit(100);
 }

@@ -222,3 +222,9 @@
 
 ## Bug Fix - combat_logs INSERT error
 - [x] Corrigir erro de INSERT na tabela combat_logs (adicionado lootEarned: [] nas chamadas de createCombatLog)
+
+## Novas Funcionalidades - Fase 2
+- [x] Implementar sistema de loot real baseado na lootTable dos monstros
+- [x] Corrigir sistema de EXP para funcionar corretamente
+- [x] Adicionar ícones para magias preparadas na interface
+- [x] Criar sistema de chat global com tabela e API

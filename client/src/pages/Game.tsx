@@ -13,6 +13,7 @@ import { DungeonScreen } from "@/components/DungeonScreen";
 import { LevelUpScreen } from "@/components/LevelUpScreen";
 import { DeathScreen } from "@/components/DeathScreen";
 import { RandomEncounter } from "@/components/RandomEncounter";
+import { GlobalChat } from "@/components/GlobalChat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, LogIn, Database, X, Swords, ShoppingBag, Users, Gem, Compass } from "lucide-react";
@@ -636,6 +637,11 @@ export default function Game() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Global Chat - Always visible when logged in */}
+      {isAuthenticated && character && !character.isDead && (
+        <GlobalChat />
       )}
     </div>
   );

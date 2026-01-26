@@ -538,7 +538,34 @@ export const appRouter = router({
             const levelResult = await db.addExperience(character.id, rewards.experience);
             await db.addGold(character.id, rewards.gold);
 
-            // Log combat
+            // Generate loot from monster's loot table
+            const lootEarned: Array<{ itemId: number; quantity: number; itemName?: string }> = [];
+            const lootTable = monster.lootTable as Array<{ itemId: number; dropChance: number }> | null;
+            
+            if (lootTable && lootTable.length > 0) {
+              // Tier bonus to drop chance
+              const tierBonus = monster.tier === 'legendary' ? 0.3 : monster.tier === 'boss' ? 0.2 : monster.tier === 'elite' ? 0.1 : 0;
+              
+              for (const lootEntry of lootTable) {
+                const roll = Math.random();
+                const adjustedChance = Math.min(1, lootEntry.dropChance + tierBonus);
+                
+                if (roll < adjustedChance) {
+                  // Item dropped! Add to inventory
+                  await db.addItemToInventory(character.id, lootEntry.itemId, 1);
+                  
+                  // Get item name for the loot display
+                  const item = await db.getItemById(lootEntry.itemId);
+                  lootEarned.push({ 
+                    itemId: lootEntry.itemId, 
+                    quantity: 1,
+                    itemName: item?.name || 'Item Desconhecido'
+                  });
+                }
+              }
+            }
+
+            // Log combat with actual loot
             await db.createCombatLog({
               characterId: character.id,
               monsterId: input.monsterId,
@@ -548,10 +575,15 @@ export const appRouter = router({
               turnsCount: 1,
               experienceEarned: rewards.experience,
               goldEarned: rewards.gold,
-              lootEarned: [],
+              lootEarned: lootEarned.map(l => ({ itemId: l.itemId, quantity: l.quantity })),
             });
 
-            rewards = { ...rewards, leveledUp: levelResult.leveledUp, newLevel: levelResult.newLevel };
+            rewards = { 
+              ...rewards, 
+              leveledUp: levelResult.leveledUp, 
+              newLevel: levelResult.newLevel,
+              loot: lootEarned
+            };
           }
         } else if (newPlayerHealth <= 0) {
           result = "defeat";
@@ -1393,6 +1425,63 @@ export const appRouter = router({
           isHostile: castle.isHostile,
           bossId: castle.bossId,
         };
+      }),
+  }),
+
+  // ============================================
+  // GLOBAL CHAT ROUTER
+  // ============================================
+  chat: router({
+    // Send a message to global chat
+    send: protectedProcedure
+      .input(z.object({
+        message: z.string().min(1).max(500),
+        messageType: z.enum(["normal", "trade", "guild"]).default("normal"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        // Filter profanity and spam (basic)
+        const cleanMessage = input.message.trim();
+        if (cleanMessage.length === 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Mensagem vazia" });
+        }
+
+        await db.sendChatMessage({
+          userId: ctx.user.id,
+          characterId: character.id,
+          message: cleanMessage,
+          messageType: input.messageType,
+          characterName: character.name,
+          characterClass: character.characterClass,
+          characterLevel: character.level,
+        });
+
+        return { success: true };
+      }),
+
+    // Get recent messages
+    getMessages: protectedProcedure
+      .input(z.object({
+        limit: z.number().min(1).max(100).default(50),
+        beforeId: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        const messages = await db.getChatMessages(input.limit, input.beforeId);
+        // Return in chronological order (oldest first)
+        return messages.reverse();
+      }),
+
+    // Get new messages since last ID (for polling)
+    getNewMessages: protectedProcedure
+      .input(z.object({ sinceId: z.number() }))
+      .query(async ({ input }) => {
+        const messages = await db.getRecentChatMessages(input.sinceId);
+        // Return in chronological order (oldest first)
+        return messages.reverse();
       }),
   }),
 });

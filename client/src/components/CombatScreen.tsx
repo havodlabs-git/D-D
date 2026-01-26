@@ -79,6 +79,18 @@ const SCHOOL_COLORS: Record<string, string> = {
   transmutation: "text-green-400 bg-green-500/20",
 };
 
+// School of magic icons (emoji-based for pixel art style)
+const SCHOOL_ICONS: Record<string, string> = {
+  evocation: "🔥",      // Fire/explosion
+  necromancy: "💀",     // Skull
+  abjuration: "🛡️",     // Shield
+  conjuration: "✨",     // Sparkles
+  divination: "👁️",     // Eye
+  enchantment: "💜",     // Heart
+  illusion: "🌀",       // Cyclone/swirl
+  transmutation: "🔄",   // Arrows cycle
+};
+
 // Ability colors by class
 const ABILITY_COLORS: Record<string, string> = {
   barbarian: "text-red-400 bg-red-500/20 border-red-500/50",
@@ -699,15 +711,67 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
     handleAttackWithBonus(false, 0, 0);
   };
 
-  const handleVictory = () => {
+  const handleVictory = async () => {
     setCombatEnded(true);
-    const xpReward = monster.level * 50 + Math.floor((MONSTER_TIERS[monster.tier as keyof typeof MONSTER_TIERS]?.rewardMultiplier || 1) * 25);
-    const goldReward = Math.floor(Math.random() * (monster.level * 10)) + monster.level * 5;
-    addLog("system", `🎉 Vitória! +${xpReward} XP, +${goldReward} ouro!`);
     
-    setTimeout(() => {
-      onVictory({ experience: xpReward, gold: goldReward });
-    }, 1500);
+    try {
+      // Call the server to get real rewards (XP, gold, loot)
+      const result = await attackMutation.mutateAsync({
+        monsterId: monster.id,
+        monsterLevel: monster.level,
+        monsterArmor: monster.armor,
+        monsterDamage: monster.damage,
+        monsterCurrentHealth: 0, // Monster is dead
+      });
+      
+      if (result.rewards) {
+        const { experience, gold, leveledUp, newLevel, loot } = result.rewards as {
+          experience: number;
+          gold: number;
+          leveledUp?: boolean;
+          newLevel?: number;
+          loot?: Array<{ itemId: number; quantity: number; itemName?: string }>;
+        };
+        
+        // Show rewards in combat log
+        addLog("system", `🎉 Vitória! +${experience} XP, +${gold} ouro!`);
+        
+        // Show loot if any
+        if (loot && loot.length > 0) {
+          for (const item of loot) {
+            addLog("system", `🎁 Loot: ${item.itemName || 'Item'} x${item.quantity}`);
+          }
+        }
+        
+        // Show level up message
+        if (leveledUp && newLevel) {
+          addLog("system", `🌟 LEVEL UP! Você alcançou o nível ${newLevel}!`);
+        }
+        
+        setTimeout(() => {
+          onVictory({ experience, gold, leveledUp, newLevel });
+        }, 2000);
+      } else {
+        // Fallback to calculated rewards
+        const xpReward = monster.level * 50 + Math.floor((MONSTER_TIERS[monster.tier as keyof typeof MONSTER_TIERS]?.rewardMultiplier || 1) * 25);
+        const goldReward = Math.floor(Math.random() * (monster.level * 10)) + monster.level * 5;
+        addLog("system", `🎉 Vitória! +${xpReward} XP, +${goldReward} ouro!`);
+        
+        setTimeout(() => {
+          onVictory({ experience: xpReward, gold: goldReward });
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Victory processing error:", error);
+      // Fallback to calculated rewards
+      const xpReward = monster.level * 50 + Math.floor((MONSTER_TIERS[monster.tier as keyof typeof MONSTER_TIERS]?.rewardMultiplier || 1) * 25);
+      const goldReward = Math.floor(Math.random() * (monster.level * 10)) + monster.level * 5;
+      addLog("system", `🎉 Vitória! +${xpReward} XP, +${goldReward} ouro!`);
+      
+      setTimeout(() => {
+        onVictory({ experience: xpReward, gold: goldReward });
+      }, 1500);
+    }
   };
 
   const handleCastSpell = async (spell: Spell) => {
@@ -1137,11 +1201,20 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
               {/* Selected Spell Details */}
               {selectedSpell && (
                 <div className="bg-purple-800/50 rounded-lg p-3 mb-3 border border-purple-400/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h5 className="font-bold text-lg">{selectedSpell.name}</h5>
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full", SCHOOL_COLORS[selectedSpell.school] || "bg-gray-500/20")}>
-                      {selectedSpell.school}
-                    </span>
+                  <div className="flex items-center gap-3 mb-2">
+                    {/* Large School Icon */}
+                    <div className={cn(
+                      "w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg",
+                      SCHOOL_COLORS[selectedSpell.school] || "bg-gray-500/20"
+                    )}>
+                      {SCHOOL_ICONS[selectedSpell.school] || '✨'}
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-lg">{selectedSpell.name}</h5>
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full capitalize", SCHOOL_COLORS[selectedSpell.school] || "bg-gray-500/20")}>
+                        {selectedSpell.school}
+                      </span>
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">{selectedSpell.description}</p>
                   <div className="grid grid-cols-2 gap-2 text-xs mb-3">
@@ -1180,30 +1253,40 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
                   const slots = spell.level > 0 ? getSpellSlots(spell.level) : null;
                   const canCast = spell.level === 0 || (slots && slots.total - slots.used > 0);
                   const isSelected = selectedSpell?.id === spell.id;
+                  const schoolIcon = SCHOOL_ICONS[spell.school] || '✨';
                   
                   return (
                     <button
                       key={spell.id}
                       onClick={() => setSelectedSpell(isSelected ? null : spell)}
                       className={cn(
-                        "w-full text-left p-2 rounded-lg transition-colors flex items-center justify-between",
+                        "w-full text-left p-2 rounded-lg transition-colors flex items-center gap-2",
                         isSelected ? "bg-purple-600/50 ring-2 ring-purple-400" : 
                         canCast ? "bg-purple-800/30 hover:bg-purple-700/40 cursor-pointer" : "bg-gray-800/50 opacity-50 cursor-not-allowed"
                       )}
                     >
-                      <div className="flex-1">
+                      {/* Spell School Icon */}
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center text-lg",
+                        SCHOOL_COLORS[spell.school] || "bg-gray-500/20"
+                      )}>
+                        {schoolIcon}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm flex items-center gap-2">
-                          {spell.name}
-                          <span className={cn("text-xs px-1.5 py-0.5 rounded", SCHOOL_COLORS[spell.school] || "bg-gray-500/20")}>
-                            {spell.level === 0 ? "C" : spell.level}
+                          <span className="truncate">{spell.name}</span>
+                          <span className={cn("text-xs px-1.5 py-0.5 rounded shrink-0", SCHOOL_COLORS[spell.school] || "bg-gray-500/20")}>
+                            {spell.level === 0 ? "C" : `N${spell.level}`}
                           </span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground truncate">
                           {typeof spell.damage === 'object' ? `${spell.damage.dice} ${spell.damage.type}` : (spell.healing ? spell.healing.dice + ' cura' : 'Utilidade')}
                         </div>
                       </div>
+                      
                       {spell.level > 0 && slots && (
-                        <span className="text-xs bg-purple-900/50 px-2 py-1 rounded">
+                        <span className="text-xs bg-purple-900/50 px-2 py-1 rounded shrink-0">
                           {slots.total - slots.used}/{slots.total}
                         </span>
                       )}
