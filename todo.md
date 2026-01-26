@@ -94,3 +94,11 @@
 - [x] Sprite do jogador no mapa
 - [x] Indicadores de POIs nos tiles
 - [x] Controles WASD/Setas para movimento
+
+## Mapa Mundial Pixel Art (Google Maps)
+- [x] Overlay de grid quadriculado sobre o Google Maps real
+- [x] Filtro/estilo pixel art aplicado ao mapa do Google (cores de fantasia RPG)
+- [x] Movimento do jogador por quadradinhos sobre o mapa real (WASD/Setas)
+- [x] Manter geolocalização real do usuário
+- [x] POIs posicionados nas coordenadas reais com visual pixel art
+- [x] Efeito scanline para visual retrô
