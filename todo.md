@@ -121,3 +121,26 @@
 - [ ] Novo tipo de POI: Acampamento de Bandidos
 - [x] Sprites pixel art para novos POIs (guilda, castelo, taverna, templo, torre)
 - [x] Interações específicas para cada tipo de local (guilda e castelo)
+
+## Sistema de Dungeons
+- [x] Componente DungeonScreen com múltiplos andares
+- [x] Geração procedural de salas e corredores
+- [x] Sistema de armadilhas
+- [x] Monstros por andar com dificuldade crescente
+- [x] Chefes de dungeon no último andar
+- [x] Recompensas de dungeon (itens raros, XP bônus)
+- [x] Entrada de dungeon no mapa mundial
+
+## Sistema de Level Up Avançado
+- [x] Modal de level up ao ganhar nível
+- [x] Seleção de novas spells baseadas na classe
+- [x] Seleção de habilidades de classe por nível
+- [x] Aumento de atributos ao subir de nível
+- [x] Desbloqueio de spell slots adicionais
+- [x] Notificação visual de level up
+
+## Sistema de Subclasses
+- [x] Modal de seleção de subclasse ao nível 3
+- [x] Habilidades específicas de cada subclasse
+- [x] Bônus de subclasse aplicados ao personagem
+- [x] Persistência da subclasse escolhida no banco de dados

@@ -9,6 +9,8 @@ import { InventoryScreen } from "@/components/InventoryScreen";
 import { CharacterSheet } from "@/components/CharacterSheet";
 import { CombatScreen } from "@/components/CombatScreen";
 import { ShopScreen } from "@/components/ShopScreen";
+import { DungeonScreen } from "@/components/DungeonScreen";
+import { LevelUpScreen } from "@/components/LevelUpScreen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, LogIn, Database, X, Swords, ShoppingBag, Users, Gem, Compass } from "lucide-react";
@@ -46,6 +48,10 @@ export default function Game() {
   const [guildData, setGuildData] = useState<any>(null);
   const [castleData, setCastleData] = useState<any>(null);
   const [visitedPOIs, setVisitedPOIs] = useState<Set<string>>(new Set());
+  const [showDungeon, setShowDungeon] = useState(false);
+  const [dungeonData, setDungeonData] = useState<any>(null);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [pendingLevelUp, setPendingLevelUp] = useState<number | null>(null);
 
   const { data: character, isLoading: characterLoading, refetch: refetchCharacter } = trpc.character.get.useQuery(
     undefined,
@@ -133,7 +139,26 @@ export default function Game() {
       setShowCastle(true);
       setSelectedPOI(null);
     } else if (poi.type === "dungeon") {
-      toast.info(`${poi.name} - Dungeons em desenvolvimento! Em breve você poderá explorá-los.`);
+      const seed = poi.data?.seed || Math.floor(poi.latitude * 10000 + poi.longitude * 100000);
+      const rng = seededRandom(seed);
+      const floors = Math.floor(rng() * 4) + 2; // 2-5 floors
+      const diffRoll = rng();
+      let difficulty: "easy" | "normal" | "hard" | "nightmare" = "normal";
+      if (diffRoll > 0.9) difficulty = "nightmare";
+      else if (diffRoll > 0.7) difficulty = "hard";
+      else if (diffRoll > 0.4) difficulty = "normal";
+      else difficulty = "easy";
+      
+      const dungeonTypes = ["cave", "crypt", "tower", "ruins", "temple", "mine", "sewer"];
+      const dungeonType = dungeonTypes[Math.floor(rng() * dungeonTypes.length)];
+      
+      setDungeonData({
+        name: poi.name,
+        type: dungeonType,
+        difficulty,
+        totalFloors: floors,
+      });
+      setShowDungeon(true);
       setSelectedPOI(null);
     } else if (poi.type === "npc") {
       toast.info(`${poi.name} diz: "Olá, aventureiro! Boas viagens!"`);
@@ -155,7 +180,7 @@ export default function Game() {
   };
 
   // Handle combat victory - mark monster as defeated
-  const handleCombatVictory = useCallback(() => {
+  const handleCombatVictory = useCallback((rewards: { experience: number; gold: number; leveledUp?: boolean; newLevel?: number }) => {
     // Mark the monster POI as visited
     if (selectedPOI) {
       setVisitedPOIs(prev => {
@@ -167,6 +192,12 @@ export default function Game() {
     setShowCombat(false);
     setCombatMonster(null);
     utils.character.get.invalidate();
+    
+    // Check if player leveled up
+    if (rewards.leveledUp && rewards.newLevel) {
+      setPendingLevelUp(rewards.newLevel);
+      setShowLevelUp(true);
+    }
   }, [selectedPOI, utils.character.get]);
 
   // Handle combat defeat
@@ -379,7 +410,16 @@ export default function Game() {
                     className="flex-1"
                     variant={castleData.isHostile ? "destructive" : "default"}
                     onClick={() => {
-                      toast.info("Sistema de dungeons em desenvolvimento!");
+                      // Open dungeon from castle
+                      setDungeonData({
+                        name: `Masmorra de ${castleData.name}`,
+                        type: "castle",
+                        difficulty: castleData.isHostile ? "hard" : "normal",
+                        totalFloors: castleData.dungeonLevels,
+                      });
+                      setShowCastle(false);
+                      setCastleData(null);
+                      setShowDungeon(true);
                     }}
                   >
                     Explorar Masmorra
@@ -400,6 +440,81 @@ export default function Game() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Dungeon Screen */}
+      {showDungeon && dungeonData && character && (
+        <DungeonScreen
+          dungeonName={dungeonData.name}
+          dungeonType={dungeonData.type}
+          difficulty={dungeonData.difficulty}
+          totalFloors={dungeonData.totalFloors}
+          character={{
+            id: character.id,
+            name: character.name,
+            characterClass: character.characterClass,
+            level: character.level,
+            currentHealth: character.currentHealth,
+            maxHealth: character.maxHealth,
+            currentMana: character.currentMana,
+            maxMana: character.maxMana,
+            gold: character.gold,
+            strength: character.strength,
+            dexterity: character.dexterity,
+            constitution: character.constitution,
+            intelligence: character.intelligence,
+            wisdom: character.wisdom,
+            charisma: character.charisma,
+          }}
+          onClose={() => {
+            setShowDungeon(false);
+            setDungeonData(null);
+          }}
+          onComplete={(rewards) => {
+            toast.success(`Dungeon conquistada! +${rewards.gold} ouro, +${rewards.experience} XP`);
+            setShowDungeon(false);
+            setDungeonData(null);
+            refetchCharacter();
+          }}
+          onDefeat={() => {
+            toast.error("Você foi derrotado na dungeon...");
+            setShowDungeon(false);
+            setDungeonData(null);
+            refetchCharacter();
+          }}
+        />
+      )}
+
+      {/* Level Up Screen */}
+      {showLevelUp && pendingLevelUp && character && (
+        <LevelUpScreen
+          character={{
+            id: character.id,
+            name: character.name,
+            characterClass: character.characterClass,
+            level: character.level,
+            subclass: character.subclass || undefined,
+            strength: character.strength,
+            dexterity: character.dexterity,
+            constitution: character.constitution,
+            intelligence: character.intelligence,
+            wisdom: character.wisdom,
+            charisma: character.charisma,
+            knownSpells: character.knownSpells ? JSON.parse(character.knownSpells) : [],
+          }}
+          newLevel={pendingLevelUp}
+          onComplete={(choices) => {
+            toast.success(`Você subiu para o nível ${pendingLevelUp}!`);
+            // TODO: Apply choices via API
+            setShowLevelUp(false);
+            setPendingLevelUp(null);
+            refetchCharacter();
+          }}
+          onClose={() => {
+            setShowLevelUp(false);
+            setPendingLevelUp(null);
+          }}
+        />
       )}
 
       {/* POI Interaction Modal */}

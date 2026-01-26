@@ -62,6 +62,18 @@ export const characters = mysqlTable("characters", {
   // Stat points available for allocation
   availableStatPoints: int("availableStatPoints").default(0).notNull(),
   
+  // Subclass (chosen at level 3)
+  subclass: varchar("subclass", { length: 64 }),
+  
+  // Known spells (JSON array of spell IDs)
+  knownSpells: text("knownSpells"),
+  
+  // Prepared spells for the day (JSON array of spell IDs)
+  preparedSpells: text("preparedSpells"),
+  
+  // Current spell slots used (JSON object: {1: 0, 2: 0, ...})
+  usedSpellSlots: text("usedSpellSlots"),
+  
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -528,3 +540,75 @@ export const spellSlots = mysqlTable("spell_slots", {
 
 export type SpellSlot = typeof spellSlots.$inferSelect;
 export type InsertSpellSlot = typeof spellSlots.$inferInsert;
+
+// ============================================
+// DUNGEONS TABLE (Dungeon instances)
+// ============================================
+export const dungeons = mysqlTable("dungeons", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  
+  dungeonType: mysqlEnum("dungeonType", [
+    "cave", "crypt", "tower", "ruins", "castle", "temple", "mine", "sewer"
+  ]).notNull(),
+  
+  // Difficulty and levels
+  difficulty: mysqlEnum("difficulty", ["easy", "normal", "hard", "nightmare"]).default("normal").notNull(),
+  totalFloors: int("totalFloors").default(3).notNull(),
+  levelRequired: int("levelRequired").default(1).notNull(),
+  
+  // Location
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  
+  // Boss info
+  bossName: varchar("bossName", { length: 100 }),
+  bossType: varchar("bossType", { length: 50 }),
+  bossLevel: int("bossLevel").default(5).notNull(),
+  
+  // Rewards
+  rewards: json("rewards").$type<{
+    gold: number;
+    experience: number;
+    items?: Array<{ itemId: number; chance: number }>;
+  }>(),
+  
+  iconUrl: varchar("iconUrl", { length: 500 }),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Dungeon = typeof dungeons.$inferSelect;
+export type InsertDungeon = typeof dungeons.$inferInsert;
+
+// ============================================
+// DUNGEON PROGRESS TABLE (Player's dungeon run)
+// ============================================
+export const dungeonProgress = mysqlTable("dungeon_progress", {
+  id: int("id").autoincrement().primaryKey(),
+  characterId: int("characterId").notNull(),
+  dungeonId: int("dungeonId").notNull(),
+  
+  // Current progress
+  currentFloor: int("currentFloor").default(1).notNull(),
+  currentRoom: int("currentRoom").default(1).notNull(),
+  
+  // Status
+  status: mysqlEnum("status", ["in_progress", "completed", "failed", "abandoned"]).default("in_progress").notNull(),
+  
+  // Stats for this run
+  monstersKilled: int("monstersKilled").default(0).notNull(),
+  treasuresFound: int("treasuresFound").default(0).notNull(),
+  trapsTriggered: int("trapsTriggered").default(0).notNull(),
+  
+  // Health at start of dungeon (to restore if failed)
+  healthAtStart: int("healthAtStart").notNull(),
+  manaAtStart: int("manaAtStart").notNull(),
+  
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type DungeonProgress = typeof dungeonProgress.$inferSelect;
+export type InsertDungeonProgress = typeof dungeonProgress.$inferInsert;
