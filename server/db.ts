@@ -552,11 +552,16 @@ export async function getAllItems() {
   return await db.select().from(items);
 }
 
-export async function createItem(item: InsertItem): Promise<void> {
+export async function createItem(item: InsertItem): Promise<Item | null> {
   const db = await getDb();
-  if (!db) return;
+  if (!db) return null;
 
-  await db.insert(items).values(item);
+  const result = await db.insert(items).values(item);
+  const insertId = result[0].insertId;
+  
+  // Return the created item
+  const [newItem] = await db.select().from(items).where(eq(items.id, insertId)).limit(1);
+  return newItem || null;
 }
 
 // ============================================

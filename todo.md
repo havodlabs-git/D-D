@@ -167,3 +167,9 @@
 - [x] Personagem vai diretamente ao ponto clicado
 - [x] Interação com objetos limitada a 2 tiles de distância
 - [x] POIs mostram verde se podem ser interagidos, cinza se estão longe
+
+## Bug Fix: Lojas sem Itens
+- [x] Verificar sistema de lojas
+- [x] Gerar itens dinamicamente para lojas (mercador, ferreiro, alquimista)
+- [x] Garantir que lojas exibam itens disponíveis
+- [x] Sistema de compra funcional com itens dinâmicos

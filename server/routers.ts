@@ -757,22 +757,78 @@ export const appRouter = router({
     getInventory: protectedProcedure
       .input(z.object({ npcId: z.number() }))
       .query(async ({ input }) => {
+        // Try to get NPC from database first
         const npc = await db.getNpcById(input.npcId);
-        if (!npc) return [];
-
-        const shopItems = npc.shopInventory || [];
-        const items = [];
-
-        for (const shopItem of shopItems) {
-          const item = await db.getItemById(shopItem.itemId);
-          if (item) {
-            items.push({
-              item,
-              stock: shopItem.stock,
-            });
+        
+        if (npc && npc.shopInventory && npc.shopInventory.length > 0) {
+          // NPC exists with inventory - use database items
+          const items = [];
+          for (const shopItem of npc.shopInventory) {
+            const item = await db.getItemById(shopItem.itemId);
+            if (item) {
+              items.push({
+                item,
+                stock: shopItem.stock,
+              });
+            }
           }
+          return items;
         }
-
+        
+        // Generate dynamic shop items based on NPC seed
+        const rng = seededRandom(input.npcId);
+        const shopType = input.npcId % 3; // 0 = merchant, 1 = blacksmith, 2 = alchemist
+        
+        const generateItem = (id: number, name: string, desc: string, type: string, rarity: string, price: number, damage?: number[], armor?: number, heal?: number, mana?: number, stats?: Record<string, number>) => ({
+          id,
+          name,
+          description: desc,
+          itemType: type,
+          rarity,
+          buyPrice: price,
+          sellPrice: Math.floor(price / 2),
+          levelRequired: Math.max(1, Math.floor(price / 100)),
+          damageMin: damage ? damage[0] : null,
+          damageMax: damage ? damage[1] : null,
+          armorValue: armor || null,
+          healAmount: heal || null,
+          manaAmount: mana || null,
+          statBonuses: stats || null,
+          createdAt: new Date(),
+        });
+        
+        const items: Array<{ item: any; stock: number }> = [];
+        
+        if (shopType === 0) {
+          // Merchant - sells a bit of everything
+          items.push({ item: generateItem(1001, "Espada Curta", "Uma espada simples mas eficaz", "weapon", "common", 50, [4, 8]), stock: 5 });
+          items.push({ item: generateItem(1002, "Adaga Afiada", "Perfeita para ataques rápidos", "weapon", "common", 40, [2, 6], undefined, undefined, undefined, { dexterity: 1 }), stock: 5 });
+          items.push({ item: generateItem(1003, "Armadura de Couro", "Proteção básica e leve", "armor", "common", 40, undefined, 2), stock: 3 });
+          items.push({ item: generateItem(1004, "Poção de Cura Menor", "Restaura 25 pontos de vida", "potion", "common", 15, undefined, undefined, 25), stock: 10 });
+          items.push({ item: generateItem(1005, "Poção de Mana Menor", "Restaura 20 pontos de mana", "potion", "common", 20, undefined, undefined, undefined, 20), stock: 10 });
+          items.push({ item: generateItem(1006, "Anel de Força", "Aumenta a força do portador", "ring", "uncommon", 100, undefined, undefined, undefined, undefined, { strength: 2 }), stock: 2 });
+        } else if (shopType === 1) {
+          // Blacksmith - weapons and armor
+          items.push({ item: generateItem(2001, "Espada Longa", "Arma versátil e confiável", "weapon", "common", 80, [5, 10]), stock: 3 });
+          items.push({ item: generateItem(2002, "Martelo de Guerra", "Arma pesada e devastadora", "weapon", "uncommon", 150, [6, 12], undefined, undefined, undefined, { strength: 2 }), stock: 2 });
+          items.push({ item: generateItem(2003, "Arco Longo", "Para ataques à distância", "weapon", "common", 80, [4, 10]), stock: 3 });
+          items.push({ item: generateItem(2004, "Lâmina Flamejante", "Uma espada envolta em chamas", "weapon", "rare", 500, [8, 16], undefined, undefined, undefined, { strength: 2, damage: 3 }), stock: 1 });
+          items.push({ item: generateItem(2005, "Cota de Malha", "Boa proteção sem sacrificar mobilidade", "armor", "uncommon", 200, undefined, 4), stock: 2 });
+          items.push({ item: generateItem(2006, "Armadura de Placas", "Proteção máxima para guerreiros", "armor", "rare", 600, undefined, 6, undefined, undefined, { constitution: 2 }), stock: 1 });
+          items.push({ item: generateItem(2007, "Elmo de Ferro", "Proteção para a cabeça", "helmet", "common", 30, undefined, 1), stock: 5 });
+          items.push({ item: generateItem(2008, "Escudo de Aço", "Defesa sólida contra ataques", "shield", "common", 60, undefined, 2), stock: 3 });
+        } else {
+          // Alchemist - potions and magic items
+          items.push({ item: generateItem(3001, "Poção de Cura Menor", "Restaura 25 pontos de vida", "potion", "common", 15, undefined, undefined, 25), stock: 15 });
+          items.push({ item: generateItem(3002, "Poção de Cura", "Restaura 50 pontos de vida", "potion", "uncommon", 35, undefined, undefined, 50), stock: 10 });
+          items.push({ item: generateItem(3003, "Poção de Cura Maior", "Restaura 100 pontos de vida", "potion", "rare", 80, undefined, undefined, 100), stock: 5 });
+          items.push({ item: generateItem(3004, "Poção de Mana Menor", "Restaura 20 pontos de mana", "potion", "common", 20, undefined, undefined, undefined, 20), stock: 15 });
+          items.push({ item: generateItem(3005, "Poção de Mana", "Restaura 40 pontos de mana", "potion", "uncommon", 45, undefined, undefined, undefined, 40), stock: 10 });
+          items.push({ item: generateItem(3006, "Cajado Arcano", "Um cajado imbuído de energia mágica", "weapon", "common", 60, [3, 6], undefined, undefined, undefined, { intelligence: 1 }), stock: 2 });
+          items.push({ item: generateItem(3007, "Capuz do Mago", "Aumenta o poder mágico", "helmet", "uncommon", 120, undefined, 0, undefined, undefined, { intelligence: 2, mana: 10 }), stock: 2 });
+          items.push({ item: generateItem(3008, "Amuleto de Proteção", "Oferece proteção mágica", "amulet", "uncommon", 120, undefined, undefined, undefined, undefined, { armor: 1, health: 15 }), stock: 2 });
+        }
+        
         return items;
       }),
 
@@ -780,6 +836,21 @@ export const appRouter = router({
     buy: protectedProcedure
       .input(z.object({
         itemId: z.number(),
+        itemData: z.object({
+          name: z.string(),
+          description: z.string(),
+          itemType: z.string(),
+          rarity: z.string(),
+          buyPrice: z.number(),
+          sellPrice: z.number(),
+          levelRequired: z.number().optional(),
+          damageMin: z.number().nullable().optional(),
+          damageMax: z.number().nullable().optional(),
+          armorValue: z.number().nullable().optional(),
+          healAmount: z.number().nullable().optional(),
+          manaAmount: z.number().nullable().optional(),
+          statBonuses: z.record(z.string(), z.number()).nullable().optional(),
+        }).optional(),
         quantity: z.number().min(1).default(1),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -788,7 +859,28 @@ export const appRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
 
-        const item = await db.getItemById(input.itemId);
+        let item = await db.getItemById(input.itemId);
+        
+        // If item doesn't exist in DB but we have itemData, create it
+        if (!item && input.itemData) {
+          const newItem = await db.createItem({
+            name: input.itemData.name,
+            description: input.itemData.description,
+            itemType: input.itemData.itemType as any,
+            rarity: input.itemData.rarity as any,
+            buyPrice: input.itemData.buyPrice,
+            sellPrice: input.itemData.sellPrice,
+            levelRequired: input.itemData.levelRequired || 1,
+            damageMin: input.itemData.damageMin,
+            damageMax: input.itemData.damageMax,
+            armorValue: input.itemData.armorValue,
+            healAmount: input.itemData.healAmount,
+            manaAmount: input.itemData.manaAmount,
+            statBonuses: input.itemData.statBonuses,
+          });
+          item = newItem;
+        }
+        
         if (!item) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Item não encontrado" });
         }
@@ -804,7 +896,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Falha ao comprar item" });
         }
 
-        await db.addItemToInventory(character.id, input.itemId, input.quantity);
+        await db.addItemToInventory(character.id, item.id, input.quantity);
 
         return {
           itemName: item.name,

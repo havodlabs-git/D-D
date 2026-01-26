@@ -78,8 +78,24 @@ export function ShopScreen({ npcId, npcName, npcType, greeting, onClose }: ShopS
     if (!selectedItem) return;
 
     try {
+      const item = selectedItem.item;
       const result = await buyMutation.mutateAsync({
-        itemId: selectedItem.item.id,
+        itemId: item.id,
+        itemData: {
+          name: item.name,
+          description: item.description || "",
+          itemType: item.itemType,
+          rarity: item.rarity,
+          buyPrice: item.buyPrice,
+          sellPrice: item.sellPrice || Math.floor(item.buyPrice / 2),
+          levelRequired: item.levelRequired || 1,
+          damageMin: item.damageMin,
+          damageMax: item.damageMax,
+          armorValue: item.armorValue,
+          healAmount: item.healAmount,
+          manaAmount: item.manaAmount,
+          statBonuses: item.statBonuses,
+        },
         quantity,
       });
       toast.success(`Comprou ${quantity}x ${result.itemName} por ${result.totalCost} ouro!`);

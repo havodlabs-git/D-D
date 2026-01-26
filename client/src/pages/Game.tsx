@@ -99,10 +99,15 @@ export default function Game() {
       setShowCombat(true);
       setSelectedPOI(null);
     } else if (poi.type === "shop") {
+      // Generate a consistent NPC ID based on location
+      const npcSeed = Math.abs(Math.floor(poi.latitude * 10000 + poi.longitude * 100000));
+      const npcTypes = ["merchant", "blacksmith", "alchemist"];
+      const npcType = npcTypes[npcSeed % npcTypes.length];
+      
       setShopData({
-        npcId: Math.abs(Math.floor(poi.latitude * 1000 + poi.longitude * 10000)) % 10000,
+        npcId: npcSeed,
         npcName: poi.name,
-        npcType: "merchant",
+        npcType: npcType,
       });
       setShowShop(true);
       setSelectedPOI(null);
