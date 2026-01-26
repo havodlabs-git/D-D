@@ -11,6 +11,8 @@ import { CombatScreen } from "@/components/CombatScreen";
 import { ShopScreen } from "@/components/ShopScreen";
 import { DungeonScreen } from "@/components/DungeonScreen";
 import { LevelUpScreen } from "@/components/LevelUpScreen";
+import { DeathScreen } from "@/components/DeathScreen";
+import { RandomEncounter } from "@/components/RandomEncounter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, LogIn, Database, X, Swords, ShoppingBag, Users, Gem, Compass } from "lucide-react";
@@ -52,6 +54,7 @@ export default function Game() {
   const [dungeonData, setDungeonData] = useState<any>(null);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [pendingLevelUp, setPendingLevelUp] = useState<number | null>(null);
+  const [randomEncounter, setRandomEncounter] = useState<any>(null);
 
   const { data: character, isLoading: characterLoading, refetch: refetchCharacter } = trpc.character.get.useQuery(
     undefined,
@@ -200,11 +203,19 @@ export default function Game() {
     }
   }, [selectedPOI, utils.character.get]);
 
-  // Handle combat defeat
+  // Handle combat defeat - PERMADEATH
+  const killCharacterMutation = trpc.character.kill.useMutation({
+    onSuccess: () => {
+      refetchCharacter();
+    },
+  });
+
   const handleCombatDefeat = () => {
     setShowCombat(false);
     setCombatMonster(null);
-    toast.error("Você foi derrotado! Descanse para recuperar sua saúde.");
+    // Permadeath - character dies permanently
+    const monsterName = combatMonster?.name || "um monstro";
+    killCharacterMutation.mutate({ deathCause: `Morto por ${monsterName}` });
   };
 
   // Loading state
@@ -514,6 +525,41 @@ export default function Game() {
             setShowLevelUp(false);
             setPendingLevelUp(null);
           }}
+        />
+      )}
+
+      {/* Death Screen (Permadeath) */}
+      {character?.isDead && (
+        <DeathScreen
+          characterName={character.name}
+          characterClass={character.characterClass}
+          level={character.level}
+          deathCause={character.deathCause || undefined}
+          onCreateNew={() => {
+            refetchCharacter();
+          }}
+        />
+      )}
+
+      {/* Random Encounter */}
+      {randomEncounter && (
+        <RandomEncounter
+          encounter={randomEncounter}
+          onBattle={(monster) => {
+            setCombatMonster(monster);
+            setShowCombat(true);
+            setRandomEncounter(null);
+          }}
+          onCollectTreasure={(treasure) => {
+            toast.success(`Coletado: ${treasure.gold} ouro, +${treasure.xp} XP`);
+            refetchCharacter();
+            setRandomEncounter(null);
+          }}
+          onTrapDamage={(damage) => {
+            toast.error(`Você sofreu ${damage} de dano!`);
+            refetchCharacter();
+          }}
+          onClose={() => setRandomEncounter(null)}
         />
       )}
 

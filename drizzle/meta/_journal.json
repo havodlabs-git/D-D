@@ -36,6 +36,13 @@
       "when": 1769455419954,
       "tag": "0004_normal_hardball",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1769460020419,
+      "tag": "0005_rich_gravity",
+      "breakpoints": true
     }
   ]
 }

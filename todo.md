@@ -144,3 +144,21 @@
 - [x] Habilidades específicas de cada subclasse
 - [x] Bônus de subclasse aplicados ao personagem
 - [x] Persistência da subclasse escolhida no banco de dados
+
+## Permadeath e Movimento
+- [x] Sistema de permadeath - personagem morre permanentemente
+- [x] Tela de morte com opção de criar novo personagem
+- [x] Movimento visível do jogador no mapa (sprite andando)
+- [x] Animação de movimento do sprite
+
+## Encounters e Eventos Aleatórios
+- [x] Encounters invisíveis de batalha no mapa
+- [x] Eventos aleatórios enquanto o jogador anda (15% de chance)
+- [x] Sistema de chance de encontro por movimento
+- [x] Diferentes tipos de eventos (batalha, tesouro, armadilha, mercador, evento)
+
+## Limite de Movimento
+- [x] Limite de 20 quadrados por hora
+- [x] Contador de movimentos restantes na UI
+- [x] Persistência do contador no banco de dados
+- [x] Reset automático a cada hora

@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, decimal, boolean } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, json, boolean } from "drizzle-orm/mysql-core";
 
 // ============================================
 // USER TABLE (Core auth - extended for game)
@@ -73,6 +73,15 @@ export const characters = mysqlTable("characters", {
   
   // Current spell slots used (JSON object: {1: 0, 2: 0, ...})
   usedSpellSlots: text("usedSpellSlots"),
+  
+  // Permadeath - character is dead forever
+  isDead: boolean("isDead").default(false).notNull(),
+  deathTimestamp: timestamp("deathTimestamp"),
+  deathCause: varchar("deathCause", { length: 255 }),
+  
+  // Movement limit - 20 squares per hour
+  movesUsedThisHour: int("movesUsedThisHour").default(0).notNull(),
+  lastMoveResetTime: timestamp("lastMoveResetTime").defaultNow().notNull(),
   
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

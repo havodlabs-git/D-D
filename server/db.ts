@@ -177,6 +177,95 @@ export async function updateCharacter(characterId: number, updates: Partial<Inse
     .where(eq(characters.id, characterId));
 }
 
+export async function deleteCharacter(characterId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.delete(characters).where(eq(characters.id, characterId));
+}
+
+export async function killCharacter(characterId: number, deathCause: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.update(characters)
+    .set({
+      isDead: true,
+      deathTimestamp: new Date(),
+      deathCause,
+      currentHealth: 0,
+    })
+    .where(eq(characters.id, characterId));
+}
+
+export async function useMovement(characterId: number): Promise<{ canMove: boolean; movesRemaining: number }> {
+  const db = await getDb();
+  if (!db) return { canMove: false, movesRemaining: 0 };
+
+  const [character] = await db.select().from(characters).where(eq(characters.id, characterId)).limit(1);
+  if (!character) return { canMove: false, movesRemaining: 0 };
+
+  const now = new Date();
+  const lastReset = character.lastMoveResetTime ? new Date(character.lastMoveResetTime) : new Date(0);
+  const hoursSinceReset = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60);
+
+  let movesUsed = character.movesUsedThisHour;
+  
+  // Reset if more than 1 hour has passed
+  if (hoursSinceReset >= 1) {
+    movesUsed = 0;
+    await db.update(characters)
+      .set({
+        movesUsedThisHour: 0,
+        lastMoveResetTime: now,
+      })
+      .where(eq(characters.id, characterId));
+  }
+
+  const MAX_MOVES_PER_HOUR = 20;
+  const movesRemaining = MAX_MOVES_PER_HOUR - movesUsed;
+
+  if (movesRemaining <= 0) {
+    return { canMove: false, movesRemaining: 0 };
+  }
+
+  // Use one movement
+  await db.update(characters)
+    .set({
+      movesUsedThisHour: movesUsed + 1,
+    })
+    .where(eq(characters.id, characterId));
+
+  return { canMove: true, movesRemaining: movesRemaining - 1 };
+}
+
+export async function getMovementStatus(characterId: number): Promise<{ movesRemaining: number; resetTime: Date }> {
+  const db = await getDb();
+  if (!db) return { movesRemaining: 0, resetTime: new Date() };
+
+  const [character] = await db.select().from(characters).where(eq(characters.id, characterId)).limit(1);
+  if (!character) return { movesRemaining: 0, resetTime: new Date() };
+
+  const now = new Date();
+  const lastReset = character.lastMoveResetTime ? new Date(character.lastMoveResetTime) : new Date(0);
+  const hoursSinceReset = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60);
+
+  let movesUsed = character.movesUsedThisHour;
+  
+  // Reset if more than 1 hour has passed
+  if (hoursSinceReset >= 1) {
+    movesUsed = 0;
+  }
+
+  const MAX_MOVES_PER_HOUR = 20;
+  const movesRemaining = MAX_MOVES_PER_HOUR - movesUsed;
+  
+  // Calculate next reset time
+  const resetTime = new Date(lastReset.getTime() + 60 * 60 * 1000);
+
+  return { movesRemaining, resetTime };
+}
+
 export async function addExperience(characterId: number, xpAmount: number): Promise<{ leveledUp: boolean; newLevel: number }> {
   const db = await getDb();
   if (!db) return { leveledUp: false, newLevel: 1 };

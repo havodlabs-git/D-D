@@ -165,8 +165,9 @@ export function PixelWorldMap({
   const [pois, setPOIs] = useState<POI[]>([]);
   const [isMoving, setIsMoving] = useState(false);
 
-  // Update character location mutation
-  const updateLocation = trpc.character.updateLocation.useMutation();
+  // Move character mutation (with movement limit and encounters)
+  const moveCharacter = trpc.character.move.useMutation();
+  const { data: movementStatus, refetch: refetchMovement } = trpc.character.getMovementStatus.useQuery();
 
   // Get user's geolocation
   useEffect(() => {
@@ -346,16 +347,32 @@ export function PixelWorldMap({
         playerMarkerRef.current.position = newPosition;
       }
       
-      // Update in database
-      updateLocation.mutate({
+      // Update in database and check for encounters
+      moveCharacter.mutate({
         latitude: newPosition.lat,
         longitude: newPosition.lng,
+      }, {
+        onSuccess: (result) => {
+          refetchMovement();
+          if (result.encounter) {
+            // Handle random encounter
+            if (onPlayerMove) {
+              onPlayerMove(newPosition.lat, newPosition.lng);
+            }
+            // The parent will handle the encounter via the move result
+          }
+        },
+        onError: (error) => {
+          // Revert position if movement failed (limit reached)
+          setPlayerGridPosition(playerGridPosition);
+          if (playerMarkerRef.current) {
+            playerMarkerRef.current.position = playerGridPosition;
+          }
+          console.error("Movement failed:", error.message);
+        },
       });
       
-      // Notify parent
-      if (onPlayerMove) {
-        onPlayerMove(newPosition.lat, newPosition.lng);
-      }
+      
       
       // Redraw grid
       if (mapRef.current) {
@@ -390,9 +407,17 @@ export function PixelWorldMap({
           playerMarkerRef.current.position = newPosition;
         }
         
-        updateLocation.mutate({
+        moveCharacter.mutate({
           latitude: newPosition.lat,
           longitude: newPosition.lng,
+        }, {
+          onSuccess: () => refetchMovement(),
+          onError: () => {
+            setPlayerGridPosition(playerGridPosition);
+            if (playerMarkerRef.current) {
+              playerMarkerRef.current.position = playerGridPosition;
+            }
+          },
         });
         
         if (onPlayerMove) {
@@ -407,7 +432,7 @@ export function PixelWorldMap({
         setTimeout(() => setIsMoving(false), 200);
       }
     }
-  }, [playerGridPosition, isMoving, updateLocation, onPlayerMove, drawGridLines]);
+  }, [playerGridPosition, isMoving, moveCharacter, onPlayerMove, drawGridLines, refetchMovement]);
 
   // Handle keyboard movement
   useEffect(() => {
@@ -455,9 +480,17 @@ export function PixelWorldMap({
         playerMarkerRef.current.position = newPosition;
       }
       
-      updateLocation.mutate({
+      moveCharacter.mutate({
         latitude: newPosition.lat,
         longitude: newPosition.lng,
+      }, {
+        onSuccess: () => refetchMovement(),
+        onError: () => {
+          setPlayerGridPosition(playerGridPosition);
+          if (playerMarkerRef.current) {
+            playerMarkerRef.current.position = playerGridPosition;
+          }
+        },
       });
       
       if (onPlayerMove) {
@@ -474,7 +507,7 @@ export function PixelWorldMap({
     
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playerGridPosition, isMoving, updateLocation, onPlayerMove, drawGridLines]);
+  }, [playerGridPosition, isMoving, moveCharacter, onPlayerMove, drawGridLines, refetchMovement]);
 
   // Handle map ready
   const handleMapReady = useCallback((map: google.maps.Map) => {
@@ -645,6 +678,17 @@ export function PixelWorldMap({
           {locationError}
         </div>
       )}
+
+      {/* Movement counter */}
+      <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-2 rounded border border-primary/50">
+        <div className="text-xs font-semibold text-primary mb-1">MOVIMENTOS</div>
+        <div className="text-2xl font-bold text-center">
+          {movementStatus?.movesRemaining ?? 20} / 20
+        </div>
+        <div className="text-xs text-muted-foreground text-center mt-1">
+          por hora
+        </div>
+      </div>
 
       {/* Grid coordinates display */}
       {playerGridPosition && (

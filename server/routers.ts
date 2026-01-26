@@ -34,6 +34,72 @@ import {
 } from "../shared/gameUtils";
 import type { CharacterClass, BiomeType, MonsterTier } from "../shared/gameConstants";
 
+// Generate random encounter data based on type and player level
+function generateEncounterData(type: string, playerLevel: number) {
+  const monsterNames = ["Goblin", "Orc", "Esqueleto", "Lobo", "Slime", "Bandido", "Aranha Gigante", "Kobold"];
+  const treasureItems = ["Poção de Cura", "Moedas de Ouro", "Gema Preciosa", "Pergaminho Mágico", "Anel Encantado"];
+  const events = [
+    "Um viajante misterioso oferece uma troca...",
+    "Você encontra um altar antigo...",
+    "Uma fada aparece e oferece um desejo...",
+    "Você encontra rastros de uma criatura rara...",
+    "Um espectro aparece com uma mensagem...",
+  ];
+  const traps = [
+    { name: "Armadilha de Espinhos", damage: 5 + playerLevel * 2 },
+    { name: "Armadilha de Fogo", damage: 8 + playerLevel * 2 },
+    { name: "Armadilha de Veneno", damage: 4 + playerLevel, effect: "poison" },
+    { name: "Armadilha de Queda", damage: 10 + playerLevel * 3 },
+  ];
+
+  switch (type) {
+    case "battle":
+      const monsterLevel = Math.max(1, playerLevel + Math.floor(Math.random() * 3) - 1);
+      const tierRoll = Math.random();
+      let tier = "common";
+      if (tierRoll > 0.95) tier = "legendary";
+      else if (tierRoll > 0.85) tier = "rare";
+      else if (tierRoll > 0.6) tier = "uncommon";
+      
+      return {
+        monster: {
+          name: monsterNames[Math.floor(Math.random() * monsterNames.length)],
+          level: monsterLevel,
+          tier,
+          health: 20 + monsterLevel * 10 * (tier === "legendary" ? 2 : tier === "rare" ? 1.5 : tier === "uncommon" ? 1.2 : 1),
+          damage: 3 + monsterLevel * 2 * (tier === "legendary" ? 1.8 : tier === "rare" ? 1.4 : tier === "uncommon" ? 1.1 : 1),
+          armor: 8 + monsterLevel,
+        },
+      };
+    
+    case "treasure":
+      return {
+        gold: Math.floor(Math.random() * 50 * playerLevel) + 10,
+        item: Math.random() > 0.7 ? treasureItems[Math.floor(Math.random() * treasureItems.length)] : null,
+        xp: Math.floor(Math.random() * 20 * playerLevel) + 5,
+      };
+    
+    case "trap":
+      return traps[Math.floor(Math.random() * traps.length)];
+    
+    case "merchant":
+      return {
+        name: "Mercador Viajante",
+        discount: Math.floor(Math.random() * 20) + 5,
+        specialItem: Math.random() > 0.5,
+      };
+    
+    case "event":
+      return {
+        description: events[Math.floor(Math.random() * events.length)],
+        choices: ["Aceitar", "Recusar", "Investigar"],
+      };
+    
+    default:
+      return {};
+  }
+}
+
 export const appRouter = router({
   system: systemRouter,
   
@@ -53,8 +119,42 @@ export const appRouter = router({
     // Get current character
     get: protectedProcedure.query(async ({ ctx }) => {
       const character = await db.getCharacterByUserId(ctx.user.id);
+      // If character is dead, return null so user can create new one
+      if (character?.isDead) {
+        return { ...character, isDead: true };
+      }
       return character;
     }),
+    
+    // Delete dead character to create new one
+    deleteDeadCharacter: protectedProcedure.mutation(async ({ ctx }) => {
+      const character = await db.getCharacterByUserId(ctx.user.id);
+      if (!character) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+      }
+      if (!character.isDead) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Personagem ainda está vivo" });
+      }
+      await db.deleteCharacter(character.id);
+      return { success: true };
+    }),
+    
+    // Kill character (permadeath)
+    kill: protectedProcedure
+      .input(z.object({
+        deathCause: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+        if (character.isDead) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Personagem já está morto" });
+        }
+        await db.killCharacter(character.id, input.deathCause);
+        return { success: true };
+      }),
 
     // Create new character
     create: protectedProcedure
@@ -145,6 +245,79 @@ export const appRouter = router({
         id: key,
         ...value,
       }));
+    }),
+    
+    // Move character (uses movement points)
+    move: protectedProcedure
+      .input(z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+        if (character.isDead) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Personagem está morto" });
+        }
+
+        // Check movement limit
+        const moveResult = await db.useMovement(character.id);
+        if (!moveResult.canMove) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Limite de movimento atingido. Aguarde para se mover novamente." });
+        }
+
+        // Update location
+        await db.updateCharacterLocation(character.id, input.latitude, input.longitude);
+
+        // Check for random encounter (15% chance per move)
+        const encounterRoll = Math.random();
+        let encounter = null;
+        
+        if (encounterRoll < 0.15) {
+          // Random encounter!
+          const encounterTypes = [
+            { type: "battle", weight: 50 },
+            { type: "treasure", weight: 20 },
+            { type: "trap", weight: 15 },
+            { type: "merchant", weight: 10 },
+            { type: "event", weight: 5 },
+          ];
+          
+          const totalWeight = encounterTypes.reduce((sum, e) => sum + e.weight, 0);
+          let roll = Math.random() * totalWeight;
+          let selectedType = "battle";
+          
+          for (const enc of encounterTypes) {
+            roll -= enc.weight;
+            if (roll <= 0) {
+              selectedType = enc.type;
+              break;
+            }
+          }
+          
+          encounter = {
+            type: selectedType,
+            data: generateEncounterData(selectedType, character.level),
+          };
+        }
+
+        return {
+          success: true,
+          movesRemaining: moveResult.movesRemaining,
+          encounter,
+        };
+      }),
+    
+    // Get movement status
+    getMovementStatus: protectedProcedure.query(async ({ ctx }) => {
+      const character = await db.getCharacterByUserId(ctx.user.id);
+      if (!character) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+      }
+      
+      return await db.getMovementStatus(character.id);
     }),
   }),
 
