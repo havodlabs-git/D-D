@@ -187,3 +187,28 @@
 - [x] Corrigir propriedade undefined no sistema de combate
 - [x] Adicionar monsterType aos monstros gerados em random encounters
 - [x] Adicionar verificação de segurança no getMonsterSprite
+
+## Habilidades de Classe Essenciais
+- [x] Fúria (Rage) - Bárbaro: Bônus de dano +2, resistência a dano físico
+- [x] Ataque Furtivo (Sneak Attack) - Ladino: +1d6 dano extra por nível (máx 10d6)
+- [x] Punição Divina (Divine Smite) - Paladino: Gastar spell slot para +2d8 dano radiante
+- [x] Surto de Ação (Action Surge) - Fighter: Ação extra por combate
+- [x] Forma Selvagem (Wild Shape) - Druid: Transformar em animal
+- [x] Pontos de Ki - Monk: Golpe Atordoante, Rajada de Golpes
+- [x] Metamagia - Sorcerer: Modificar magias (Quickened, Twinned)
+- [x] Invocações Místicas - Warlock: Habilidades passivas
+- [x] Inspiração Bárdica - Bard: Dar bônus aos aliados
+- [x] Interface de habilidades no combate
+- [x] Cooldowns e usos limitados por descanso
+
+## Sistema de Criação Estilo Baldur's Gate
+- [x] Etapa 1: Escolha de Raça (Humano, Elfo, Anão, Halfling, Gnomo, Meio-Elfo, Meio-Orc, Tiefling, Dragonborn)
+- [x] Etapa 2: Escolha de Classe
+- [x] Etapa 3: Distribuição de Atributos (Point Buy)
+- [x] Etapa 4: Escolha de Background (Acolyte, Criminal, Noble, etc.)
+- [x] Etapa 5: Escolha de Proficiências e Skills
+- [x] Etapa 6: Escolha de Escola/Domínio/Subclasse (para classes aplicáveis)
+- [x] Etapa 7: Escolha de Cantrips e Spells Iniciais
+- [x] Etapa 8: Escolha de Equipamento Inicial
+- [x] Interface multi-etapas com navegação
+- [x] Resumo final antes de confirmar

@@ -2527,10 +2527,10 @@ export type Rarity = keyof typeof RARITIES;
 // ============================================
 
 export const MONSTER_TIERS = {
-  common: { name: "Comum", healthMultiplier: 1.0, damageMultiplier: 1.0, rewardMultiplier: 1.0 },
-  elite: { name: "Elite", healthMultiplier: 2.0, damageMultiplier: 1.5, rewardMultiplier: 2.0 },
-  boss: { name: "Chefe", healthMultiplier: 5.0, damageMultiplier: 2.0, rewardMultiplier: 5.0 },
-  legendary: { name: "Lendário", healthMultiplier: 10.0, damageMultiplier: 3.0, rewardMultiplier: 10.0 },
+  common: { name: "Comum", healthMultiplier: 1.0, damageMultiplier: 1.0, rewardMultiplier: 1.0, color: "bg-gray-500" },
+  elite: { name: "Elite", healthMultiplier: 2.0, damageMultiplier: 1.5, rewardMultiplier: 2.0, color: "bg-blue-500" },
+  boss: { name: "Chefe", healthMultiplier: 5.0, damageMultiplier: 2.0, rewardMultiplier: 5.0, color: "bg-purple-500" },
+  legendary: { name: "Lendário", healthMultiplier: 10.0, damageMultiplier: 3.0, rewardMultiplier: 10.0, color: "bg-amber-500" },
 } as const;
 
 export type MonsterTier = keyof typeof MONSTER_TIERS;
@@ -2721,3 +2721,717 @@ export const CONDITIONS = {
 } as const;
 
 export type Condition = keyof typeof CONDITIONS;
+
+
+// ============================================
+// RACES (D&D 5e 2024)
+// ============================================
+
+export const RACES = {
+  human: {
+    name: "Humano",
+    description: "Versáteis e ambiciosos, os humanos são a raça mais comum e adaptável.",
+    abilityScoreIncrease: { choice: 2, any: true }, // +1 em dois atributos à escolha
+    size: "Medium",
+    speed: 30,
+    traits: ["Versátil: +1 proficiência de skill à escolha", "Determinado: Vantagem em testes de resistência contra medo"],
+    languages: ["Comum", "Um idioma à escolha"],
+  },
+  elf: {
+    name: "Elfo",
+    description: "Graciosos e longevos, os elfos possuem sentidos aguçados e afinidade com magia.",
+    abilityScoreIncrease: { dexterity: 2 },
+    size: "Medium",
+    speed: 30,
+    traits: ["Visão no Escuro: 18m", "Ancestralidade Feérica: Vantagem contra encantamento", "Transe: 4h de descanso = 8h de sono"],
+    languages: ["Comum", "Élfico"],
+    subraces: {
+      high: { name: "Alto Elfo", abilityBonus: { intelligence: 1 }, traits: ["Cantrip de Wizard à escolha", "Armas Élficas"] },
+      wood: { name: "Elfo da Floresta", abilityBonus: { wisdom: 1 }, traits: ["Pés Ligeiros: +5 velocidade", "Máscara da Natureza"] },
+      dark: { name: "Drow", abilityBonus: { charisma: 1 }, traits: ["Visão no Escuro Superior: 36m", "Magia Drow"] },
+    },
+  },
+  dwarf: {
+    name: "Anão",
+    description: "Resistentes e tradicionais, os anões são mestres artesãos e guerreiros destemidos.",
+    abilityScoreIncrease: { constitution: 2 },
+    size: "Medium",
+    speed: 25,
+    traits: ["Visão no Escuro: 18m", "Resiliência Anã: Vantagem contra veneno", "Treinamento Anão em Combate"],
+    languages: ["Comum", "Anão"],
+    subraces: {
+      hill: { name: "Anão da Colina", abilityBonus: { wisdom: 1 }, traits: ["Tenacidade Anã: +1 HP por nível"] },
+      mountain: { name: "Anão da Montanha", abilityBonus: { strength: 2 }, traits: ["Treinamento em Armaduras"] },
+    },
+  },
+  halfling: {
+    name: "Halfling",
+    description: "Pequenos e sortudos, os halflings são conhecidos por sua coragem e boa sorte.",
+    abilityScoreIncrease: { dexterity: 2 },
+    size: "Small",
+    speed: 25,
+    traits: ["Sortudo: Rerolar 1 natural em d20", "Corajoso: Vantagem contra medo", "Agilidade Halfling: Mover através de criaturas maiores"],
+    languages: ["Comum", "Halfling"],
+    subraces: {
+      lightfoot: { name: "Pés Leves", abilityBonus: { charisma: 1 }, traits: ["Furtividade Natural"] },
+      stout: { name: "Robusto", abilityBonus: { constitution: 1 }, traits: ["Resiliência Robusta: Resistência a veneno"] },
+    },
+  },
+  halfelf: {
+    name: "Meio-Elfo",
+    description: "Combinando a versatilidade humana com a graça élfica.",
+    abilityScoreIncrease: { charisma: 2, choice: 2 }, // +2 CHA, +1 em dois outros
+    size: "Medium",
+    speed: 30,
+    traits: ["Visão no Escuro: 18m", "Ancestralidade Feérica", "Versatilidade de Perícias: +2 proficiências"],
+    languages: ["Comum", "Élfico", "Um idioma à escolha"],
+  },
+  halforc: {
+    name: "Meio-Orc",
+    description: "Poderosos e intimidadores, os meio-orcs combinam força bruta com determinação.",
+    abilityScoreIncrease: { strength: 2, constitution: 1 },
+    size: "Medium",
+    speed: 30,
+    traits: ["Visão no Escuro: 18m", "Ameaçador: Proficiência em Intimidação", "Resistência Implacável: 1 HP quando cai a 0", "Ataques Selvagens: Dado extra em crítico"],
+    languages: ["Comum", "Orc"],
+  },
+  tiefling: {
+    name: "Tiefling",
+    description: "Descendentes de linhagens infernais, os tieflings carregam o legado de Asmodeus.",
+    abilityScoreIncrease: { charisma: 2, intelligence: 1 },
+    size: "Medium",
+    speed: 30,
+    traits: ["Visão no Escuro: 18m", "Resistência Infernal: Resistência a fogo", "Legado Infernal: Thaumaturgy, Hellish Rebuke, Darkness"],
+    languages: ["Comum", "Infernal"],
+  },
+  dragonborn: {
+    name: "Draconato",
+    description: "Orgulhosos guerreiros com sangue de dragão, capazes de soprar energia elemental.",
+    abilityScoreIncrease: { strength: 2, charisma: 1 },
+    size: "Medium",
+    speed: 30,
+    traits: ["Ancestralidade Dracônica: Escolha tipo de dragão", "Sopro: Cone ou linha de dano elemental", "Resistência a Dano: Tipo do dragão ancestral"],
+    languages: ["Comum", "Dracônico"],
+    dragonTypes: {
+      black: { damageType: "acid", breathShape: "line" },
+      blue: { damageType: "lightning", breathShape: "line" },
+      brass: { damageType: "fire", breathShape: "line" },
+      bronze: { damageType: "lightning", breathShape: "line" },
+      copper: { damageType: "acid", breathShape: "line" },
+      gold: { damageType: "fire", breathShape: "cone" },
+      green: { damageType: "poison", breathShape: "cone" },
+      red: { damageType: "fire", breathShape: "cone" },
+      silver: { damageType: "cold", breathShape: "cone" },
+      white: { damageType: "cold", breathShape: "cone" },
+    },
+  },
+  gnome: {
+    name: "Gnomo",
+    description: "Inventivos e curiosos, os gnomos são mestres da ilusão e engenharia.",
+    abilityScoreIncrease: { intelligence: 2 },
+    size: "Small",
+    speed: 25,
+    traits: ["Visão no Escuro: 18m", "Esperteza Gnômica: Vantagem em INT/WIS/CHA contra magia"],
+    languages: ["Comum", "Gnômico"],
+    subraces: {
+      forest: { name: "Gnomo da Floresta", abilityBonus: { dexterity: 1 }, traits: ["Ilusionista Natural", "Falar com Animais Pequenos"] },
+      rock: { name: "Gnomo das Rochas", abilityBonus: { constitution: 1 }, traits: ["Conhecimento de Artífice", "Engenhoqueiro"] },
+    },
+  },
+} as const;
+
+export type Race = keyof typeof RACES;
+
+// ============================================
+// BACKGROUNDS (D&D 5e 2024)
+// ============================================
+
+export const BACKGROUNDS = {
+  acolyte: {
+    name: "Acólito",
+    description: "Você passou sua vida a serviço de um templo a um deus específico.",
+    skillProficiencies: ["insight", "religion"],
+    languages: 2,
+    equipment: ["Símbolo sagrado", "Livro de orações", "5 varas de incenso", "Vestimentas", "15 po"],
+    feature: "Abrigo dos Fiéis: Templos oferecem abrigo e cura gratuita",
+  },
+  charlatan: {
+    name: "Charlatão",
+    description: "Você sempre teve facilidade para enganar pessoas e criar identidades falsas.",
+    skillProficiencies: ["deception", "sleight_of_hand"],
+    toolProficiencies: ["Ferramentas de disfarce", "Kit de falsificação"],
+    equipment: ["Roupas finas", "Kit de disfarce", "Ferramentas de trapaça", "15 po"],
+    feature: "Identidade Falsa: Você tem uma segunda identidade documentada",
+  },
+  criminal: {
+    name: "Criminoso",
+    description: "Você é um criminoso experiente com um histórico de quebrar a lei.",
+    skillProficiencies: ["deception", "stealth"],
+    toolProficiencies: ["Ferramentas de ladrão", "Um tipo de jogo"],
+    equipment: ["Pé de cabra", "Roupas escuras com capuz", "15 po"],
+    feature: "Contato Criminal: Você tem um contato confiável no submundo",
+  },
+  entertainer: {
+    name: "Artista",
+    description: "Você prospera diante de uma plateia, seja como músico, ator ou dançarino.",
+    skillProficiencies: ["acrobatics", "performance"],
+    toolProficiencies: ["Kit de disfarce", "Um instrumento musical"],
+    equipment: ["Instrumento musical", "Favor de um admirador", "Fantasia", "15 po"],
+    feature: "Por Demanda Popular: Você sempre encontra um lugar para se apresentar",
+  },
+  folk_hero: {
+    name: "Herói do Povo",
+    description: "Você vem de origens humildes, mas está destinado a muito mais.",
+    skillProficiencies: ["animal_handling", "survival"],
+    toolProficiencies: ["Um tipo de ferramenta de artesão", "Veículos terrestres"],
+    equipment: ["Ferramentas de artesão", "Pá", "Panela de ferro", "Roupas comuns", "10 po"],
+    feature: "Hospitalidade Rústica: Pessoas comuns oferecem abrigo e comida",
+  },
+  guild_artisan: {
+    name: "Artesão de Guilda",
+    description: "Você é membro de uma guilda de artesãos, treinado em um ofício específico.",
+    skillProficiencies: ["insight", "persuasion"],
+    toolProficiencies: ["Um tipo de ferramenta de artesão"],
+    languages: 1,
+    equipment: ["Ferramentas de artesão", "Carta de apresentação da guilda", "Roupas de viajante", "15 po"],
+    feature: "Membro da Guilda: A guilda oferece hospedagem e ajuda legal",
+  },
+  hermit: {
+    name: "Eremita",
+    description: "Você viveu em reclusão por um longo período, em oração ou estudo.",
+    skillProficiencies: ["medicine", "religion"],
+    toolProficiencies: ["Kit de herbalismo"],
+    languages: 1,
+    equipment: ["Estojo de pergaminhos", "Cobertor de inverno", "Roupas comuns", "Kit de herbalismo", "5 po"],
+    feature: "Descoberta: Você descobriu um segredo único durante sua reclusão",
+  },
+  noble: {
+    name: "Nobre",
+    description: "Você nasceu em uma família de riqueza, poder e privilégio.",
+    skillProficiencies: ["history", "persuasion"],
+    toolProficiencies: ["Um tipo de jogo"],
+    languages: 1,
+    equipment: ["Roupas finas", "Anel de sinete", "Pergaminho de linhagem", "25 po"],
+    feature: "Posição de Privilégio: Pessoas comuns fazem de tudo para agradá-lo",
+  },
+  outlander: {
+    name: "Forasteiro",
+    description: "Você cresceu nas terras selvagens, longe da civilização.",
+    skillProficiencies: ["athletics", "survival"],
+    toolProficiencies: ["Um instrumento musical"],
+    languages: 1,
+    equipment: ["Cajado", "Armadilha de caça", "Troféu de animal", "Roupas de viajante", "10 po"],
+    feature: "Andarilho: Você tem memória excelente para mapas e geografia",
+  },
+  sage: {
+    name: "Sábio",
+    description: "Você passou anos estudando o conhecimento do multiverso.",
+    skillProficiencies: ["arcana", "history"],
+    languages: 2,
+    equipment: ["Tinta preta", "Pena", "Faca pequena", "Carta de uma colega", "Roupas comuns", "10 po"],
+    feature: "Pesquisador: Você sabe onde encontrar informações desconhecidas",
+  },
+  sailor: {
+    name: "Marinheiro",
+    description: "Você navegou em um navio marítimo por anos.",
+    skillProficiencies: ["athletics", "perception"],
+    toolProficiencies: ["Ferramentas de navegação", "Veículos aquáticos"],
+    equipment: ["Belaying pin (clava)", "15m de corda de seda", "Amuleto de sorte", "Roupas comuns", "10 po"],
+    feature: "Passagem de Navio: Você pode garantir passagem gratuita em navios",
+  },
+  soldier: {
+    name: "Soldado",
+    description: "Você serviu como soldado em um exército ou milícia.",
+    skillProficiencies: ["athletics", "intimidation"],
+    toolProficiencies: ["Um tipo de jogo", "Veículos terrestres"],
+    equipment: ["Insígnia de patente", "Troféu de inimigo", "Conjunto de dados", "Roupas comuns", "10 po"],
+    feature: "Patente Militar: Soldados reconhecem sua autoridade",
+  },
+  urchin: {
+    name: "Órfão",
+    description: "Você cresceu nas ruas, aprendendo a sobreviver sozinho.",
+    skillProficiencies: ["sleight_of_hand", "stealth"],
+    toolProficiencies: ["Kit de disfarce", "Ferramentas de ladrão"],
+    equipment: ["Faca pequena", "Mapa da cidade", "Rato de estimação", "Lembrança dos pais", "Roupas comuns", "10 po"],
+    feature: "Segredos da Cidade: Você conhece passagens secretas nas cidades",
+  },
+} as const;
+
+export type Background = keyof typeof BACKGROUNDS;
+
+// ============================================
+// SKILLS (D&D 5e 2024)
+// ============================================
+
+export const SKILLS = {
+  acrobatics: { name: "Acrobacia", ability: "dexterity", description: "Equilíbrio, saltos e manobras acrobáticas" },
+  animal_handling: { name: "Adestrar Animais", ability: "wisdom", description: "Acalmar, treinar e entender animais" },
+  arcana: { name: "Arcanismo", ability: "intelligence", description: "Conhecimento sobre magia, planos e criaturas mágicas" },
+  athletics: { name: "Atletismo", ability: "strength", description: "Escalar, nadar, saltar e proezas físicas" },
+  deception: { name: "Enganação", ability: "charisma", description: "Mentir, disfarçar intenções e enganar" },
+  history: { name: "História", ability: "intelligence", description: "Conhecimento sobre eventos, pessoas e lugares históricos" },
+  insight: { name: "Intuição", ability: "wisdom", description: "Determinar intenções e detectar mentiras" },
+  intimidation: { name: "Intimidação", ability: "charisma", description: "Ameaçar e coagir através do medo" },
+  investigation: { name: "Investigação", ability: "intelligence", description: "Procurar pistas, deduzir e analisar" },
+  medicine: { name: "Medicina", ability: "wisdom", description: "Estabilizar feridos e diagnosticar doenças" },
+  nature: { name: "Natureza", ability: "intelligence", description: "Conhecimento sobre terreno, plantas e animais" },
+  perception: { name: "Percepção", ability: "wisdom", description: "Notar detalhes, detectar presenças e perigos" },
+  performance: { name: "Atuação", ability: "charisma", description: "Entreter através de música, dança ou atuação" },
+  persuasion: { name: "Persuasão", ability: "charisma", description: "Influenciar através de tato e diplomacia" },
+  religion: { name: "Religião", ability: "intelligence", description: "Conhecimento sobre deuses, rituais e símbolos" },
+  sleight_of_hand: { name: "Prestidigitação", ability: "dexterity", description: "Truques de mão, furtos e prestidigitação" },
+  stealth: { name: "Furtividade", ability: "dexterity", description: "Mover-se silenciosamente e se esconder" },
+  survival: { name: "Sobrevivência", ability: "wisdom", description: "Rastrear, caçar e sobreviver na natureza" },
+} as const;
+
+export type Skill = keyof typeof SKILLS;
+
+// ============================================
+// CLASS ABILITIES (D&D 5e 2024)
+// ============================================
+
+export const CLASS_ABILITIES = {
+  // BARBARIAN
+  rage: {
+    id: "rage",
+    name: "Fúria",
+    class: "barbarian",
+    level: 1,
+    description: "Entre em fúria como ação bônus. Ganhe resistência a dano físico, +2 de dano em ataques corpo a corpo, vantagem em testes de Força. Dura 1 minuto ou até ficar inconsciente.",
+    usesPerRest: "long",
+    usesAtLevel: [2, 2, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 999],
+    bonusDamageAtLevel: [2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4],
+    effects: {
+      damageResistance: ["bludgeoning", "piercing", "slashing"],
+      advantageOn: ["strength_checks", "strength_saves"],
+      cantCastSpells: true,
+    },
+  },
+  reckless_attack: {
+    id: "reckless_attack",
+    name: "Ataque Descuidado",
+    class: "barbarian",
+    level: 2,
+    description: "Ao fazer seu primeiro ataque no turno, você pode atacar descuidadamente. Você tem vantagem em ataques corpo a corpo usando Força, mas ataques contra você têm vantagem até seu próximo turno.",
+    usesPerRest: "unlimited",
+    effects: {
+      advantageOnMeleeAttacks: true,
+      enemiesHaveAdvantage: true,
+    },
+  },
+  danger_sense: {
+    id: "danger_sense",
+    name: "Sentido de Perigo",
+    class: "barbarian",
+    level: 2,
+    description: "Você tem vantagem em testes de resistência de Destreza contra efeitos que você pode ver, como armadilhas e magias. Não funciona se você estiver cego, surdo ou incapacitado.",
+    usesPerRest: "passive",
+    effects: {
+      advantageOn: ["dexterity_saves"],
+    },
+  },
+  brutal_critical: {
+    id: "brutal_critical",
+    name: "Crítico Brutal",
+    class: "barbarian",
+    level: 9,
+    description: "Você pode rolar um dado de dano de arma adicional ao determinar o dano extra de um acerto crítico com um ataque corpo a corpo.",
+    usesPerRest: "passive",
+    extraDiceAtLevel: { 9: 1, 13: 2, 17: 3 },
+  },
+  
+  // ROGUE
+  sneak_attack: {
+    id: "sneak_attack",
+    name: "Ataque Furtivo",
+    class: "rogue",
+    level: 1,
+    description: "Uma vez por turno, você pode causar dano extra a uma criatura que acertar com um ataque se tiver vantagem no ataque, ou se outro inimigo da criatura estiver a 1,5m dela.",
+    usesPerRest: "per_turn",
+    damageDiceAtLevel: ["1d6", "1d6", "2d6", "2d6", "3d6", "3d6", "4d6", "4d6", "5d6", "5d6", "6d6", "6d6", "7d6", "7d6", "8d6", "8d6", "9d6", "9d6", "10d6", "10d6"],
+    requirements: {
+      weaponType: ["finesse", "ranged"],
+      needsAdvantageOrAlly: true,
+    },
+  },
+  cunning_action: {
+    id: "cunning_action",
+    name: "Ação Ardilosa",
+    class: "rogue",
+    level: 2,
+    description: "Você pode usar uma ação bônus para Dash, Disengage ou Hide.",
+    usesPerRest: "unlimited",
+    bonusActions: ["dash", "disengage", "hide"],
+  },
+  uncanny_dodge: {
+    id: "uncanny_dodge",
+    name: "Esquiva Sobrenatural",
+    class: "rogue",
+    level: 5,
+    description: "Quando um atacante que você pode ver acerta você com um ataque, você pode usar sua reação para reduzir o dano pela metade.",
+    usesPerRest: "reaction",
+  },
+  evasion: {
+    id: "evasion",
+    name: "Evasão",
+    class: "rogue",
+    level: 7,
+    description: "Quando você é submetido a um efeito que permite um teste de resistência de Destreza para metade do dano, você não sofre dano se passar e apenas metade se falhar.",
+    usesPerRest: "passive",
+  },
+  
+  // PALADIN
+  divine_smite: {
+    id: "divine_smite",
+    name: "Punição Divina",
+    class: "paladin",
+    level: 2,
+    description: "Quando você acerta uma criatura com um ataque corpo a corpo com arma, você pode gastar um slot de magia para causar dano radiante adicional. 2d8 para slot de 1º nível, +1d8 por nível acima (máx 5d8). +1d8 contra mortos-vivos e demônios.",
+    usesPerRest: "spell_slots",
+    baseDamage: "2d8",
+    damageType: "radiant",
+    extraDamagePerSlotLevel: "1d8",
+    maxDamage: "5d8",
+    bonusVsUndead: "1d8",
+  },
+  lay_on_hands: {
+    id: "lay_on_hands",
+    name: "Cura pelas Mãos",
+    class: "paladin",
+    level: 1,
+    description: "Você tem uma reserva de poder curativo igual a 5 x seu nível de paladino. Como ação, você pode tocar uma criatura e restaurar pontos de vida dessa reserva. Alternativamente, gaste 5 pontos para curar uma doença ou neutralizar um veneno.",
+    usesPerRest: "long",
+    poolPerLevel: 5,
+  },
+  divine_sense: {
+    id: "divine_sense",
+    name: "Sentido Divino",
+    class: "paladin",
+    level: 1,
+    description: "Como ação, você pode detectar celestiais, demônios e mortos-vivos a até 18m. Você sabe o tipo e localização, mas não a identidade.",
+    usesPerRest: "long",
+    usesFormula: "1 + charisma_modifier",
+  },
+  aura_of_protection: {
+    id: "aura_of_protection",
+    name: "Aura de Proteção",
+    class: "paladin",
+    level: 6,
+    description: "Você e criaturas amigáveis a até 3m ganham bônus em testes de resistência igual ao seu modificador de Carisma (mínimo +1). Aumenta para 9m no nível 18.",
+    usesPerRest: "passive",
+    rangeAtLevel: { 6: 3, 18: 9 },
+  },
+  
+  // FIGHTER
+  second_wind: {
+    id: "second_wind",
+    name: "Retomar Fôlego",
+    class: "fighter",
+    level: 1,
+    description: "Como ação bônus, você pode recuperar pontos de vida iguais a 1d10 + seu nível de guerreiro.",
+    usesPerRest: "short",
+    uses: 1,
+    healing: "1d10 + fighter_level",
+  },
+  action_surge: {
+    id: "action_surge",
+    name: "Surto de Ação",
+    class: "fighter",
+    level: 2,
+    description: "Você pode forçar a si mesmo além dos limites normais por um momento. No seu turno, você pode realizar uma ação adicional.",
+    usesPerRest: "short",
+    usesAtLevel: { 2: 1, 17: 2 },
+  },
+  extra_attack: {
+    id: "extra_attack",
+    name: "Ataque Extra",
+    class: "fighter",
+    level: 5,
+    description: "Você pode atacar duas vezes, em vez de uma, quando usa a ação de Ataque no seu turno. O número de ataques aumenta para três no 11º nível e quatro no 20º nível.",
+    usesPerRest: "passive",
+    attacksAtLevel: { 5: 2, 11: 3, 20: 4 },
+  },
+  indomitable: {
+    id: "indomitable",
+    name: "Indomável",
+    class: "fighter",
+    level: 9,
+    description: "Você pode rolar novamente um teste de resistência que falhou. Se fizer isso, deve usar o novo resultado.",
+    usesPerRest: "long",
+    usesAtLevel: { 9: 1, 13: 2, 17: 3 },
+  },
+  
+  // WIZARD
+  arcane_recovery: {
+    id: "arcane_recovery",
+    name: "Recuperação Arcana",
+    class: "wizard",
+    level: 1,
+    description: "Uma vez por dia, durante um descanso curto, você pode recuperar slots de magia gastos. Os slots recuperados podem ter um nível combinado igual ou menor que metade do seu nível de mago (arredondado para cima), e nenhum pode ser de 6º nível ou superior.",
+    usesPerRest: "long",
+    uses: 1,
+    maxSlotLevel: 5,
+  },
+  spell_mastery: {
+    id: "spell_mastery",
+    name: "Maestria em Magia",
+    class: "wizard",
+    level: 18,
+    description: "Escolha uma magia de 1º nível e uma de 2º nível do seu grimório. Você pode conjurá-las em seu nível mais baixo sem gastar um slot de magia.",
+    usesPerRest: "passive",
+  },
+  
+  // CLERIC
+  channel_divinity: {
+    id: "channel_divinity",
+    name: "Canalizar Divindade",
+    class: "cleric",
+    level: 2,
+    description: "Você ganha a habilidade de canalizar energia divina diretamente de sua divindade. Você começa com Turn Undead e um efeito determinado pelo seu domínio.",
+    usesPerRest: "short",
+    usesAtLevel: { 2: 1, 6: 2, 18: 3 },
+  },
+  turn_undead: {
+    id: "turn_undead",
+    name: "Expulsar Mortos-Vivos",
+    class: "cleric",
+    level: 2,
+    description: "Como ação, você apresenta seu símbolo sagrado e fala uma prece contra mortos-vivos. Cada morto-vivo a 9m deve fazer um teste de resistência de Sabedoria. Se falhar, é expulso por 1 minuto ou até sofrer dano.",
+    usesPerRest: "channel_divinity",
+    range: 9,
+    savingThrow: "wisdom",
+  },
+  destroy_undead: {
+    id: "destroy_undead",
+    name: "Destruir Mortos-Vivos",
+    class: "cleric",
+    level: 5,
+    description: "Quando um morto-vivo falha no teste contra Expulsar Mortos-Vivos, ele é instantaneamente destruído se seu CR for igual ou menor que um limite baseado no seu nível.",
+    usesPerRest: "passive",
+    crThresholdAtLevel: { 5: 0.5, 8: 1, 11: 2, 14: 3, 17: 4 },
+  },
+  
+  // MONK
+  martial_arts: {
+    id: "martial_arts",
+    name: "Artes Marciais",
+    class: "monk",
+    level: 1,
+    description: "Você pode usar Destreza em vez de Força para ataques e dano com armas de monge e ataques desarmados. Você pode rolar um d4 no lugar do dano normal. Quando usa Ataque com arma de monge, pode fazer um ataque desarmado como ação bônus.",
+    usesPerRest: "passive",
+    damageDieAtLevel: ["d4", "d4", "d4", "d4", "d6", "d6", "d6", "d6", "d6", "d6", "d8", "d8", "d8", "d8", "d8", "d8", "d10", "d10", "d10", "d10"],
+  },
+  ki: {
+    id: "ki",
+    name: "Ki",
+    class: "monk",
+    level: 2,
+    description: "Você tem um número de pontos de ki igual ao seu nível de monge. Você pode gastar esses pontos para alimentar várias características de ki. Pontos de ki são recuperados após um descanso curto ou longo.",
+    usesPerRest: "short",
+    pointsPerLevel: 1,
+    abilities: ["flurry_of_blows", "patient_defense", "step_of_the_wind"],
+  },
+  flurry_of_blows: {
+    id: "flurry_of_blows",
+    name: "Rajada de Golpes",
+    class: "monk",
+    level: 2,
+    description: "Imediatamente após usar a ação de Ataque, você pode gastar 1 ponto de ki para fazer dois ataques desarmados como ação bônus.",
+    usesPerRest: "ki",
+    kiCost: 1,
+  },
+  stunning_strike: {
+    id: "stunning_strike",
+    name: "Golpe Atordoante",
+    class: "monk",
+    level: 5,
+    description: "Quando você acerta outra criatura com um ataque corpo a corpo com arma, pode gastar 1 ponto de ki para tentar atordoá-la. O alvo deve ter sucesso em um teste de resistência de Constituição ou ficará atordoado até o final do seu próximo turno.",
+    usesPerRest: "ki",
+    kiCost: 1,
+    savingThrow: "constitution",
+  },
+  
+  // SORCERER
+  sorcery_points: {
+    id: "sorcery_points",
+    name: "Pontos de Feitiçaria",
+    class: "sorcerer",
+    level: 2,
+    description: "Você tem pontos de feitiçaria iguais ao seu nível de feiticeiro. Você pode usá-los para criar slots de magia ou alimentar Metamagia.",
+    usesPerRest: "long",
+    pointsPerLevel: 1,
+  },
+  metamagic: {
+    id: "metamagic",
+    name: "Metamagia",
+    class: "sorcerer",
+    level: 3,
+    description: "Você ganha a habilidade de torcer suas magias para atender às suas necessidades. Escolha duas opções de Metamagia. Você ganha mais no 10º e 17º nível.",
+    usesPerRest: "sorcery_points",
+    options: {
+      careful: { name: "Magia Cuidadosa", cost: 1, description: "Criaturas escolhidas passam automaticamente em testes de resistência da magia" },
+      distant: { name: "Magia Distante", cost: 1, description: "Dobre o alcance da magia ou torne toque em 9m" },
+      empowered: { name: "Magia Potencializada", cost: 1, description: "Rerole dados de dano (máx = modificador de Carisma)" },
+      extended: { name: "Magia Estendida", cost: 1, description: "Dobre a duração da magia (máx 24h)" },
+      heightened: { name: "Magia Elevada", cost: 3, description: "Um alvo tem desvantagem no primeiro teste de resistência" },
+      quickened: { name: "Magia Acelerada", cost: 2, description: "Mude o tempo de conjuração de 1 ação para 1 ação bônus" },
+      subtle: { name: "Magia Sutil", cost: 1, description: "Conjure sem componentes verbais ou somáticos" },
+      twinned: { name: "Magia Gêmea", cost: "spell_level", description: "Afete um segundo alvo com magia de alvo único" },
+    },
+  },
+  
+  // WARLOCK
+  eldritch_invocations: {
+    id: "eldritch_invocations",
+    name: "Invocações Místicas",
+    class: "warlock",
+    level: 2,
+    description: "Você ganha duas invocações místicas de sua escolha. Quando ganha certos níveis de bruxo, ganha invocações adicionais.",
+    usesPerRest: "passive",
+    invocationsAtLevel: { 2: 2, 5: 3, 7: 4, 9: 5, 12: 6, 15: 7, 18: 8 },
+    options: {
+      agonizing_blast: { name: "Rajada Agonizante", requirement: "eldritch_blast", description: "Adicione modificador de Carisma ao dano de Eldritch Blast" },
+      armor_of_shadows: { name: "Armadura das Sombras", description: "Conjure Mage Armor em si mesmo à vontade" },
+      devils_sight: { name: "Visão do Diabo", description: "Veja normalmente em escuridão mágica e não-mágica até 36m" },
+      eldritch_sight: { name: "Visão Mística", description: "Conjure Detect Magic à vontade" },
+      mask_of_many_faces: { name: "Máscara de Muitas Faces", description: "Conjure Disguise Self à vontade" },
+      misty_visions: { name: "Visões Enevoadas", description: "Conjure Silent Image à vontade" },
+      repelling_blast: { name: "Rajada Repulsora", requirement: "eldritch_blast", description: "Empurre criatura 3m com Eldritch Blast" },
+      thirsting_blade: { name: "Lâmina Sedenta", requirement: "pact_of_the_blade", level: 5, description: "Ataque duas vezes com sua arma do pacto" },
+    },
+  },
+  pact_boon: {
+    id: "pact_boon",
+    name: "Dádiva do Pacto",
+    class: "warlock",
+    level: 3,
+    description: "Seu patrono sobrenatural concede a você um presente por seus serviços leais.",
+    usesPerRest: "passive",
+    options: {
+      pact_of_the_blade: { name: "Pacto da Lâmina", description: "Crie uma arma mágica corpo a corpo como ação" },
+      pact_of_the_chain: { name: "Pacto da Corrente", description: "Aprenda Find Familiar com formas especiais" },
+      pact_of_the_tome: { name: "Pacto do Tomo", description: "Grimório com 3 cantrips de qualquer lista" },
+      pact_of_the_talisman: { name: "Pacto do Talismã", description: "Talismã que adiciona 1d4 a testes falhos" },
+    },
+  },
+  
+  // BARD
+  bardic_inspiration: {
+    id: "bardic_inspiration",
+    name: "Inspiração Bárdica",
+    class: "bard",
+    level: 1,
+    description: "Você pode inspirar outros através de palavras ou música. Como ação bônus, dê a uma criatura a até 18m um dado de Inspiração Bárdica (d6). Nos próximos 10 minutos, ela pode adicionar o resultado a um teste de habilidade, ataque ou resistência.",
+    usesPerRest: "long",
+    usesFormula: "charisma_modifier",
+    dieAtLevel: ["d6", "d6", "d6", "d6", "d8", "d8", "d8", "d8", "d8", "d10", "d10", "d10", "d10", "d10", "d15", "d12", "d12", "d12", "d12", "d12"],
+  },
+  jack_of_all_trades: {
+    id: "jack_of_all_trades",
+    name: "Pau pra Toda Obra",
+    class: "bard",
+    level: 2,
+    description: "Você pode adicionar metade do seu bônus de proficiência, arredondado para baixo, a qualquer teste de habilidade que você fizer que já não inclua seu bônus de proficiência.",
+    usesPerRest: "passive",
+  },
+  song_of_rest: {
+    id: "song_of_rest",
+    name: "Canção de Descanso",
+    class: "bard",
+    level: 2,
+    description: "Você pode usar música ou oratória calmante para ajudar a revitalizar seus aliados feridos durante um descanso curto. Criaturas que gastarem Dados de Vida recuperam 1d6 extra.",
+    usesPerRest: "short",
+    dieAtLevel: { 2: "d6", 9: "d8", 13: "d10", 17: "d12" },
+  },
+  
+  // DRUID
+  wild_shape: {
+    id: "wild_shape",
+    name: "Forma Selvagem",
+    class: "druid",
+    level: 2,
+    description: "Você pode usar sua ação para assumir magicamente a forma de uma besta que você já viu antes. Você pode usar essa característica duas vezes, recuperando usos após um descanso curto ou longo.",
+    usesPerRest: "short",
+    uses: 2,
+    maxCRAtLevel: { 2: 0.25, 4: 0.5, 8: 1 },
+    restrictions: {
+      noSwimming: { until: 4 },
+      noFlying: { until: 8 },
+    },
+  },
+  
+  // RANGER
+  favored_enemy: {
+    id: "favored_enemy",
+    name: "Inimigo Favorito",
+    class: "ranger",
+    level: 1,
+    description: "Você tem vantagem em testes de Sabedoria (Sobrevivência) para rastrear seus inimigos favoritos, assim como em testes de Inteligência para lembrar informações sobre eles.",
+    usesPerRest: "passive",
+    enemyTypes: ["aberrations", "beasts", "celestials", "constructs", "dragons", "elementals", "fey", "fiends", "giants", "monstrosities", "oozes", "plants", "undead"],
+  },
+  natural_explorer: {
+    id: "natural_explorer",
+    name: "Explorador Natural",
+    class: "ranger",
+    level: 1,
+    description: "Você é particularmente familiarizado com um tipo de ambiente natural e é adepto a viajar e sobreviver em tais regiões.",
+    usesPerRest: "passive",
+    terrainTypes: ["arctic", "coast", "desert", "forest", "grassland", "mountain", "swamp", "underdark"],
+  },
+  hunters_mark: {
+    id: "hunters_mark",
+    name: "Marca do Caçador",
+    class: "ranger",
+    level: 1,
+    description: "Você pode conjurar Hunter's Mark sem gastar um slot de magia um número de vezes igual ao seu modificador de Sabedoria.",
+    usesPerRest: "long",
+    usesFormula: "wisdom_modifier",
+  },
+} as const;
+
+export type ClassAbility = keyof typeof CLASS_ABILITIES;
+
+// ============================================
+// EQUIPMENT PACKS (D&D 5e 2024)
+// ============================================
+
+export const EQUIPMENT_PACKS = {
+  burglar: {
+    name: "Kit de Ladrão",
+    contents: ["Mochila", "Saco de 1000 esferas", "3m de linha", "Sino", "5 velas", "Pé de cabra", "Martelo", "10 pitons", "Lanterna coberta", "2 frascos de óleo", "5 dias de rações", "Cantil", "15m de corda de cânhamo"],
+    cost: 16,
+  },
+  diplomat: {
+    name: "Kit de Diplomata",
+    contents: ["Baú", "2 estojos de mapas", "Roupas finas", "Frasco de tinta", "Caneta tinteiro", "Lâmpada", "2 frascos de óleo", "5 folhas de papel", "Frasco de perfume", "Cera de lacre", "Sabão"],
+    cost: 39,
+  },
+  dungeoneer: {
+    name: "Kit de Aventureiro",
+    contents: ["Mochila", "Pé de cabra", "Martelo", "10 pitons", "10 tochas", "Caixa de fogo", "10 dias de rações", "Cantil", "15m de corda de cânhamo"],
+    cost: 12,
+  },
+  entertainer: {
+    name: "Kit de Artista",
+    contents: ["Mochila", "Saco de dormir", "2 fantasias", "5 velas", "5 dias de rações", "Cantil", "Kit de disfarce"],
+    cost: 40,
+  },
+  explorer: {
+    name: "Kit de Explorador",
+    contents: ["Mochila", "Saco de dormir", "Kit de refeição", "Caixa de fogo", "10 tochas", "10 dias de rações", "Cantil", "15m de corda de cânhamo"],
+    cost: 10,
+  },
+  priest: {
+    name: "Kit de Sacerdote",
+    contents: ["Mochila", "Cobertor", "10 velas", "Caixa de fogo", "Caixa de esmolas", "2 blocos de incenso", "Incensário", "Vestimentas", "2 dias de rações", "Cantil"],
+    cost: 19,
+  },
+  scholar: {
+    name: "Kit de Estudioso",
+    contents: ["Mochila", "Livro de conhecimento", "Frasco de tinta", "Caneta tinteiro", "10 folhas de pergaminho", "Saquinho de areia", "Faca pequena"],
+    cost: 40,
+  },
+} as const;
+
+export type EquipmentPack = keyof typeof EQUIPMENT_PACKS;
