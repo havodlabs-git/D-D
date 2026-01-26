@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface POI {
   id: string;
-  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest";
+  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest" | "guild" | "castle";
   name: string;
   latitude: number;
   longitude: number;
@@ -17,6 +17,8 @@ interface POI {
 interface PixelWorldMapProps {
   onPOIClick: (poi: POI) => void;
   onPlayerMove?: (lat: number, lng: number) => void;
+  onPOIRemove?: (poiId: string) => void;
+  visitedPOIs?: Set<string>;
   className?: string;
   characterClass?: string;
 }
@@ -42,6 +44,8 @@ const POI_EMOJIS: Record<string, string> = {
   treasure: "💎",
   dungeon: "🏰",
   quest: "❗",
+  guild: "🏰",
+  castle: "🛁",
 };
 
 // Class sprites mapping
@@ -112,6 +116,14 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
           type = "dungeon";
           const dungeons = ["Caverna Escura", "Ruínas Antigas", "Torre Abandonada", "Cripta"];
           name = dungeons[Math.floor(rng() * dungeons.length)];
+        } else if (typeRoll < 0.96) {
+          type = "guild";
+          const guildTypes = ["Guilda dos Aventureiros", "Guilda dos Magos", "Guilda dos Guerreiros", "Guilda dos Ladinos"];
+          name = guildTypes[Math.floor(rng() * guildTypes.length)];
+        } else if (typeRoll < 0.99) {
+          type = "castle";
+          const castleTypes = ["Castelo Abandonado", "Fortaleza Sombria", "Torre do Mago", "Cidadela Real"];
+          name = castleTypes[Math.floor(rng() * castleTypes.length)];
         } else {
           type = "quest";
           name = "Missão Disponível";
@@ -135,6 +147,8 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
 export function PixelWorldMap({ 
   onPOIClick, 
   onPlayerMove,
+  onPOIRemove,
+  visitedPOIs = new Set(),
   className, 
   characterClass = "fighter" 
 }: PixelWorldMapProps) {
@@ -191,13 +205,14 @@ export function PixelWorldMap({
     );
   }, []);
 
-  // Generate POIs when player position changes
+  // Generate POIs when player position changes (filter out visited ones)
   useEffect(() => {
     if (playerGridPosition) {
-      const newPOIs = generatePOIsForGrid(playerGridPosition.lat, playerGridPosition.lng);
+      const newPOIs = generatePOIsForGrid(playerGridPosition.lat, playerGridPosition.lng)
+        .filter(poi => !visitedPOIs.has(poi.id));
       setPOIs(newPOIs);
     }
-  }, [playerGridPosition]);
+  }, [playerGridPosition, visitedPOIs]);
 
   // Create player marker element with pixel art sprite
   const createPlayerMarkerElement = useCallback((): HTMLElement => {
@@ -668,7 +683,11 @@ export function PixelWorldMap({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-lg">🏰</span>
-            <span>Dungeon</span>
+            <span>Dungeon/Castelo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏰</span>
+            <span>Guilda</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-lg">❗</span>

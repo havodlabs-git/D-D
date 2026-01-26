@@ -13,6 +13,8 @@ import {
   MONSTER_TIERS,
   NPC_TYPES,
   ITEM_TYPES,
+  SPELLS,
+  SPELL_SLOTS_BY_LEVEL,
 } from "../shared/gameConstants";
 import {
   rollDice,
@@ -833,6 +835,295 @@ export const appRouter = router({
     getAllNpcs: protectedProcedure.query(async () => {
       return await db.getAllNpcs();
     }),
+  }),
+
+  // ============================================
+  // VISITED POIs ROUTER (Track interactions)
+  // ============================================
+  visitedPois: router({
+    // Mark POI as visited/interacted
+    markVisited: protectedProcedure
+      .input(z.object({
+        poiHash: z.string(),
+        poiType: z.string(),
+        latitude: z.number(),
+        longitude: z.number(),
+        interactionType: z.enum(["defeated", "collected", "visited", "completed", "purchased"]),
+        canRespawn: z.boolean().default(true),
+        respawnMinutes: z.number().optional(), // Minutes until respawn
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        const respawnAt = input.respawnMinutes 
+          ? new Date(Date.now() + input.respawnMinutes * 60 * 1000)
+          : null;
+
+        await db.markPoiVisited({
+          characterId: character.id,
+          poiHash: input.poiHash,
+          poiType: input.poiType,
+          latitude: input.latitude,
+          longitude: input.longitude,
+          interactionType: input.interactionType,
+          canRespawn: input.canRespawn,
+          respawnAt,
+        });
+
+        return { success: true };
+      }),
+
+    // Get visited POIs for current character
+    getVisited: protectedProcedure
+      .input(z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+        radius: z.number().default(500),
+      }))
+      .query(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) return [];
+
+        return await db.getVisitedPois(character.id, input.latitude, input.longitude, input.radius);
+      }),
+
+    // Check if specific POI is visited and not respawned
+    isVisited: protectedProcedure
+      .input(z.object({ poiHash: z.string() }))
+      .query(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) return { visited: false, canInteract: true };
+
+        const visited = await db.checkPoiVisited(character.id, input.poiHash);
+        return visited;
+      }),
+  }),
+
+  // ============================================
+  // SPELLS ROUTER (Magic system)
+  // ============================================
+  spells: router({
+    // Get available spells for character's class
+    getAvailable: protectedProcedure.query(async ({ ctx }) => {
+      const character = await db.getCharacterByUserId(ctx.user.id);
+      if (!character) return [];
+
+      const classData = CHARACTER_CLASSES[character.characterClass as keyof typeof CHARACTER_CLASSES];
+      if (!classData.spellcasting) return [];
+
+      // Filter spells by class
+      const availableSpells = Object.entries(SPELLS)
+        .filter(([_, spell]) => spell.classes.includes(character.characterClass))
+        .filter(([_, spell]) => {
+          // Check if character can cast this level
+          const slots = SPELL_SLOTS_BY_LEVEL[character.level as keyof typeof SPELL_SLOTS_BY_LEVEL];
+          if (!slots) return spell.level === 0; // Only cantrips
+          if (spell.level === 0) return true; // Cantrips always available
+          const slotCount = slots[spell.level as keyof typeof slots];
+          return typeof slotCount === 'number' && slotCount > 0;
+        })
+        .map(([spellId, spell]) => ({ spellId, ...spell }));
+
+      return availableSpells;
+    }),
+
+    // Get character's known/prepared spells
+    getKnown: protectedProcedure.query(async ({ ctx }) => {
+      const character = await db.getCharacterByUserId(ctx.user.id);
+      if (!character) return [];
+
+      return await db.getCharacterSpells(character.id);
+    }),
+
+    // Learn a new spell
+    learn: protectedProcedure
+      .input(z.object({ spellId: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        const spell = SPELLS[input.spellId as keyof typeof SPELLS];
+        if (!spell) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Magia não encontrada" });
+        }
+
+        if (!spell.classes.includes(character.characterClass)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Sua classe não pode aprender esta magia" });
+        }
+
+        await db.learnSpell(character.id, input.spellId);
+        return { success: true };
+      }),
+
+    // Get spell slots
+    getSlots: protectedProcedure.query(async ({ ctx }) => {
+      const character = await db.getCharacterByUserId(ctx.user.id);
+      if (!character) return null;
+
+      return await db.getSpellSlots(character.id);
+    }),
+
+    // Use a spell (consume slot)
+    cast: protectedProcedure
+      .input(z.object({
+        spellId: z.string(),
+        slotLevel: z.number().min(1).max(9).optional(), // For leveled spells
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        const spell = SPELLS[input.spellId as keyof typeof SPELLS];
+        if (!spell) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Magia não encontrada" });
+        }
+
+        // Cantrips don't consume slots
+        if (spell.level === 0) {
+          return { success: true, damage: spell.damage, healing: spell.healing };
+        }
+
+        const slotLevel = input.slotLevel || spell.level;
+        const consumed = await db.consumeSpellSlot(character.id, slotLevel);
+        
+        if (!consumed) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Sem slots de magia disponíveis" });
+        }
+
+        return { success: true, damage: spell.damage, healing: spell.healing };
+      }),
+
+    // Rest to recover spell slots
+    rest: protectedProcedure
+      .input(z.object({ restType: z.enum(["short", "long"]) }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        if (input.restType === "long") {
+          // Full recovery
+          await db.restoreAllSpellSlots(character.id, character.level);
+          await db.healCharacter(character.id, character.maxHealth);
+          await db.restoreMana(character.id, character.maxMana);
+        } else {
+          // Short rest - recover some HP and limited slots (warlock style)
+          const healAmount = Math.floor(character.maxHealth * 0.25);
+          await db.healCharacter(character.id, healAmount);
+        }
+
+        return { success: true, restType: input.restType };
+      }),
+  }),
+
+  // ============================================
+  // GUILDS ROUTER
+  // ============================================
+  guilds: router({
+    // Get nearby guilds
+    getNearby: protectedProcedure
+      .input(z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+        radius: z.number().default(1000),
+      }))
+      .query(async ({ input }) => {
+        return await db.getGuildsNearby(input.latitude, input.longitude, input.radius);
+      }),
+
+    // Get character's guild membership
+    getMembership: protectedProcedure.query(async ({ ctx }) => {
+      const character = await db.getCharacterByUserId(ctx.user.id);
+      if (!character) return null;
+
+      return await db.getGuildMembership(character.id);
+    }),
+
+    // Join a guild
+    join: protectedProcedure
+      .input(z.object({ guildId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        const guild = await db.getGuildById(input.guildId);
+        if (!guild) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Guilda não encontrada" });
+        }
+
+        if (character.level < guild.levelRequired) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `Nível ${guild.levelRequired} necessário` });
+        }
+
+        if (character.gold < guild.goldRequired) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `${guild.goldRequired} de ouro necessário` });
+        }
+
+        await db.spendGold(character.id, guild.goldRequired);
+        await db.joinGuild(character.id, input.guildId);
+
+        return { success: true, guildName: guild.name };
+      }),
+  }),
+
+  // ============================================
+  // CASTLES ROUTER
+  // ============================================
+  castles: router({
+    // Get nearby castles
+    getNearby: protectedProcedure
+      .input(z.object({
+        latitude: z.number(),
+        longitude: z.number(),
+        radius: z.number().default(2000),
+      }))
+      .query(async ({ input }) => {
+        return await db.getCastlesNearby(input.latitude, input.longitude, input.radius);
+      }),
+
+    // Get castle details
+    getDetails: protectedProcedure
+      .input(z.object({ castleId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getCastleById(input.castleId);
+      }),
+
+    // Enter castle dungeon
+    enterDungeon: protectedProcedure
+      .input(z.object({ castleId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        const castle = await db.getCastleById(input.castleId);
+        if (!castle) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Castelo não encontrado" });
+        }
+
+        if (!castle.hasDungeon) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Este castelo não possui masmorra" });
+        }
+
+        // Return dungeon info for the client to start dungeon exploration
+        return {
+          castleName: castle.name,
+          dungeonLevels: castle.dungeonLevels,
+          isHostile: castle.isHostile,
+          bossId: castle.bossId,
+        };
+      }),
   }),
 });
 

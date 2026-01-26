@@ -10,7 +10,13 @@ import {
   quests, InsertQuest,
   characterQuests, InsertCharacterQuest,
   combatLogs, InsertCombatLog,
-  worldLocations, InsertWorldLocation
+  worldLocations, InsertWorldLocation,
+  visitedPois, InsertVisitedPoi,
+  guilds, InsertGuild,
+  guildMembership, InsertGuildMembership,
+  castles, InsertCastle,
+  characterSpells, InsertCharacterSpell,
+  spellSlots, InsertSpellSlot,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { CHARACTER_CLASSES, LEVEL_XP_REQUIREMENTS, STAT_POINTS_PER_LEVEL } from "../shared/gameConstants";
@@ -678,4 +684,327 @@ export async function deactivateWorldLocation(locationId: number): Promise<void>
   await db.update(worldLocations)
     .set({ isActive: false })
     .where(eq(worldLocations.id, locationId));
+}
+
+
+// ============================================
+// VISITED POIs FUNCTIONS
+// ============================================
+
+export async function markPoiVisited(data: {
+  characterId: number;
+  poiHash: string;
+  poiType: string;
+  latitude: number;
+  longitude: number;
+  interactionType: "defeated" | "collected" | "visited" | "completed" | "purchased";
+  canRespawn: boolean;
+  respawnAt: Date | null;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  // Check if already exists
+  const [existing] = await db.select()
+    .from(visitedPois)
+    .where(and(
+      eq(visitedPois.characterId, data.characterId),
+      eq(visitedPois.poiHash, data.poiHash)
+    ))
+    .limit(1);
+
+  if (existing) {
+    // Update existing
+    await db.update(visitedPois)
+      .set({
+        interactionType: data.interactionType,
+        respawnAt: data.respawnAt,
+        canRespawn: data.canRespawn,
+      })
+      .where(eq(visitedPois.id, existing.id));
+  } else {
+    // Insert new
+    await db.insert(visitedPois).values({
+      characterId: data.characterId,
+      poiHash: data.poiHash,
+      poiType: data.poiType,
+      latitude: data.latitude.toString(),
+      longitude: data.longitude.toString(),
+      interactionType: data.interactionType,
+      canRespawn: data.canRespawn,
+      respawnAt: data.respawnAt,
+    });
+  }
+}
+
+export async function getVisitedPois(characterId: number, latitude: number, longitude: number, radiusMeters: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const radiusKm = radiusMeters / 1000;
+  const latDelta = radiusKm / 111;
+  const lonDelta = radiusKm / (111 * Math.cos(latitude * Math.PI / 180));
+
+  return await db.select()
+    .from(visitedPois)
+    .where(
+      and(
+        eq(visitedPois.characterId, characterId),
+        sql`${visitedPois.latitude} BETWEEN ${latitude - latDelta} AND ${latitude + latDelta}`,
+        sql`${visitedPois.longitude} BETWEEN ${longitude - lonDelta} AND ${longitude + lonDelta}`
+      )
+    );
+}
+
+export async function checkPoiVisited(characterId: number, poiHash: string): Promise<{ visited: boolean; canInteract: boolean }> {
+  const db = await getDb();
+  if (!db) return { visited: false, canInteract: true };
+
+  const [result] = await db.select()
+    .from(visitedPois)
+    .where(and(
+      eq(visitedPois.characterId, characterId),
+      eq(visitedPois.poiHash, poiHash)
+    ))
+    .limit(1);
+
+  if (!result) {
+    return { visited: false, canInteract: true };
+  }
+
+  // Check if respawned
+  if (result.canRespawn && result.respawnAt) {
+    const now = new Date();
+    if (now >= result.respawnAt) {
+      // Has respawned, can interact again
+      return { visited: true, canInteract: true };
+    }
+  }
+
+  // Not respawned yet or can't respawn
+  return { visited: true, canInteract: result.canRespawn && !result.respawnAt };
+}
+
+// ============================================
+// SPELL FUNCTIONS
+// ============================================
+
+export async function getCharacterSpells(characterId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select()
+    .from(characterSpells)
+    .where(eq(characterSpells.characterId, characterId));
+}
+
+export async function learnSpell(characterId: number, spellId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  // Check if already known
+  const [existing] = await db.select()
+    .from(characterSpells)
+    .where(and(
+      eq(characterSpells.characterId, characterId),
+      eq(characterSpells.spellId, spellId)
+    ))
+    .limit(1);
+
+  if (!existing) {
+    await db.insert(characterSpells).values({
+      characterId,
+      spellId,
+      isPrepared: true,
+    });
+  }
+}
+
+export async function getSpellSlots(characterId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [result] = await db.select()
+    .from(spellSlots)
+    .where(eq(spellSlots.characterId, characterId))
+    .limit(1);
+
+  return result || null;
+}
+
+export async function consumeSpellSlot(characterId: number, level: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const slots = await getSpellSlots(characterId);
+  if (!slots) return false;
+
+  const currentKey = `level${level}Current` as keyof typeof slots;
+  const currentValue = slots[currentKey] as number;
+
+  if (currentValue <= 0) return false;
+
+  const updateData: Record<string, number> = {};
+  updateData[currentKey] = currentValue - 1;
+
+  await db.update(spellSlots)
+    .set(updateData)
+    .where(eq(spellSlots.characterId, characterId));
+
+  return true;
+}
+
+export async function restoreAllSpellSlots(characterId: number, level: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  const { SPELL_SLOTS_BY_LEVEL } = await import("../shared/gameConstants");
+  const slotsForLevel = SPELL_SLOTS_BY_LEVEL[level as keyof typeof SPELL_SLOTS_BY_LEVEL];
+  
+  if (!slotsForLevel) return;
+
+  // Check if spell slots record exists
+  const existing = await getSpellSlots(characterId);
+  
+  const slotData = {
+    level1Current: slotsForLevel[1] || 0,
+    level1Max: slotsForLevel[1] || 0,
+    level2Current: slotsForLevel[2] || 0,
+    level2Max: slotsForLevel[2] || 0,
+    level3Current: slotsForLevel[3] || 0,
+    level3Max: slotsForLevel[3] || 0,
+    level4Current: slotsForLevel[4] || 0,
+    level4Max: slotsForLevel[4] || 0,
+    level5Current: slotsForLevel[5] || 0,
+    level5Max: slotsForLevel[5] || 0,
+    level6Current: slotsForLevel[6] || 0,
+    level6Max: slotsForLevel[6] || 0,
+    level7Current: slotsForLevel[7] || 0,
+    level7Max: slotsForLevel[7] || 0,
+    level8Current: slotsForLevel[8] || 0,
+    level8Max: slotsForLevel[8] || 0,
+    level9Current: slotsForLevel[9] || 0,
+    level9Max: slotsForLevel[9] || 0,
+    lastRestAt: new Date(),
+  };
+
+  if (existing) {
+    await db.update(spellSlots)
+      .set(slotData)
+      .where(eq(spellSlots.characterId, characterId));
+  } else {
+    await db.insert(spellSlots).values({
+      characterId,
+      ...slotData,
+    });
+  }
+}
+
+// ============================================
+// GUILD FUNCTIONS
+// ============================================
+
+export async function getGuildsNearby(latitude: number, longitude: number, radiusMeters: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const radiusKm = radiusMeters / 1000;
+  const latDelta = radiusKm / 111;
+  const lonDelta = radiusKm / (111 * Math.cos(latitude * Math.PI / 180));
+
+  return await db.select()
+    .from(guilds)
+    .where(
+      and(
+        sql`${guilds.latitude} BETWEEN ${latitude - latDelta} AND ${latitude + latDelta}`,
+        sql`${guilds.longitude} BETWEEN ${longitude - lonDelta} AND ${longitude + lonDelta}`
+      )
+    );
+}
+
+export async function getGuildById(guildId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [result] = await db.select()
+    .from(guilds)
+    .where(eq(guilds.id, guildId))
+    .limit(1);
+
+  return result || null;
+}
+
+export async function getGuildMembership(characterId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select({
+    membership: guildMembership,
+    guild: guilds,
+  })
+    .from(guildMembership)
+    .innerJoin(guilds, eq(guildMembership.guildId, guilds.id))
+    .where(eq(guildMembership.characterId, characterId));
+
+  return result.length > 0 ? result : null;
+}
+
+export async function joinGuild(characterId: number, guildId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(guildMembership).values({
+    characterId,
+    guildId,
+    rank: "initiate",
+    reputation: 0,
+  });
+}
+
+// ============================================
+// CASTLE FUNCTIONS
+// ============================================
+
+export async function getCastlesNearby(latitude: number, longitude: number, radiusMeters: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const radiusKm = radiusMeters / 1000;
+  const latDelta = radiusKm / 111;
+  const lonDelta = radiusKm / (111 * Math.cos(latitude * Math.PI / 180));
+
+  return await db.select()
+    .from(castles)
+    .where(
+      and(
+        sql`${castles.latitude} BETWEEN ${latitude - latDelta} AND ${latitude + latDelta}`,
+        sql`${castles.longitude} BETWEEN ${longitude - lonDelta} AND ${longitude + lonDelta}`
+      )
+    );
+}
+
+export async function getCastleById(castleId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [result] = await db.select()
+    .from(castles)
+    .where(eq(castles.id, castleId))
+    .limit(1);
+
+  return result || null;
+}
+
+export async function createGuild(guild: InsertGuild): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(guilds).values(guild);
+}
+
+export async function createCastle(castle: InsertCastle): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(castles).values(castle);
 }

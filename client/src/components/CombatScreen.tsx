@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Sword, Shield, Wind, X } from "lucide-react";
 import { toast } from "sonner";
-import { MONSTER_TIERS } from "../../../shared/gameConstants";
+import { MONSTER_TIERS, SPELLS, Spell, SPELL_SLOTS_BY_LEVEL } from "../../../shared/gameConstants";
 
 // Monster sprites mapping
 const MONSTER_SPRITES: Record<string, string> = {
@@ -78,6 +78,9 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
   const [combatEnded, setCombatEnded] = useState(false);
   const [diceRoll, setDiceRoll] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const [showSpells, setShowSpells] = useState(false);
+  const [availableSpells, setAvailableSpells] = useState<Spell[]>([]);
+  const [usedSpellSlots, setUsedSpellSlots] = useState<Record<number, number>>({});
   const [isAttacking, setIsAttacking] = useState(false);
   const [isMonsterHit, setIsMonsterHit] = useState(false);
   const [isPlayerHit, setIsPlayerHit] = useState(false);
@@ -92,6 +95,13 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
       setPlayerHealth(character.currentHealth);
       setMaxPlayerHealth(character.maxHealth);
       addLog("system", `Combate iniciado contra ${monster.name}!`);
+      
+      // Load available spells based on character class
+      const classSpells = Object.values(SPELLS).filter(spell => {
+        const classes = spell.classes as string[];
+        return classes.includes(character.characterClass) && spell.level <= Math.ceil(character.level / 2);
+      });
+      setAvailableSpells(classSpells);
     }
   }, [character, monster.name]);
 
@@ -209,6 +219,114 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
     } catch (error) {
       toast.error("Erro ao fugir");
     }
+  };
+
+  // Cast a spell
+  const handleCastSpell = async (spell: Spell) => {
+    if (!isPlayerTurn || combatEnded || !character) return;
+    
+    // Check if spell requires a slot
+    if (spell.level > 0) {
+      const slots = SPELL_SLOTS_BY_LEVEL[character.level] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+      const availableSlots = slots[spell.level - 1] - (usedSpellSlots[spell.level] || 0);
+      
+      if (availableSlots <= 0) {
+        toast.error(`Sem slots de magia de nível ${spell.level} disponíveis!`);
+        return;
+      }
+      
+      // Use a spell slot
+      setUsedSpellSlots(prev => ({
+        ...prev,
+        [spell.level]: (prev[spell.level] || 0) + 1
+      }));
+    }
+    
+    setShowSpells(false);
+    setIsRolling(true);
+    setIsAttacking(true);
+    
+    // Animate dice roll
+    const rollInterval = setInterval(() => {
+      setDiceRoll(Math.floor(Math.random() * 20) + 1);
+    }, 50);
+    
+    setTimeout(() => {
+      clearInterval(rollInterval);
+      setIsRolling(false);
+      
+      // Calculate spell damage
+      const spellDamageStr = typeof spell.damage === 'object' ? spell.damage.dice : (spell.damage || "1d6");
+      const [numDice, diceSize] = spellDamageStr.split("d").map(Number);
+      let totalDamage = 0;
+      for (let i = 0; i < numDice; i++) {
+        totalDamage += Math.floor(Math.random() * diceSize) + 1;
+      }
+      
+      // Spell attack roll
+      const attackRoll = Math.floor(Math.random() * 20) + 1;
+      const isCritical = attackRoll === 20;
+      const isMiss = attackRoll === 1;
+      
+      setDiceRoll(attackRoll);
+      
+      if (isMiss) {
+        addLog("player", `${spell.name} falhou completamente!`);
+      } else {
+        const finalDamage = isCritical ? totalDamage * 2 : totalDamage;
+        setIsMonsterHit(true);
+        setTimeout(() => setIsMonsterHit(false), 300);
+        addLog("player", `${spell.name} causou ${finalDamage} de dano!${isCritical ? " CRÍTICO!" : ""}`, finalDamage, isCritical);
+        
+        const newMonsterHealth = Math.max(0, monsterHealth - finalDamage);
+        setMonsterHealth(newMonsterHealth);
+        
+        // Check victory
+        if (newMonsterHealth <= 0) {
+          setCombatEnded(true);
+          addLog("system", `Vitória! Você derrotou ${monster.name}!`);
+          const xpReward = monster.level * 25;
+          const goldReward = monster.level * 10 + Math.floor(Math.random() * 20);
+          addLog("system", `+${xpReward} XP, +${goldReward} Ouro`);
+          utils.character.get.invalidate();
+          setTimeout(() => onVictory({ experience: xpReward, gold: goldReward }), 2000);
+        } else {
+          // Monster counter attack
+          setTimeout(() => {
+            const monsterRoll = Math.floor(Math.random() * 20) + 1;
+            const monsterHit = monsterRoll >= 10;
+            if (monsterHit) {
+              const monsterDmg = Math.floor(Math.random() * monster.damage) + 1;
+              setIsPlayerHit(true);
+              setTimeout(() => setIsPlayerHit(false), 300);
+              addLog("monster", `${monster.name} atacou e causou ${monsterDmg} de dano!`, monsterDmg);
+              const newPlayerHealth = Math.max(0, playerHealth - monsterDmg);
+              setPlayerHealth(newPlayerHealth);
+              
+              if (newPlayerHealth <= 0) {
+                setCombatEnded(true);
+                addLog("system", "Você foi derrotado...");
+                utils.character.get.invalidate();
+                setTimeout(() => onDefeat(), 2000);
+              }
+            } else {
+              addLog("monster", `${monster.name} errou o ataque!`);
+            }
+          }, 500);
+        }
+      }
+      setIsAttacking(false);
+    }, 500);
+  };
+  
+  // Get available spell slots for display
+  const getSpellSlots = (level: number): { total: number; used: number } => {
+    if (!character) return { total: 0, used: 0 };
+    const slots = SPELL_SLOTS_BY_LEVEL[character.level] || [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    return {
+      total: slots[level - 1] || 0,
+      used: usedSpellSlots[level] || 0
+    };
   };
 
   const tierData = MONSTER_TIERS[monster.tier as keyof typeof MONSTER_TIERS];
@@ -388,8 +506,8 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
           </div>
 
           {/* Action Buttons */}
-          {!combatEnded && (
-            <div className="grid grid-cols-2 gap-3">
+          {!combatEnded && !showSpells && (
+            <div className="grid grid-cols-3 gap-2">
               <Button
                 size="lg"
                 className="h-14 pixel-text"
@@ -399,6 +517,18 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
                 <img src="/sprites/items/sword.png" alt="Attack" className="w-6 h-6 mr-2 pixelated" />
                 Atacar
               </Button>
+              {availableSpells.length > 0 && (
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="h-14 pixel-text bg-purple-600 hover:bg-purple-700"
+                  onClick={() => setShowSpells(true)}
+                  disabled={!isPlayerTurn}
+                >
+                  <img src="/sprites/items/staff.png" alt="Magic" className="w-6 h-6 mr-2 pixelated" />
+                  Magia
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="lg"
@@ -409,6 +539,48 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
                 <Wind className="w-5 h-5 mr-2" />
                 Fugir
               </Button>
+            </div>
+          )}
+
+          {/* Spells Panel */}
+          {!combatEnded && showSpells && (
+            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/50">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-bold text-purple-300 pixel-text">Magias Disponíveis</h4>
+                <Button variant="ghost" size="sm" onClick={() => setShowSpells(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-2">
+                {availableSpells.map(spell => {
+                  const slots = spell.level > 0 ? getSpellSlots(spell.level) : null;
+                  const canCast = spell.level === 0 || (slots && slots.total - slots.used > 0);
+                  
+                  return (
+                    <button
+                      key={spell.id}
+                      onClick={() => canCast && handleCastSpell(spell)}
+                      disabled={!canCast}
+                      className={cn(
+                        "w-full text-left p-2 rounded-lg transition-colors flex items-center justify-between",
+                        canCast ? "bg-purple-800/50 hover:bg-purple-700/50 cursor-pointer" : "bg-gray-800/50 opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <div>
+                        <div className="font-medium text-sm">{spell.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {spell.level === 0 ? "Cantrip" : `Nível ${spell.level}`} • {typeof spell.damage === 'object' ? spell.damage.dice : spell.damage} dano
+                        </div>
+                      </div>
+                      {slots && (
+                        <div className="text-xs text-purple-300">
+                          {slots.total - slots.used}/{slots.total}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 

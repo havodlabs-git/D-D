@@ -353,3 +353,178 @@ export const worldLocations = mysqlTable("world_locations", {
 
 export type WorldLocation = typeof worldLocations.$inferSelect;
 export type InsertWorldLocation = typeof worldLocations.$inferInsert;
+
+
+// ============================================
+// VISITED POIS TABLE (Track which POIs player has interacted with)
+// ============================================
+export const visitedPois = mysqlTable("visited_pois", {
+  id: int("id").autoincrement().primaryKey(),
+  characterId: int("characterId").notNull(),
+  
+  // POI identification (using hash of coordinates + type)
+  poiHash: varchar("poiHash", { length: 64 }).notNull(),
+  poiType: varchar("poiType", { length: 50 }).notNull(),
+  
+  // Location
+  latitude: decimal("latitude", { precision: 10, scale: 7 }).notNull(),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }).notNull(),
+  
+  // Interaction result
+  interactionType: mysqlEnum("interactionType", [
+    "defeated", "collected", "visited", "completed", "purchased"
+  ]).notNull(),
+  
+  // Respawn timing
+  respawnAt: timestamp("respawnAt"),
+  canRespawn: boolean("canRespawn").default(true).notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type VisitedPoi = typeof visitedPois.$inferSelect;
+export type InsertVisitedPoi = typeof visitedPois.$inferInsert;
+
+// ============================================
+// GUILDS TABLE (Guild locations and membership)
+// ============================================
+export const guilds = mysqlTable("guilds", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  
+  guildType: mysqlEnum("guildType", [
+    "adventurers", "mages", "warriors", "thieves", "merchants", "crafters"
+  ]).notNull(),
+  
+  // Location
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  
+  // Benefits
+  benefits: json("benefits").$type<{
+    statBonus?: { [key: string]: number };
+    discounts?: number;
+    specialQuests?: boolean;
+    training?: boolean;
+  }>(),
+  
+  // Requirements to join
+  levelRequired: int("levelRequired").default(1).notNull(),
+  goldRequired: int("goldRequired").default(100).notNull(),
+  
+  iconUrl: varchar("iconUrl", { length: 500 }),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Guild = typeof guilds.$inferSelect;
+export type InsertGuild = typeof guilds.$inferInsert;
+
+// ============================================
+// GUILD MEMBERSHIP TABLE
+// ============================================
+export const guildMembership = mysqlTable("guild_membership", {
+  id: int("id").autoincrement().primaryKey(),
+  characterId: int("characterId").notNull(),
+  guildId: int("guildId").notNull(),
+  
+  rank: mysqlEnum("rank", ["initiate", "member", "veteran", "officer", "master"]).default("initiate").notNull(),
+  reputation: int("reputation").default(0).notNull(),
+  
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+});
+
+export type GuildMembership = typeof guildMembership.$inferSelect;
+export type InsertGuildMembership = typeof guildMembership.$inferInsert;
+
+// ============================================
+// CASTLES TABLE (Castles and fortresses)
+// ============================================
+export const castles = mysqlTable("castles", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  
+  castleType: mysqlEnum("castleType", [
+    "fortress", "palace", "ruins", "tower", "keep", "citadel"
+  ]).notNull(),
+  
+  // Location
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  
+  // Owner/faction
+  faction: varchar("faction", { length: 100 }),
+  isHostile: boolean("isHostile").default(false).notNull(),
+  
+  // If dungeon inside
+  hasDungeon: boolean("hasDungeon").default(false).notNull(),
+  dungeonLevels: int("dungeonLevels").default(0).notNull(),
+  
+  // Boss if any
+  bossId: int("bossId"),
+  
+  // Rewards for conquering
+  conquestReward: json("conquestReward").$type<{
+    gold?: number;
+    experience?: number;
+    items?: Array<{ itemId: number; quantity: number }>;
+  }>(),
+  
+  iconUrl: varchar("iconUrl", { length: 500 }),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Castle = typeof castles.$inferSelect;
+export type InsertCastle = typeof castles.$inferInsert;
+
+// ============================================
+// CHARACTER SPELLS TABLE (Known spells)
+// ============================================
+export const characterSpells = mysqlTable("character_spells", {
+  id: int("id").autoincrement().primaryKey(),
+  characterId: int("characterId").notNull(),
+  
+  spellId: varchar("spellId", { length: 100 }).notNull(), // References SPELLS constant
+  isPrepared: boolean("isPrepared").default(false).notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CharacterSpell = typeof characterSpells.$inferSelect;
+export type InsertCharacterSpell = typeof characterSpells.$inferInsert;
+
+// ============================================
+// SPELL SLOTS TABLE (Available spell slots per day)
+// ============================================
+export const spellSlots = mysqlTable("spell_slots", {
+  id: int("id").autoincrement().primaryKey(),
+  characterId: int("characterId").notNull(),
+  
+  // Slots by level (1-9)
+  level1Current: int("level1Current").default(0).notNull(),
+  level1Max: int("level1Max").default(0).notNull(),
+  level2Current: int("level2Current").default(0).notNull(),
+  level2Max: int("level2Max").default(0).notNull(),
+  level3Current: int("level3Current").default(0).notNull(),
+  level3Max: int("level3Max").default(0).notNull(),
+  level4Current: int("level4Current").default(0).notNull(),
+  level4Max: int("level4Max").default(0).notNull(),
+  level5Current: int("level5Current").default(0).notNull(),
+  level5Max: int("level5Max").default(0).notNull(),
+  level6Current: int("level6Current").default(0).notNull(),
+  level6Max: int("level6Max").default(0).notNull(),
+  level7Current: int("level7Current").default(0).notNull(),
+  level7Max: int("level7Max").default(0).notNull(),
+  level8Current: int("level8Current").default(0).notNull(),
+  level8Max: int("level8Max").default(0).notNull(),
+  level9Current: int("level9Current").default(0).notNull(),
+  level9Max: int("level9Max").default(0).notNull(),
+  
+  lastRestAt: timestamp("lastRestAt").defaultNow().notNull(),
+});
+
+export type SpellSlot = typeof spellSlots.$inferSelect;
+export type InsertSpellSlot = typeof spellSlots.$inferInsert;

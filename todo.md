@@ -80,8 +80,8 @@
 - [x] Proficiências de armas e armaduras por classe
 - [x] Dados de vida (Hit Dice) por classe
 - [x] Atributos primários por classe
-- [ ] Integração de spells no combate (em progresso)
-- [ ] UI de seleção e uso de magias
+- [x] Integração de spells no combate
+- [x] UI de seleção e uso de magias
 - [x] Sprites pixel art para novas classes (usando sprites existentes)
 
 ## Pixel Art Tile Map System
@@ -102,3 +102,22 @@
 - [x] Manter geolocalização real do usuário
 - [x] POIs posicionados nas coordenadas reais com visual pixel art
 - [x] Efeito scanline para visual retrô
+
+## Sistema de Eventos e Combate Avançado
+- [x] POIs desaparecem após interação (monstros derrotados, tesouros coletados)
+- [ ] Persistência de POIs visitados no banco de dados
+- [ ] Sistema de respawn de POIs após tempo determinado
+- [x] Combate com skills e magias do livro D&D 5e
+- [x] Seleção de spells durante combate baseado na classe
+- [x] Consumo de spell slots ao usar magias
+- [ ] Habilidades especiais de classe (Rage, Sneak Attack, etc.)
+
+## Guildas, Castelos e Locais de Interesse
+- [x] Novo tipo de POI: Guilda de Aventureiros
+- [x] Novo tipo de POI: Castelo/Fortaleza
+- [ ] Novo tipo de POI: Taverna/Estalagem
+- [ ] Novo tipo de POI: Torre de Mago
+- [ ] Novo tipo de POI: Templo/Santuário
+- [ ] Novo tipo de POI: Acampamento de Bandidos
+- [x] Sprites pixel art para novos POIs (guilda, castelo, taverna, templo, torre)
+- [x] Interações específicas para cada tipo de local (guilda e castelo)

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 interface GamePOI {
   id: string;
-  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest";
+  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest" | "guild" | "castle";
   name: string;
   latitude: number;
   longitude: number;
@@ -39,8 +39,13 @@ export default function Game() {
   const [selectedPOI, setSelectedPOI] = useState<GamePOI | null>(null);
   const [showCombat, setShowCombat] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [showGuild, setShowGuild] = useState(false);
+  const [showCastle, setShowCastle] = useState(false);
   const [combatMonster, setCombatMonster] = useState<any>(null);
   const [shopData, setShopData] = useState<any>(null);
+  const [guildData, setGuildData] = useState<any>(null);
+  const [castleData, setCastleData] = useState<any>(null);
+  const [visitedPOIs, setVisitedPOIs] = useState<Set<string>>(new Set());
 
   const { data: character, isLoading: characterLoading, refetch: refetchCharacter } = trpc.character.get.useQuery(
     undefined,
@@ -96,6 +101,45 @@ export default function Game() {
       const goldFound = Math.floor(Math.random() * 50) + 10;
       const xpFound = Math.floor(Math.random() * 30) + 5;
       toast.success(`Tesouro encontrado! +${goldFound} ouro, +${xpFound} XP`);
+      // Mark treasure as visited (collected)
+      setVisitedPOIs(prev => {
+        const newSet = new Set(prev);
+        newSet.add(poi.id);
+        return newSet;
+      });
+      setSelectedPOI(null);
+    } else if (poi.type === "guild") {
+      setGuildData({
+        id: Math.abs(Math.floor(poi.latitude * 1000 + poi.longitude * 10000)) % 10000,
+        name: poi.name,
+        type: poi.name.includes("Magos") ? "mages" : poi.name.includes("Guerreiros") ? "warriors" : poi.name.includes("Ladinos") ? "thieves" : "adventurers",
+        description: `Uma guilda de ${poi.name.split(" ").pop()?.toLowerCase() || "aventureiros"} onde você pode se juntar e receber missões especiais.`,
+        benefits: { discounts: 10, specialQuests: true },
+        levelRequired: 1,
+        goldRequired: 100,
+      });
+      setShowGuild(true);
+      setSelectedPOI(null);
+    } else if (poi.type === "castle") {
+      setCastleData({
+        id: Math.abs(Math.floor(poi.latitude * 1000 + poi.longitude * 10000)) % 10000,
+        name: poi.name,
+        type: poi.name.includes("Torre") ? "tower" : poi.name.includes("Fortaleza") ? "fortress" : poi.name.includes("Cidadela") ? "citadel" : "ruins",
+        description: `${poi.name} - um local misterioso cheio de perigos e tesouros.`,
+        hasDungeon: true,
+        dungeonLevels: Math.floor(Math.random() * 5) + 1,
+        isHostile: Math.random() > 0.3,
+      });
+      setShowCastle(true);
+      setSelectedPOI(null);
+    } else if (poi.type === "dungeon") {
+      toast.info(`${poi.name} - Dungeons em desenvolvimento! Em breve você poderá explorá-los.`);
+      setSelectedPOI(null);
+    } else if (poi.type === "npc") {
+      toast.info(`${poi.name} diz: "Olá, aventureiro! Boas viagens!"`);
+      setSelectedPOI(null);
+    } else if (poi.type === "quest") {
+      toast.info(`Missão: ${poi.name} - Sistema de quests em desenvolvimento!`);
       setSelectedPOI(null);
     }
   }, []);
@@ -110,12 +154,20 @@ export default function Game() {
     }
   };
 
-  // Handle combat victory
-  const handleCombatVictory = () => {
+  // Handle combat victory - mark monster as defeated
+  const handleCombatVictory = useCallback(() => {
+    // Mark the monster POI as visited
+    if (selectedPOI) {
+      setVisitedPOIs(prev => {
+        const newSet = new Set(prev);
+        newSet.add(selectedPOI.id);
+        return newSet;
+      });
+    }
     setShowCombat(false);
     setCombatMonster(null);
     utils.character.get.invalidate();
-  };
+  }, [selectedPOI, utils.character.get]);
 
   // Handle combat defeat
   const handleCombatDefeat = () => {
@@ -172,6 +224,7 @@ export default function Game() {
         className="absolute inset-0"
         onPOIClick={handlePOIClick}
         characterClass={character.characterClass}
+        visitedPOIs={visitedPOIs}
       />
 
       {/* Player HUD - Top left */}
@@ -239,6 +292,114 @@ export default function Game() {
             setShopData(null);
           }}
         />
+      )}
+
+      {/* Guild Modal */}
+      {showGuild && guildData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md fantasy-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-2xl">🏰</span>
+                  {guildData.name}
+                </CardTitle>
+                <Button variant="ghost" size="icon" onClick={() => setShowGuild(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">{guildData.description}</p>
+              <div className="bg-muted/50 rounded-lg p-3 mb-4">
+                <h4 className="font-semibold text-sm mb-2">Benefícios:</h4>
+                <ul className="text-sm space-y-1">
+                  <li>• {guildData.benefits.discounts}% de desconto em lojas</li>
+                  <li>• Acesso a missões especiais</li>
+                  <li>• Treinamento de habilidades</li>
+                </ul>
+              </div>
+              <div className="flex items-center justify-between text-sm mb-4">
+                <span>Nível necessário: {guildData.levelRequired}</span>
+                <span>Taxa de entrada: {guildData.goldRequired} ouro</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    toast.success(`Você se juntou à ${guildData.name}!`);
+                    setShowGuild(false);
+                    setGuildData(null);
+                  }}
+                >
+                  Entrar na Guilda
+                </Button>
+                <Button variant="outline" onClick={() => setShowGuild(false)}>
+                  Fechar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Castle Modal */}
+      {showCastle && castleData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md fantasy-card">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-2xl">🏰</span>
+                  {castleData.name}
+                </CardTitle>
+                <Button variant="ghost" size="icon" onClick={() => setShowCastle(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">{castleData.description}</p>
+              <div className="bg-muted/50 rounded-lg p-3 mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Tipo: {castleData.type}</span>
+                  <span className={castleData.isHostile ? "text-red-500" : "text-green-500"}>
+                    {castleData.isHostile ? "⚠️ Hostil" : "✅ Seguro"}
+                  </span>
+                </div>
+                {castleData.hasDungeon && (
+                  <div className="mt-2 text-sm">
+                    <span>🗝️ Masmorra: {castleData.dungeonLevels} andares</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {castleData.hasDungeon && (
+                  <Button
+                    className="flex-1"
+                    variant={castleData.isHostile ? "destructive" : "default"}
+                    onClick={() => {
+                      toast.info("Sistema de dungeons em desenvolvimento!");
+                    }}
+                  >
+                    Explorar Masmorra
+                  </Button>
+                )}
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => {
+                    toast.info("Você observa o castelo de longe...");
+                    setShowCastle(false);
+                    setCastleData(null);
+                  }}
+                >
+                  Observar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* POI Interaction Modal */}
