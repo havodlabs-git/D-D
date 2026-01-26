@@ -59,3 +59,11 @@
 - [x] Game constants and utilities
 - [x] Unit tests for game mechanics
 - [x] Fantasy theme with custom CSS
+
+## Pixel Art Graphics
+- [x] Sprites pixel art para as 8 classes de personagem
+- [x] Sprites pixel art para monstros (goblin, orc, dragão, etc)
+- [x] Sprites pixel art para NPCs (mercador, ferreiro, etc)
+- [x] Ícones pixel art para itens e equipamentos
+- [x] Elementos de UI em pixel art (coração, mana, dados, marcadores)
+- [x] Integração dos gráficos na interface do jogo

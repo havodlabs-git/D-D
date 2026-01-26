@@ -4,9 +4,33 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Sword, Shield, Wind, Dices, Heart, Sparkles, Trophy, Skull, X } from "lucide-react";
+import { Sword, Shield, Wind, X } from "lucide-react";
 import { toast } from "sonner";
 import { MONSTER_TIERS } from "../../../shared/gameConstants";
+
+// Monster sprites mapping
+const MONSTER_SPRITES: Record<string, string> = {
+  goblin: "/sprites/monsters/goblin.png",
+  orc: "/sprites/monsters/orc.png",
+  skeleton: "/sprites/monsters/skeleton.png",
+  dragon: "/sprites/monsters/dragon.png",
+  slime: "/sprites/monsters/slime.png",
+  wolf: "/sprites/monsters/wolf.png",
+  // Default fallback
+  default: "/sprites/monsters/goblin.png",
+};
+
+// Class sprites for player
+const CLASS_SPRITES: Record<string, string> = {
+  warrior: "/sprites/classes/warrior.png",
+  mage: "/sprites/classes/mage.png",
+  rogue: "/sprites/classes/rogue.png",
+  cleric: "/sprites/classes/cleric.png",
+  ranger: "/sprites/classes/ranger.png",
+  paladin: "/sprites/classes/paladin.png",
+  barbarian: "/sprites/classes/barbarian.png",
+  bard: "/sprites/classes/bard.png",
+};
 
 interface Monster {
   id: number;
@@ -36,6 +60,11 @@ interface CombatLog {
   isCritical?: boolean;
 }
 
+function getMonsterSprite(monsterType: string): string {
+  const type = monsterType.toLowerCase();
+  return MONSTER_SPRITES[type] || MONSTER_SPRITES.default;
+}
+
 export function CombatScreen({ monster, latitude, longitude, onClose, onVictory, onDefeat }: CombatScreenProps) {
   const [monsterHealth, setMonsterHealth] = useState(monster.health);
   const [playerHealth, setPlayerHealth] = useState(0);
@@ -45,6 +74,9 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
   const [combatEnded, setCombatEnded] = useState(false);
   const [diceRoll, setDiceRoll] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const [isAttacking, setIsAttacking] = useState(false);
+  const [isMonsterHit, setIsMonsterHit] = useState(false);
+  const [isPlayerHit, setIsPlayerHit] = useState(false);
 
   const { data: character } = trpc.character.get.useQuery();
   const attackMutation = trpc.combat.attack.useMutation();
@@ -67,6 +99,7 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
     if (!isPlayerTurn || combatEnded) return;
 
     setIsRolling(true);
+    setIsAttacking(true);
     
     // Animate dice roll
     const rollInterval = setInterval(() => {
@@ -92,6 +125,8 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
         if (result.playerAttack.isCriticalMiss) {
           addLog("player", "Falha crítica! Você errou completamente!");
         } else if (result.playerAttack.hit) {
+          setIsMonsterHit(true);
+          setTimeout(() => setIsMonsterHit(false), 300);
           const critText = result.playerAttack.isCritical ? " CRÍTICO!" : "";
           addLog("player", `Você atacou e causou ${result.playerAttack.damage} de dano!${critText}`, result.playerAttack.damage, result.playerAttack.isCritical);
         } else {
@@ -99,15 +134,20 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
         }
 
         setMonsterHealth(result.newMonsterHealth);
+        setIsAttacking(false);
 
         // Monster attack log
         if (result.newMonsterHealth > 0) {
-          if (result.monsterAttack.hit) {
-            addLog("monster", `${monster.name} atacou e causou ${result.monsterAttack.damage} de dano!`, result.monsterAttack.damage);
-          } else {
-            addLog("monster", `${monster.name} errou o ataque!`);
-          }
-          setPlayerHealth(result.newPlayerHealth);
+          setTimeout(() => {
+            if (result.monsterAttack.hit) {
+              setIsPlayerHit(true);
+              setTimeout(() => setIsPlayerHit(false), 300);
+              addLog("monster", `${monster.name} atacou e causou ${result.monsterAttack.damage} de dano!`, result.monsterAttack.damage);
+            } else {
+              addLog("monster", `${monster.name} errou o ataque!`);
+            }
+            setPlayerHealth(result.newPlayerHealth);
+          }, 500);
         }
 
         // Check combat result
@@ -130,6 +170,7 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
         }
       } catch (error) {
         toast.error("Erro no combate");
+        setIsAttacking(false);
       }
     }, 500);
   };
@@ -149,6 +190,8 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
         utils.character.get.invalidate();
         setTimeout(() => onClose(), 1500);
       } else {
+        setIsPlayerHit(true);
+        setTimeout(() => setIsPlayerHit(false), 300);
         addLog("system", `Falha ao fugir! ${monster.name} atacou e causou ${result.damageTaken} de dano!`);
         setPlayerHealth(result.newHealth);
         
@@ -167,13 +210,17 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
   const tierData = MONSTER_TIERS[monster.tier as keyof typeof MONSTER_TIERS];
   const healthPercent = (monsterHealth / monster.health) * 100;
   const playerHealthPercent = maxPlayerHealth > 0 ? (playerHealth / maxPlayerHealth) * 100 : 0;
+  const playerClass = character?.characterClass || "warrior";
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg fantasy-card">
-        <CardHeader className="pb-2">
+      <Card className="w-full max-w-lg fantasy-card overflow-hidden">
+        <CardHeader className="pb-2 bg-gradient-to-r from-destructive/20 to-primary/20">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-xl">⚔️ Combate</CardTitle>
+            <CardTitle className="text-xl pixel-text flex items-center gap-2">
+              <img src="/sprites/ui/d20.png" alt="Combat" className="w-8 h-8 pixelated" />
+              Combate
+            </CardTitle>
             {!combatEnded && (
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-5 h-5" />
@@ -182,16 +229,68 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-4">
+          {/* Battle Arena */}
+          <div className="relative bg-gradient-to-b from-muted/50 to-muted/20 rounded-lg p-4 min-h-[180px]">
+            {/* Player Side */}
+            <div className={cn(
+              "absolute left-4 bottom-4 transition-all duration-200",
+              isAttacking && "translate-x-8",
+              isPlayerHit && "animate-shake"
+            )}>
+              <img 
+                src={CLASS_SPRITES[playerClass]} 
+                alt="Player"
+                className={cn(
+                  "w-24 h-24 pixelated drop-shadow-lg",
+                  isPlayerHit && "brightness-150"
+                )}
+              />
+              {isPlayerHit && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-destructive font-bold animate-bounce">
+                  -{combatLogs[combatLogs.length - 1]?.damage || 0}
+                </div>
+              )}
+            </div>
+
+            {/* VS */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <span className="text-2xl font-bold text-primary pixel-text">VS</span>
+            </div>
+
+            {/* Monster Side */}
+            <div className={cn(
+              "absolute right-4 bottom-4 transition-all duration-200",
+              isMonsterHit && "animate-shake"
+            )}>
+              <img 
+                src={getMonsterSprite(monster.monsterType)} 
+                alt={monster.name}
+                className={cn(
+                  "w-24 h-24 pixelated drop-shadow-lg",
+                  isMonsterHit && "brightness-150",
+                  monsterHealth <= 0 && "opacity-50 grayscale"
+                )}
+              />
+              {isMonsterHit && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-accent font-bold animate-bounce">
+                  -{combatLogs[combatLogs.length - 1]?.damage || 0}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Monster Info */}
-          <div className="bg-muted/30 rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-16 h-16 rounded-full bg-destructive/20 border-2 border-destructive flex items-center justify-center text-3xl">
-                👹
-              </div>
+          <div className="bg-destructive/10 rounded-lg p-3 border border-destructive/30">
+            <div className="flex items-center gap-3 mb-2">
+              <img 
+                src={getMonsterSprite(monster.monsterType)} 
+                alt={monster.name}
+                className="w-10 h-10 pixelated"
+              />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg">{monster.name}</h3>
+                  <h3 className="font-bold pixel-text">{monster.name}</h3>
                   <span className={cn(
                     "text-xs px-2 py-0.5 rounded-full",
                     monster.tier === "common" && "bg-muted text-muted-foreground",
@@ -202,7 +301,7 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
                     {tierData?.name || monster.tier}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">Nível {monster.level}</p>
+                <p className="text-xs text-muted-foreground">Nível {monster.level}</p>
               </div>
             </div>
 
@@ -210,9 +309,9 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-destructive flex items-center gap-1">
-                  <Heart className="w-4 h-4" /> HP
+                  <img src="/sprites/ui/heart.png" alt="HP" className="w-4 h-4 pixelated" /> HP
                 </span>
-                <span>{monsterHealth}/{monster.health}</span>
+                <span className="pixel-text">{monsterHealth}/{monster.health}</span>
               </div>
               <Progress value={healthPercent} className="h-3" />
             </div>
@@ -228,16 +327,16 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
           </div>
 
           {/* Player Health */}
-          <div className="bg-primary/10 rounded-lg p-3">
+          <div className="bg-primary/10 rounded-lg p-3 border border-primary/30">
             <div className="flex items-center justify-between text-sm mb-1">
               <span className="flex items-center gap-1">
-                <Heart className="w-4 h-4 text-destructive" /> Sua Vida
+                <img src="/sprites/ui/heart.png" alt="HP" className="w-4 h-4 pixelated" /> Sua Vida
               </span>
-              <span>{playerHealth}/{maxPlayerHealth}</span>
+              <span className="pixel-text">{playerHealth}/{maxPlayerHealth}</span>
             </div>
             <Progress 
               value={playerHealthPercent} 
-              className={cn("h-2", playerHealthPercent < 25 && "health-low")} 
+              className={cn("h-3", playerHealthPercent < 25 && "health-low")} 
             />
           </div>
 
@@ -245,18 +344,27 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
           {diceRoll !== null && (
             <div className="flex justify-center">
               <div className={cn(
-                "w-16 h-16 rounded-lg bg-card border-2 border-primary flex items-center justify-center text-2xl font-bold",
-                isRolling && "dice-rolling",
-                diceRoll === 20 && "text-yellow-400 border-yellow-400",
-                diceRoll === 1 && "text-destructive border-destructive"
+                "relative w-20 h-20 flex items-center justify-center",
+                isRolling && "animate-spin"
               )}>
-                {diceRoll}
+                <img 
+                  src="/sprites/ui/d20.png" 
+                  alt="D20" 
+                  className="w-full h-full pixelated"
+                />
+                <span className={cn(
+                  "absolute text-2xl font-bold pixel-text",
+                  diceRoll === 20 && "text-yellow-400",
+                  diceRoll === 1 && "text-destructive"
+                )}>
+                  {!isRolling && diceRoll}
+                </span>
               </div>
             </div>
           )}
 
           {/* Combat Log */}
-          <div className="bg-muted/20 rounded-lg p-3 h-32 overflow-y-auto scrollbar-fantasy">
+          <div className="bg-muted/20 rounded-lg p-3 h-28 overflow-y-auto scrollbar-fantasy border border-border">
             <div className="space-y-1 text-sm">
               {combatLogs.map((log, index) => (
                 <div
@@ -280,17 +388,17 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
             <div className="grid grid-cols-2 gap-3">
               <Button
                 size="lg"
-                className="h-14"
+                className="h-14 pixel-text"
                 onClick={handleAttack}
                 disabled={!isPlayerTurn || attackMutation.isPending}
               >
-                <Sword className="w-5 h-5 mr-2" />
+                <img src="/sprites/items/sword.png" alt="Attack" className="w-6 h-6 mr-2 pixelated" />
                 Atacar
               </Button>
               <Button
                 variant="outline"
                 size="lg"
-                className="h-14"
+                className="h-14 pixel-text"
                 onClick={handleFlee}
                 disabled={!isPlayerTurn || fleeMutation.isPending}
               >
@@ -303,18 +411,18 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
           {/* Victory/Defeat Display */}
           {combatEnded && (
             <div className={cn(
-              "text-center py-4 rounded-lg",
-              monsterHealth <= 0 ? "bg-accent/20" : "bg-destructive/20"
+              "text-center py-6 rounded-lg",
+              monsterHealth <= 0 ? "bg-accent/20 border-2 border-accent" : "bg-destructive/20 border-2 border-destructive"
             )}>
               {monsterHealth <= 0 ? (
                 <div className="flex flex-col items-center gap-2">
-                  <Trophy className="w-12 h-12 text-yellow-400" />
-                  <span className="text-xl font-bold text-accent">Vitória!</span>
+                  <img src="/sprites/items/gold.png" alt="Victory" className="w-16 h-16 pixelated animate-bounce" />
+                  <span className="text-2xl font-bold text-accent pixel-text">Vitória!</span>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2">
-                  <Skull className="w-12 h-12 text-destructive" />
-                  <span className="text-xl font-bold text-destructive">Derrota</span>
+                  <img src="/sprites/ui/marker-monster.png" alt="Defeat" className="w-16 h-16 pixelated" />
+                  <span className="text-2xl font-bold text-destructive pixel-text">Derrota</span>
                 </div>
               )}
             </div>
