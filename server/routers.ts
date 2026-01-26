@@ -548,6 +548,7 @@ export const appRouter = router({
               turnsCount: 1,
               experienceEarned: rewards.experience,
               goldEarned: rewards.gold,
+              lootEarned: [],
             });
 
             rewards = { ...rewards, leveledUp: levelResult.leveledUp, newLevel: levelResult.newLevel };
@@ -564,6 +565,7 @@ export const appRouter = router({
             turnsCount: 1,
             experienceEarned: 0,
             goldEarned: 0,
+            lootEarned: [],
           });
         }
 

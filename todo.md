@@ -219,3 +219,6 @@
 - [x] Criar sprites para variantes de Ratos (rato gigante, rato de esgoto, rei dos ratos)
 - [x] Criar sprites para outros monstros (kobold, zombie, spider, bandit, troll, ogre, bat, dire_wolf, skeleton_warrior, ghoul, harpy, mimic, gelatinous_cube, imp)
 - [x] Integrar todos os novos sprites no código do jogo
+
+## Bug Fix - combat_logs INSERT error
+- [x] Corrigir erro de INSERT na tabela combat_logs (adicionado lootEarned: [] nas chamadas de createCombatLog)
