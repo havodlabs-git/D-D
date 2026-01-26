@@ -69,30 +69,49 @@ export default function Game() {
     setSelectedPOI(poi);
 
     if (poi.type === "monster") {
-      // Generate monster data based on POI
+      // Generate monster data based on POI and player level
       const seed = poi.data?.seed || Math.floor(poi.latitude * 10000 + poi.longitude * 100000);
       const rng = seededRandom(seed);
-      const level = Math.max(1, Math.floor(rng() * 5) + 1);
+      
+      // Monster level scales with player level (D&D 5e CR system)
+      const playerLevel = character?.level || 1;
+      const levelVariance = Math.floor(rng() * 3) - 1; // -1 to +1
+      const monsterLevel = Math.max(1, Math.min(playerLevel + levelVariance, 20));
+      
+      // Tier based on level difference and random roll
       const tierRoll = rng();
       let tier = "common";
-      if (tierRoll > 0.9) tier = "legendary";
-      else if (tierRoll > 0.75) tier = "rare";
-      else if (tierRoll > 0.5) tier = "uncommon";
+      if (playerLevel >= 10 && tierRoll > 0.95) tier = "legendary";
+      else if (playerLevel >= 5 && tierRoll > 0.85) tier = "boss";
+      else if (playerLevel >= 3 && tierRoll > 0.70) tier = "elite";
       
-      const baseHealth = 20 + level * 10;
-      const baseDamage = 3 + level * 2;
-      const baseArmor = 8 + level;
+      // D&D 5e style stats - much easier at low levels
+      // Base HP: 7 + (level * 4.5) for common monsters (like goblins have ~7 HP at CR 1/4)
+      const baseHealth = Math.floor(7 + monsterLevel * 4.5);
+      // Base damage: 1d6 + level/2 (average 4-5 at level 1)
+      const baseDamage = Math.floor(3 + Math.floor(monsterLevel / 2));
+      // Base AC: 10 + level/3 (around 10-12 for low level monsters)
+      const baseArmor = Math.floor(10 + Math.floor(monsterLevel / 3));
+      
+      // Tier multipliers (D&D 5e style)
+      const tierMultipliers = {
+        common: { hp: 1.0, dmg: 1.0, ac: 1.0 },
+        elite: { hp: 1.5, dmg: 1.2, ac: 1.1 },
+        boss: { hp: 2.5, dmg: 1.5, ac: 1.2 },
+        legendary: { hp: 4.0, dmg: 2.0, ac: 1.3 },
+      };
+      const mult = tierMultipliers[tier as keyof typeof tierMultipliers] || tierMultipliers.common;
       
       const monster = {
         id: seed,
         name: poi.name,
-        description: `Um ${poi.name} selvagem apareceu!`,
+        description: `Um ${poi.name} selvagem apareceu! (Nível ${monsterLevel})`,
         monsterType: poi.name.toLowerCase(),
         tier,
-        health: Math.floor(baseHealth * (tier === "legendary" ? 2 : tier === "rare" ? 1.5 : tier === "uncommon" ? 1.2 : 1)),
-        damage: Math.floor(baseDamage * (tier === "legendary" ? 1.8 : tier === "rare" ? 1.4 : tier === "uncommon" ? 1.1 : 1)),
-        armor: Math.floor(baseArmor * (tier === "legendary" ? 1.5 : tier === "rare" ? 1.3 : tier === "uncommon" ? 1.1 : 1)),
-        level,
+        health: Math.floor(baseHealth * mult.hp),
+        damage: Math.floor(baseDamage * mult.dmg),
+        armor: Math.floor(baseArmor * mult.ac),
+        level: monsterLevel,
       };
       
       setCombatMonster(monster);

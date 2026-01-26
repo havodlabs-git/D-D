@@ -173,3 +173,11 @@
 - [x] Gerar itens dinamicamente para lojas (mercador, ferreiro, alquimista)
 - [x] Garantir que lojas exibam itens disponíveis
 - [x] Sistema de compra funcional com itens dinâmicos
+
+## Balanceamento e Interface de Combate
+- [x] Facilitar combate no início (monstros com ~11 HP no nível 1, escalando com nível do jogador)
+- [x] Curva de nível oficial D&D 5e (HP, dano, AC escalam corretamente)
+- [x] Seleção de skills aprendidas pelo jogador (magias conhecidas)
+- [x] Interface de combate com detalhes completos das magias
+- [x] Mostrar dano, alcance, componentes e descrição das magias
+- [x] Mostrar detalhes do ataque físico (dado, modificador, dano médio)
