@@ -26,9 +26,10 @@ export const characters = mysqlTable("characters", {
   userId: int("userId").notNull(),
   name: varchar("name", { length: 100 }).notNull(),
   
-  // D&D Class
+  // D&D 5e 2024 Classes
   characterClass: mysqlEnum("characterClass", [
-    "warrior", "mage", "rogue", "cleric", "ranger", "paladin", "barbarian", "bard"
+    "fighter", "wizard", "rogue", "cleric", "ranger", "paladin", "barbarian", "bard",
+    "druid", "monk", "sorcerer", "warlock"
   ]).notNull(),
   
   // Level & Experience

@@ -176,8 +176,8 @@ describe("Game Utilities", () => {
 
 describe("Game Constants", () => {
   describe("CHARACTER_CLASSES", () => {
-    it("should have 8 character classes", () => {
-      expect(Object.keys(CHARACTER_CLASSES)).toHaveLength(8);
+    it("should have 12 character classes (D&D 5e 2024)", () => {
+      expect(Object.keys(CHARACTER_CLASSES)).toHaveLength(12);
     });
 
     it("should have valid base stats for each class", () => {

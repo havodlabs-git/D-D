@@ -58,7 +58,7 @@ export const appRouter = router({
     create: protectedProcedure
       .input(z.object({
         name: z.string().min(2).max(50),
-        characterClass: z.enum(["warrior", "mage", "rogue", "cleric", "ranger", "paladin", "barbarian", "bard"]),
+        characterClass: z.enum(["fighter", "wizard", "rogue", "cleric", "ranger", "paladin", "barbarian", "bard", "druid", "monk", "sorcerer", "warlock"]),
       }))
       .mutation(async ({ ctx, input }) => {
         // Check if user already has a character
@@ -72,8 +72,9 @@ export const appRouter = router({
         // Give starting items
         if (character) {
           // Starting weapon based on class
-          const startingWeapons: Record<CharacterClass, number> = {
-            warrior: 1, mage: 2, rogue: 3, cleric: 4, ranger: 5, paladin: 6, barbarian: 7, bard: 8
+          const startingWeapons: Record<string, number> = {
+            fighter: 1, wizard: 2, rogue: 3, cleric: 4, ranger: 5, paladin: 6, barbarian: 7, bard: 8,
+            druid: 9, monk: 10, sorcerer: 11, warlock: 12
           };
           // Note: These item IDs would need to be seeded in the database
         }

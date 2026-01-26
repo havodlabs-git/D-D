@@ -15,6 +15,13 @@
       "when": 1769441494101,
       "tag": "0001_dear_squadron_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1769450389527,
+      "tag": "0002_brown_surge",
+      "breakpoints": true
     }
   ]
 }

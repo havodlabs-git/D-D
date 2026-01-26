@@ -1,0 +1,1 @@
+ALTER TABLE `characters` MODIFY COLUMN `characterClass` enum('fighter','wizard','rogue','cleric','ranger','paladin','barbarian','bard','druid','monk','sorcerer','warlock') NOT NULL;

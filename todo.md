@@ -67,3 +67,19 @@
 - [x] Ícones pixel art para itens e equipamentos
 - [x] Elementos de UI em pixel art (coração, mana, dados, marcadores)
 - [x] Integração dos gráficos na interface do jogo
+
+## D&D 5e 2024 Update
+- [x] 12 classes principais do D&D 5e 2024 (Barbarian, Bard, Cleric, Druid, Fighter, Monk, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard)
+- [x] Subclasses para cada classe
+- [x] Sistema completo de spells por nível (cantrips até 3º nível implementado)
+- [x] Spell slots e recuperação de magia
+- [x] Cantrips que escalam com nível
+- [x] Componentes de magia (verbal, somático, material)
+- [x] Escolas de magia (Abjuration, Conjuration, Divination, Enchantment, Evocation, Illusion, Necromancy, Transmutation)
+- [x] Class features e abilities por nível
+- [x] Proficiências de armas e armaduras por classe
+- [x] Dados de vida (Hit Dice) por classe
+- [x] Atributos primários por classe
+- [ ] Integração de spells no combate (em progresso)
+- [ ] UI de seleção e uso de magias
+- [x] Sprites pixel art para novas classes (usando sprites existentes)

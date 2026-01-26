@@ -20,16 +20,20 @@ const MONSTER_SPRITES: Record<string, string> = {
   default: "/sprites/monsters/goblin.png",
 };
 
-// Class sprites for player
+// Class sprites for player (D&D 5e 2024)
 const CLASS_SPRITES: Record<string, string> = {
-  warrior: "/sprites/classes/warrior.png",
-  mage: "/sprites/classes/mage.png",
+  fighter: "/sprites/classes/warrior.png",
+  wizard: "/sprites/classes/mage.png",
   rogue: "/sprites/classes/rogue.png",
   cleric: "/sprites/classes/cleric.png",
   ranger: "/sprites/classes/ranger.png",
   paladin: "/sprites/classes/paladin.png",
   barbarian: "/sprites/classes/barbarian.png",
   bard: "/sprites/classes/bard.png",
+  druid: "/sprites/classes/cleric.png",
+  monk: "/sprites/classes/rogue.png",
+  sorcerer: "/sprites/classes/mage.png",
+  warlock: "/sprites/classes/mage.png",
 };
 
 interface Monster {
@@ -210,7 +214,7 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
   const tierData = MONSTER_TIERS[monster.tier as keyof typeof MONSTER_TIERS];
   const healthPercent = (monsterHealth / monster.health) * 100;
   const playerHealthPercent = maxPlayerHealth > 0 ? (playerHealth / maxPlayerHealth) * 100 : 0;
-  const playerClass = character?.characterClass || "warrior";
+  const playerClass = character?.characterClass || "fighter";
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">

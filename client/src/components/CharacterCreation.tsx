@@ -5,19 +5,39 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sword, Wand2, Skull, Cross, Trees, Shield, Axe, Music, Leaf, Hand, Sparkles, Moon } from "lucide-react";
 import { toast } from "sonner";
 
-// Pixel art sprites for each class
+// Pixel art sprites for each class (D&D 5e 2024)
 const CLASS_SPRITES: Record<string, string> = {
-  warrior: "/sprites/classes/warrior.png",
-  mage: "/sprites/classes/mage.png",
+  fighter: "/sprites/classes/warrior.png",
+  wizard: "/sprites/classes/mage.png",
   rogue: "/sprites/classes/rogue.png",
   cleric: "/sprites/classes/cleric.png",
   ranger: "/sprites/classes/ranger.png",
   paladin: "/sprites/classes/paladin.png",
   barbarian: "/sprites/classes/barbarian.png",
   bard: "/sprites/classes/bard.png",
+  druid: "/sprites/classes/cleric.png", // Use cleric sprite for now
+  monk: "/sprites/classes/rogue.png", // Use rogue sprite for now
+  sorcerer: "/sprites/classes/mage.png", // Use mage sprite for now
+  warlock: "/sprites/classes/mage.png", // Use mage sprite for now
+};
+
+// Class icons
+const CLASS_ICONS: Record<string, React.ReactNode> = {
+  fighter: <Sword className="w-5 h-5" />,
+  wizard: <Wand2 className="w-5 h-5" />,
+  rogue: <Skull className="w-5 h-5" />,
+  cleric: <Cross className="w-5 h-5" />,
+  ranger: <Trees className="w-5 h-5" />,
+  paladin: <Shield className="w-5 h-5" />,
+  barbarian: <Axe className="w-5 h-5" />,
+  bard: <Music className="w-5 h-5" />,
+  druid: <Leaf className="w-5 h-5" />,
+  monk: <Hand className="w-5 h-5" />,
+  sorcerer: <Sparkles className="w-5 h-5" />,
+  warlock: <Moon className="w-5 h-5" />,
 };
 
 interface CharacterCreationProps {
@@ -73,76 +93,90 @@ export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <img src="/sprites/ui/d20.png" alt="D20" className="w-16 h-16 mx-auto mb-4 pixelated animate-pulse" />
           <h1 className="text-4xl md:text-5xl font-bold text-primary mb-2 pixel-text">
             Criar Personagem
           </h1>
           <p className="text-muted-foreground">
-            Escolha seu nome e classe para começar sua aventura
+            Escolha sua classe e comece sua aventura no mundo de D&D
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Name Input */}
-          <Card className="fantasy-card">
+          {/* Character Name */}
+          <Card className="pixel-border">
             <CardHeader>
-              <CardTitle className="pixel-text">Nome do Herói</CardTitle>
-              <CardDescription>
-                Como você será conhecido nas terras de aventura?
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <span className="text-primary">📜</span>
+                Nome do Personagem
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Input
-                placeholder="Digite o nome do seu personagem"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                placeholder="Digite o nome do seu herói..."
+                className="text-lg pixel-border"
                 maxLength={50}
-                className="text-lg"
               />
             </CardContent>
           </Card>
 
           {/* Class Selection */}
-          <Card className="fantasy-card">
+          <Card className="pixel-border">
             <CardHeader>
-              <CardTitle className="pixel-text">Escolha sua Classe</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className="text-primary">⚔️</span>
+                Escolha sua Classe (D&D 5e 2024)
+              </CardTitle>
               <CardDescription>
-                Cada classe possui habilidades e atributos únicos
+                Cada classe possui habilidades únicas, magias e estilos de combate diferentes
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {classes?.map((cls) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {classes?.map((classData) => (
                   <button
-                    key={cls.id}
+                    key={classData.id}
                     type="button"
-                    onClick={() => setSelectedClass(cls.id)}
+                    onClick={() => setSelectedClass(classData.id)}
                     className={cn(
-                      "p-4 rounded-lg border-2 transition-all duration-200 text-left group",
-                      "hover:border-primary/50 hover:bg-primary/5 hover:scale-105",
-                      selectedClass === cls.id
-                        ? "border-primary bg-primary/10 scale-105"
-                        : "border-border bg-card"
+                      "relative p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105",
+                      "flex flex-col items-center gap-2 text-center",
+                      selectedClass === classData.id
+                        ? "border-primary bg-primary/20 shadow-lg shadow-primary/30"
+                        : "border-border bg-card hover:border-primary/50 hover:bg-primary/10"
                     )}
                   >
-                    <div className="flex flex-col items-center text-center gap-2">
-                      <div className={cn(
-                        "relative w-20 h-20 flex items-center justify-center",
-                        "transition-transform group-hover:scale-110"
-                      )}>
-                        <img 
-                          src={CLASS_SPRITES[cls.id]} 
-                          alt={cls.name}
-                          className="w-full h-full object-contain pixelated drop-shadow-lg"
-                        />
-                        {selectedClass === cls.id && (
-                          <div className="absolute inset-0 bg-primary/20 rounded-lg animate-pulse" />
-                        )}
-                      </div>
-                      <span className="font-semibold pixel-text text-sm">{cls.name}</span>
+                    {/* Class Sprite */}
+                    <div className="relative">
+                      <img
+                        src={CLASS_SPRITES[classData.id] || "/sprites/classes/warrior.png"}
+                        alt={classData.name}
+                        className="w-12 h-12 pixelated"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/sprites/classes/warrior.png";
+                        }}
+                      />
+                      {selectedClass === classData.id && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                          <span className="text-xs">✓</span>
+                        </div>
+                      )}
                     </div>
+                    
+                    {/* Class Icon & Name */}
+                    <div className="flex items-center gap-1">
+                      {CLASS_ICONS[classData.id]}
+                      <span className="font-bold text-sm">{classData.name}</span>
+                    </div>
+                    
+                    {/* Hit Dice */}
+                    <span className="text-xs text-muted-foreground">
+                      {classData.hitDice}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -151,85 +185,71 @@ export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps
 
           {/* Selected Class Details */}
           {selectedClassData && (
-            <Card className="fantasy-card border-primary/50 overflow-hidden">
-              <CardHeader className="relative">
-                <div className="absolute top-0 right-0 w-32 h-32 opacity-20">
-                  <img 
-                    src={CLASS_SPRITES[selectedClassData.id]} 
+            <Card className="pixel-border border-primary/50 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <img
+                    src={CLASS_SPRITES[selectedClassData.id] || "/sprites/classes/warrior.png"}
                     alt={selectedClassData.name}
-                    className="w-full h-full object-contain pixelated"
+                    className="w-12 h-12 pixelated"
                   />
-                </div>
-                <CardTitle className="flex items-center gap-4 pixel-text">
-                  <div className="w-16 h-16 flex items-center justify-center">
-                    <img 
-                      src={CLASS_SPRITES[selectedClassData.id]} 
-                      alt={selectedClassData.name}
-                      className="w-full h-full object-contain pixelated drop-shadow-lg"
-                    />
+                  <div>
+                    <span className="text-primary">{selectedClassData.name}</span>
+                    <p className="text-sm font-normal text-muted-foreground">
+                      {selectedClassData.hitDice} • {selectedClassData.primaryAbility}
+                    </p>
                   </div>
-                  {selectedClassData.name}
                 </CardTitle>
-                <CardDescription>{selectedClassData.description}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="space-y-1 p-2 rounded bg-card/50">
-                    <Label className="text-xs text-muted-foreground">FORÇA</Label>
-                    <div className="text-2xl font-bold text-primary pixel-text">
-                      {selectedClassData.baseStats.strength}
-                    </div>
-                  </div>
-                  <div className="space-y-1 p-2 rounded bg-card/50">
-                    <Label className="text-xs text-muted-foreground">DESTREZA</Label>
-                    <div className="text-2xl font-bold text-primary pixel-text">
-                      {selectedClassData.baseStats.dexterity}
-                    </div>
-                  </div>
-                  <div className="space-y-1 p-2 rounded bg-card/50">
-                    <Label className="text-xs text-muted-foreground">CONSTITUIÇÃO</Label>
-                    <div className="text-2xl font-bold text-primary pixel-text">
-                      {selectedClassData.baseStats.constitution}
-                    </div>
-                  </div>
-                  <div className="space-y-1 p-2 rounded bg-card/50">
-                    <Label className="text-xs text-muted-foreground">INTELIGÊNCIA</Label>
-                    <div className="text-2xl font-bold text-primary pixel-text">
-                      {selectedClassData.baseStats.intelligence}
-                    </div>
-                  </div>
-                  <div className="space-y-1 p-2 rounded bg-card/50">
-                    <Label className="text-xs text-muted-foreground">SABEDORIA</Label>
-                    <div className="text-2xl font-bold text-primary pixel-text">
-                      {selectedClassData.baseStats.wisdom}
-                    </div>
-                  </div>
-                  <div className="space-y-1 p-2 rounded bg-card/50">
-                    <Label className="text-xs text-muted-foreground">CARISMA</Label>
-                    <div className="text-2xl font-bold text-primary pixel-text">
-                      {selectedClassData.baseStats.charisma}
-                    </div>
+              <CardContent className="space-y-4">
+                <p className="text-foreground">{selectedClassData.description}</p>
+                
+                {/* Base Stats */}
+                <div>
+                  <h4 className="font-bold mb-2 text-sm text-muted-foreground">Atributos Base:</h4>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {Object.entries(selectedClassData.baseStats).map(([stat, value]) => (
+                      <div
+                        key={stat}
+                        className="bg-background/50 rounded p-2 text-center pixel-border"
+                      >
+                        <div className="text-xs text-muted-foreground uppercase">
+                          {stat.slice(0, 3)}
+                        </div>
+                        <div className="font-bold text-primary">{value}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <img src="/sprites/ui/heart.png" alt="HP" className="w-8 h-8 pixelated" />
-                    <div>
-                      <Label className="text-xs text-muted-foreground">VIDA POR NÍVEL</Label>
-                      <div className="text-lg font-semibold text-destructive pixel-text">
-                        +{selectedClassData.healthPerLevel} HP
-                      </div>
-                    </div>
+                {/* Spellcasting Info */}
+                {'spellcastingAbility' in selectedClassData && selectedClassData.spellcastingAbility && (
+                  <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
+                    <h4 className="font-bold mb-1 text-purple-400 flex items-center gap-2">
+                      <Wand2 className="w-4 h-4" />
+                      Conjuração de Magias
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Habilidade: <span className="text-purple-400">{String(selectedClassData.spellcastingAbility)}</span>
+                      {'cantripsKnown' in selectedClassData && (selectedClassData as any).cantripsKnown && (
+                        <> • Truques: <span className="text-purple-400">{String((selectedClassData as any).cantripsKnown)}</span></>
+                      )}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <img src="/sprites/ui/mana.png" alt="MP" className="w-8 h-8 pixelated" />
-                    <div>
-                      <Label className="text-xs text-muted-foreground">MANA POR NÍVEL</Label>
-                      <div className="text-lg font-semibold text-blue-400 pixel-text">
-                        +{selectedClassData.manaPerLevel} MP
-                      </div>
-                    </div>
+                )}
+
+                {/* Saving Throws */}
+                <div>
+                  <h4 className="font-bold mb-2 text-sm text-muted-foreground">Testes de Resistência:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedClassData.savingThrows.map((save) => (
+                      <span
+                        key={save}
+                        className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs font-medium"
+                      >
+                        {save}
+                      </span>
+                    ))}
                   </div>
                 </div>
               </CardContent>
@@ -240,16 +260,19 @@ export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps
           <Button
             type="submit"
             size="lg"
-            className="w-full text-lg h-14 pixel-text"
+            className="w-full text-lg pixel-border"
             disabled={!name.trim() || !selectedClass || createCharacter.isPending}
           >
             {createCharacter.isPending ? (
               <>
-                <img src="/sprites/ui/d20.png" alt="Loading" className="w-6 h-6 mr-2 animate-spin pixelated" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Criando Personagem...
               </>
             ) : (
-              "⚔️ Começar Aventura ⚔️"
+              <>
+                <img src="/sprites/ui/d20.png" alt="" className="w-6 h-6 mr-2 pixelated" />
+                Começar Aventura
+              </>
             )}
           </Button>
         </form>
