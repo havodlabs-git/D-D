@@ -42,75 +42,236 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Import Google Fonts for Fantasy Theme */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  /* D&D Fantasy Dark Theme */
+  --primary: oklch(0.65 0.18 45); /* Golden/amber */
+  --primary-foreground: oklch(0.15 0.02 250);
+  --sidebar-primary: oklch(0.60 0.16 45);
+  --sidebar-primary-foreground: oklch(0.15 0.02 250);
+  --chart-1: oklch(0.65 0.18 45);
+  --chart-2: oklch(0.55 0.22 25);
+  --chart-3: oklch(0.60 0.18 250);
+  --chart-4: oklch(0.65 0.18 145);
+  --chart-5: oklch(0.55 0.22 300);
+  --radius: 0.5rem;
+  --background: oklch(0.15 0.02 250); /* Deep dark blue-gray */
+  --foreground: oklch(0.95 0.01 80); /* Warm parchment white */
+  --card: oklch(0.18 0.025 250);
+  --card-foreground: oklch(0.95 0.01 80);
+  --popover: oklch(0.20 0.03 250);
+  --popover-foreground: oklch(0.95 0.01 80);
+  --secondary: oklch(0.35 0.08 280); /* Deep purple */
+  --secondary-foreground: oklch(0.95 0.01 80);
+  --muted: oklch(0.25 0.03 250);
+  --muted-foreground: oklch(0.65 0.02 80);
+  --accent: oklch(0.50 0.15 150); /* Emerald green */
+  --accent-foreground: oklch(0.95 0.01 80);
+  --destructive: oklch(0.55 0.22 25); /* Blood red */
+  --destructive-foreground: oklch(0.95 0.01 80);
+  --border: oklch(0.30 0.04 250);
+  --input: oklch(0.22 0.03 250);
+  --ring: oklch(0.65 0.18 45);
+  --sidebar: oklch(0.12 0.02 250);
+  --sidebar-foreground: oklch(0.95 0.01 80);
+  --sidebar-accent: oklch(0.25 0.04 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 80);
+  --sidebar-border: oklch(0.30 0.04 250);
+  --sidebar-ring: oklch(0.65 0.18 45);
+  
+  /* Game-specific colors */
+  --health: oklch(0.55 0.20 25);
+  --mana: oklch(0.55 0.18 250);
+  --xp: oklch(0.65 0.18 45);
+  --rarity-common: oklch(0.65 0.02 250);
+  --rarity-uncommon: oklch(0.65 0.18 145);
+  --rarity-rare: oklch(0.60 0.18 250);
+  --rarity-epic: oklch(0.55 0.22 300);
+  --rarity-legendary: oklch(0.70 0.20 70);
+  
+  /* Fantasy fonts */
+  --font-display: "Cinzel", "Times New Roman", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
-.dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+/* Game-specific utility classes */
+
+/* Rarity text colors */
+.rarity-common { color: var(--rarity-common); }
+.rarity-uncommon { color: var(--rarity-uncommon); }
+.rarity-rare { color: var(--rarity-rare); }
+.rarity-epic { color: var(--rarity-epic); }
+.rarity-legendary { color: var(--rarity-legendary); }
+
+/* Rarity backgrounds with glow */
+.rarity-bg-common { background: linear-gradient(135deg, oklch(0.25 0.02 250), oklch(0.20 0.02 250)); }
+.rarity-bg-uncommon { background: linear-gradient(135deg, oklch(0.25 0.10 145), oklch(0.20 0.08 145)); }
+.rarity-bg-rare { background: linear-gradient(135deg, oklch(0.25 0.10 250), oklch(0.20 0.08 250)); }
+.rarity-bg-epic { background: linear-gradient(135deg, oklch(0.25 0.12 300), oklch(0.20 0.10 300)); }
+.rarity-bg-legendary { 
+  background: linear-gradient(135deg, oklch(0.30 0.15 70), oklch(0.25 0.12 70)); 
+  box-shadow: 0 0 20px oklch(0.50 0.15 70 / 0.3);
+}
+
+/* Health bar animation */
+@keyframes health-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.health-low {
+  animation: health-pulse 1s ease-in-out infinite;
+}
+
+/* Dice roll animation */
+@keyframes dice-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(1.1); }
+  50% { transform: rotate(180deg) scale(1); }
+  75% { transform: rotate(270deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.dice-rolling {
+  animation: dice-roll 0.5s ease-in-out;
+}
+
+/* Map marker animations */
+@keyframes marker-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes marker-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+.marker-bounce {
+  animation: marker-bounce 1s ease-in-out infinite;
+}
+
+.marker-pulse {
+  animation: marker-pulse 2s ease-in-out infinite;
+}
+
+/* Combat flash effect */
+@keyframes combat-flash {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: oklch(0.55 0.22 25 / 0.3); }
+}
+
+.combat-hit {
+  animation: combat-flash 0.3s ease-out;
+}
+
+/* Level up celebration */
+@keyframes level-up {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.1); filter: brightness(1.5); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.level-up-animation {
+  animation: level-up 0.8s ease-out;
+}
+
+/* Gold shimmer */
+@keyframes gold-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.gold-text {
+  background: linear-gradient(
+    90deg,
+    oklch(0.65 0.18 45) 0%,
+    oklch(0.80 0.20 55) 50%,
+    oklch(0.65 0.18 45) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gold-shimmer 3s linear infinite;
+}
+
+/* Fantasy card styling */
+.fantasy-card {
+  background-color: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background-image: 
+    linear-gradient(135deg, oklch(0.20 0.03 250 / 0.5) 0%, transparent 50%),
+    linear-gradient(225deg, oklch(0.25 0.05 280 / 0.3) 0%, transparent 50%);
+}
+
+/* Map POI markers */
+.poi-marker {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.poi-marker:hover {
+  transform: scale(1.1);
+}
+
+.poi-monster { background-color: var(--destructive); color: var(--destructive-foreground); }
+.poi-npc { background-color: var(--accent); color: var(--accent-foreground); }
+.poi-shop { background-color: var(--primary); color: var(--primary-foreground); }
+.poi-treasure { background-color: var(--rarity-legendary); color: oklch(0.15 0.02 250); }
+.poi-dungeon { background-color: var(--secondary); color: var(--secondary-foreground); }
+
+/* Touch-friendly buttons for mobile */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Safe area padding for mobile */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Custom scrollbar for fantasy theme */
+.scrollbar-fantasy {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.35 0.08 280) oklch(0.18 0.025 250);
+}
+
+.scrollbar-fantasy::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-fantasy::-webkit-scrollbar-track {
+  background: oklch(0.18 0.025 250);
+  border-radius: 4px;
+}
+
+.scrollbar-fantasy::-webkit-scrollbar-thumb {
+  background: oklch(0.35 0.08 280);
+  border-radius: 4px;
+}
+
+.scrollbar-fantasy::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.45 0.10 280);
 }
 
 @layer base {
@@ -119,6 +280,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
