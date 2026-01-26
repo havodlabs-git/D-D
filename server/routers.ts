@@ -61,9 +61,12 @@ function generateEncounterData(type: string, playerLevel: number) {
       else if (tierRoll > 0.85) tier = "rare";
       else if (tierRoll > 0.6) tier = "uncommon";
       
+      const monsterName = monsterNames[Math.floor(Math.random() * monsterNames.length)];
       return {
         monster: {
-          name: monsterNames[Math.floor(Math.random() * monsterNames.length)],
+          id: Date.now(),
+          name: monsterName,
+          monsterType: monsterName.toLowerCase().replace(/ /g, "_"),
           level: monsterLevel,
           tier,
           health: 20 + monsterLevel * 10 * (tier === "legendary" ? 2 : tier === "rare" ? 1.5 : tier === "uncommon" ? 1.2 : 1),

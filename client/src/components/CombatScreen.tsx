@@ -75,7 +75,8 @@ interface CombatLog {
   isCritical?: boolean;
 }
 
-function getMonsterSprite(monsterType: string): string {
+function getMonsterSprite(monsterType: string | undefined | null): string {
+  if (!monsterType) return MONSTER_SPRITES.default;
   const type = monsterType.toLowerCase();
   return MONSTER_SPRITES[type] || MONSTER_SPRITES.default;
 }

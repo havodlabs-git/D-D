@@ -181,3 +181,9 @@
 - [x] Interface de combate com detalhes completos das magias
 - [x] Mostrar dano, alcance, componentes e descrição das magias
 - [x] Mostrar detalhes do ataque físico (dado, modificador, dano médio)
+
+## Bug Fix: TypeError toLowerCase no Combate
+- [x] Investigar erro "Cannot read properties of undefined (reading 'toLowerCase')"
+- [x] Corrigir propriedade undefined no sistema de combate
+- [x] Adicionar monsterType aos monstros gerados em random encounters
+- [x] Adicionar verificação de segurança no getMonsterSprite
