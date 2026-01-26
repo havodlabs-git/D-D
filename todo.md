@@ -83,3 +83,14 @@
 - [ ] Integração de spells no combate (em progresso)
 - [ ] UI de seleção e uso de magias
 - [x] Sprites pixel art para novas classes (usando sprites existentes)
+
+## Pixel Art Tile Map System
+- [x] Sprites de tiles para terrenos (grama, água, lava, montanha, floresta, areia, neve, pântano, estrada, dungeon)
+- [x] Sistema de mapa baseado em grid quadriculado
+- [x] Movimento do jogador por tiles (quadradinhos)
+- [x] Animações de tiles (água e lava com efeitos visuais)
+- [x] Geração procedural de terrenos baseada em coordenadas
+- [x] Colisão com terrenos intransponíveis (água, lava, montanhas)
+- [x] Sprite do jogador no mapa
+- [x] Indicadores de POIs nos tiles
+- [x] Controles WASD/Setas para movimento
