@@ -5,16 +5,22 @@ import { cn } from "@/lib/utils";
 import { ChevronUp } from "lucide-react";
 import { CHARACTER_CLASSES } from "../../../shared/gameConstants";
 
-// Class sprites mapping
+// Class sprites mapping - All unique sprites
 const CLASS_SPRITES: Record<string, string> = {
   warrior: "/sprites/classes/warrior.png",
+  fighter: "/sprites/classes/warrior.png",
   mage: "/sprites/classes/mage.png",
+  wizard: "/sprites/classes/mage.png",
   rogue: "/sprites/classes/rogue.png",
   cleric: "/sprites/classes/cleric.png",
   ranger: "/sprites/classes/ranger.png",
   paladin: "/sprites/classes/paladin.png",
   barbarian: "/sprites/classes/barbarian.png",
   bard: "/sprites/classes/bard.png",
+  druid: "/sprites/classes/druid.png",
+  monk: "/sprites/classes/monk.png",
+  sorcerer: "/sprites/classes/sorcerer.png",
+  warlock: "/sprites/classes/warlock.png",
 };
 
 interface PlayerHUDProps {

@@ -10,16 +10,48 @@ import { MONSTER_TIERS, SPELLS, Spell, SPELL_SLOTS_BY_LEVEL, CHARACTER_CLASSES, 
 
 // Monster sprites mapping
 const MONSTER_SPRITES: Record<string, string> = {
+  // Base monsters
   goblin: "/sprites/monsters/goblin.png",
   orc: "/sprites/monsters/orc.png",
   skeleton: "/sprites/monsters/skeleton.png",
   dragon: "/sprites/monsters/dragon.png",
   slime: "/sprites/monsters/slime.png",
   wolf: "/sprites/monsters/wolf.png",
+  // Goblin variants
+  goblin_archer: "/sprites/monsters/goblin_archer.png",
+  goblin_shaman: "/sprites/monsters/goblin_shaman.png",
+  goblin_boss: "/sprites/monsters/goblin_boss.png",
+  // Rat variants
+  rat: "/sprites/monsters/rat_giant.png",
+  rat_giant: "/sprites/monsters/rat_giant.png",
+  rat_sewer: "/sprites/monsters/rat_sewer.png",
+  rat_king: "/sprites/monsters/rat_king.png",
+  giant_rat: "/sprites/monsters/rat_giant.png",
+  // New monsters
+  kobold: "/sprites/monsters/kobold.png",
+  zombie: "/sprites/monsters/zombie.png",
+  spider: "/sprites/monsters/spider_giant.png",
+  spider_giant: "/sprites/monsters/spider_giant.png",
+  giant_spider: "/sprites/monsters/spider_giant.png",
+  bandit: "/sprites/monsters/bandit.png",
+  troll: "/sprites/monsters/troll.png",
+  ogre: "/sprites/monsters/ogre.png",
+  bat: "/sprites/monsters/bat_giant.png",
+  bat_giant: "/sprites/monsters/bat_giant.png",
+  giant_bat: "/sprites/monsters/bat_giant.png",
+  dire_wolf: "/sprites/monsters/wolf_dire.png",
+  wolf_dire: "/sprites/monsters/wolf_dire.png",
+  skeleton_warrior: "/sprites/monsters/skeleton_warrior.png",
+  ghoul: "/sprites/monsters/ghoul.png",
+  harpy: "/sprites/monsters/harpy.png",
+  mimic: "/sprites/monsters/mimic.png",
+  gelatinous_cube: "/sprites/monsters/gelatinous_cube.png",
+  ooze: "/sprites/monsters/gelatinous_cube.png",
+  imp: "/sprites/monsters/imp.png",
   default: "/sprites/monsters/goblin.png",
 };
 
-// Class sprites for player (D&D 5e 2024)
+// Class sprites for player (D&D 5e 2024) - All unique sprites
 const CLASS_SPRITES: Record<string, string> = {
   fighter: "/sprites/classes/warrior.png",
   wizard: "/sprites/classes/mage.png",
@@ -29,10 +61,10 @@ const CLASS_SPRITES: Record<string, string> = {
   paladin: "/sprites/classes/paladin.png",
   barbarian: "/sprites/classes/barbarian.png",
   bard: "/sprites/classes/bard.png",
-  druid: "/sprites/classes/cleric.png",
-  monk: "/sprites/classes/rogue.png",
-  sorcerer: "/sprites/classes/mage.png",
-  warlock: "/sprites/classes/mage.png",
+  druid: "/sprites/classes/druid.png",
+  monk: "/sprites/classes/monk.png",
+  sorcerer: "/sprites/classes/sorcerer.png",
+  warlock: "/sprites/classes/warlock.png",
 };
 
 // School of magic colors

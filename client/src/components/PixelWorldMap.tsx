@@ -41,7 +41,7 @@ const POI_EMOJIS: Record<string, string> = {
   castle: "🏯",
 };
 
-// Class sprites mapping
+// Class sprites mapping - All unique sprites
 const CLASS_SPRITES: Record<string, string> = {
   fighter: "/sprites/classes/warrior.png",
   wizard: "/sprites/classes/mage.png",
@@ -51,10 +51,10 @@ const CLASS_SPRITES: Record<string, string> = {
   paladin: "/sprites/classes/paladin.png",
   barbarian: "/sprites/classes/barbarian.png",
   bard: "/sprites/classes/bard.png",
-  druid: "/sprites/classes/cleric.png",
-  monk: "/sprites/classes/rogue.png",
-  sorcerer: "/sprites/classes/mage.png",
-  warlock: "/sprites/classes/mage.png",
+  druid: "/sprites/classes/druid.png",
+  monk: "/sprites/classes/monk.png",
+  sorcerer: "/sprites/classes/sorcerer.png",
+  warlock: "/sprites/classes/warlock.png",
 };
 
 // Snap coordinate to grid

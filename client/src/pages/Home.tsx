@@ -8,16 +8,22 @@ import {
   ChevronRight
 } from "lucide-react";
 
-// Class sprites for display
+// Class sprites for display - All 12 D&D 5e classes with unique sprites
 const CLASS_SPRITES: Record<string, string> = {
   warrior: "/sprites/classes/warrior.png",
+  fighter: "/sprites/classes/warrior.png",
   mage: "/sprites/classes/mage.png",
+  wizard: "/sprites/classes/mage.png",
   rogue: "/sprites/classes/rogue.png",
   cleric: "/sprites/classes/cleric.png",
   ranger: "/sprites/classes/ranger.png",
   paladin: "/sprites/classes/paladin.png",
   barbarian: "/sprites/classes/barbarian.png",
   bard: "/sprites/classes/bard.png",
+  druid: "/sprites/classes/druid.png",
+  monk: "/sprites/classes/monk.png",
+  sorcerer: "/sprites/classes/sorcerer.png",
+  warlock: "/sprites/classes/warlock.png",
 };
 
 const CLASSES = [
@@ -29,6 +35,10 @@ const CLASSES = [
   { id: "paladin", name: "Paladino", color: "bg-amber-500/20" },
   { id: "barbarian", name: "Bárbaro", color: "bg-orange-500/20" },
   { id: "bard", name: "Bardo", color: "bg-purple-500/20" },
+  { id: "druid", name: "Druida", color: "bg-emerald-500/20" },
+  { id: "monk", name: "Monge", color: "bg-amber-600/20" },
+  { id: "sorcerer", name: "Feiticeiro", color: "bg-violet-500/20" },
+  { id: "warlock", name: "Bruxo", color: "bg-indigo-500/20" },
 ];
 
 export default function Home() {

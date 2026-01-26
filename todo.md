@@ -212,3 +212,10 @@
 - [x] Etapa 8: Escolha de Equipamento Inicial
 - [x] Interface multi-etapas com navegação
 - [x] Resumo final antes de confirmar
+
+## Sprites Pixel Art Únicos - Nova Fase
+- [x] Criar sprites únicos para todas as 12 classes de D&D (druid, monk, sorcerer, warlock)
+- [x] Criar sprites para variantes de Goblins (arqueiro, xamã, chefe)
+- [x] Criar sprites para variantes de Ratos (rato gigante, rato de esgoto, rei dos ratos)
+- [x] Criar sprites para outros monstros (kobold, zombie, spider, bandit, troll, ogre, bat, dire_wolf, skeleton_warrior, ghoul, harpy, mimic, gelatinous_cube, imp)
+- [x] Integrar todos os novos sprites no código do jogo
