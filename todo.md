@@ -162,3 +162,8 @@
 - [x] Contador de movimentos restantes na UI
 - [x] Persistência do contador no banco de dados
 - [x] Reset automático a cada hora
+
+## Correções de Movimento e Interação
+- [x] Personagem vai diretamente ao ponto clicado
+- [x] Interação com objetos limitada a 2 tiles de distância
+- [x] POIs mostram verde se podem ser interagidos, cinza se estão longe

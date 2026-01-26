@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { PixelWorldMap } from "@/components/PixelWorldMap";
+import PixelWorldMap from "@/components/PixelWorldMap";
 import { PlayerHUD } from "@/components/PlayerHUD";
 import { CharacterCreation } from "@/components/CharacterCreation";
 import { InventoryScreen } from "@/components/InventoryScreen";
@@ -265,6 +265,7 @@ export default function Game() {
       <PixelWorldMap
         className="absolute inset-0"
         onPOIClick={handlePOIClick}
+        onRandomEncounter={(encounter) => setRandomEncounter(encounter)}
         characterClass={character.characterClass}
         visitedPOIs={visitedPOIs}
       />

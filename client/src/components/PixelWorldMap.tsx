@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MapView } from "./Map";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface POI {
   id: string;
@@ -17,6 +18,7 @@ interface POI {
 interface PixelWorldMapProps {
   onPOIClick: (poi: POI) => void;
   onPlayerMove?: (lat: number, lng: number) => void;
+  onRandomEncounter?: (encounter: any) => void;
   onPOIRemove?: (poiId: string) => void;
   visitedPOIs?: Set<string>;
   className?: string;
@@ -26,16 +28,7 @@ interface PixelWorldMapProps {
 // Grid configuration
 const GRID_SIZE = 0.0005; // ~50 meters per tile at equator
 const VISIBLE_TILES = 15; // Number of tiles visible in each direction
-
-// POI Icons in pixel art style
-const POI_SPRITES: Record<string, string> = {
-  monster: "/sprites/monsters/goblin.png",
-  npc: "/sprites/npcs/merchant.png",
-  shop: "/sprites/npcs/blacksmith.png",
-  treasure: "/sprites/items/gold.png",
-  dungeon: "/sprites/ui/marker-monster.png",
-  quest: "/sprites/ui/marker-npc.png",
-};
+const INTERACTION_RANGE = 2; // Can only interact with POIs within 2 tiles
 
 const POI_EMOJIS: Record<string, string> = {
   monster: "👹",
@@ -44,8 +37,8 @@ const POI_EMOJIS: Record<string, string> = {
   treasure: "💎",
   dungeon: "🏰",
   quest: "❗",
-  guild: "🏰",
-  castle: "🛁",
+  guild: "⚔️",
+  castle: "🏯",
 };
 
 // Class sprites mapping
@@ -80,62 +73,51 @@ function seededRandom(seed: number): () => number {
 // Generate POIs based on grid position
 function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
   const pois: POI[] = [];
-  const radius = 7;
+  const baseSeed = Math.floor(centerLat * 10000) + Math.floor(centerLng * 10000);
   
-  for (let dx = -radius; dx <= radius; dx++) {
-    for (let dy = -radius; dy <= radius; dy++) {
-      if (dx === 0 && dy === 0) continue;
+  for (let i = -VISIBLE_TILES; i <= VISIBLE_TILES; i++) {
+    for (let j = -VISIBLE_TILES; j <= VISIBLE_TILES; j++) {
+      const tileLat = snapToGrid(centerLat) + i * GRID_SIZE;
+      const tileLng = snapToGrid(centerLng) + j * GRID_SIZE;
       
-      const lat = snapToGrid(centerLat) + dx * GRID_SIZE;
-      const lng = snapToGrid(centerLng) + dy * GRID_SIZE;
-      const seed = Math.floor((lat * 10000 + lng * 100000) * 1000);
-      const rng = seededRandom(seed);
+      // Use tile coordinates as seed for consistent POI generation
+      const tileSeed = baseSeed + i * 1000 + j;
+      const rng = seededRandom(tileSeed);
       
-      // 12% chance of POI
-      if (rng() < 0.12) {
+      // 15% chance of POI per tile
+      if (rng() < 0.15) {
         const typeRoll = rng();
         let type: POI["type"];
-        let name: string;
         
-        if (typeRoll < 0.30) {
-          type = "monster";
-          const monsters = ["Goblin", "Orc", "Esqueleto", "Lobo", "Slime", "Bandido", "Aranha Gigante"];
-          name = monsters[Math.floor(rng() * monsters.length)];
-        } else if (typeRoll < 0.50) {
-          type = "shop";
-          const shops = ["Ferreiro", "Alquimista", "Mercador", "Armeiro", "Taberna"];
-          name = shops[Math.floor(rng() * shops.length)];
-        } else if (typeRoll < 0.65) {
-          type = "npc";
-          const npcs = ["Viajante", "Guarda", "Aldeão", "Sábio", "Aventureiro", "Bardo"];
-          name = npcs[Math.floor(rng() * npcs.length)];
-        } else if (typeRoll < 0.80) {
-          type = "treasure";
-          name = "Baú do Tesouro";
-        } else if (typeRoll < 0.92) {
-          type = "dungeon";
-          const dungeons = ["Caverna Escura", "Ruínas Antigas", "Torre Abandonada", "Cripta"];
-          name = dungeons[Math.floor(rng() * dungeons.length)];
-        } else if (typeRoll < 0.96) {
-          type = "guild";
-          const guildTypes = ["Guilda dos Aventureiros", "Guilda dos Magos", "Guilda dos Guerreiros", "Guilda dos Ladinos"];
-          name = guildTypes[Math.floor(rng() * guildTypes.length)];
-        } else if (typeRoll < 0.99) {
-          type = "castle";
-          const castleTypes = ["Castelo Abandonado", "Fortaleza Sombria", "Torre do Mago", "Cidadela Real"];
-          name = castleTypes[Math.floor(rng() * castleTypes.length)];
-        } else {
-          type = "quest";
-          name = "Missão Disponível";
-        }
+        if (typeRoll < 0.30) type = "monster";
+        else if (typeRoll < 0.45) type = "treasure";
+        else if (typeRoll < 0.55) type = "shop";
+        else if (typeRoll < 0.65) type = "npc";
+        else if (typeRoll < 0.75) type = "dungeon";
+        else if (typeRoll < 0.85) type = "guild";
+        else if (typeRoll < 0.92) type = "castle";
+        else type = "quest";
+        
+        const names: Record<string, string[]> = {
+          monster: ["Goblin", "Orc", "Esqueleto", "Lobo Selvagem", "Bandido", "Slime", "Kobold"],
+          npc: ["Viajante", "Guarda", "Camponês", "Aventureiro", "Sábio", "Bardo Errante"],
+          shop: ["Loja do Ferreiro", "Empório Mágico", "Boticário", "Armeiro", "Joalheiro"],
+          treasure: ["Baú Misterioso", "Tesouro Escondido", "Relíquia Antiga", "Cofre Abandonado"],
+          dungeon: ["Caverna Sombria", "Cripta Antiga", "Torre Abandonada", "Ruínas Antigas", "Mina Perdida"],
+          quest: ["Pedido de Ajuda", "Missão Urgente", "Contrato de Caça", "Investigação"],
+          guild: ["Guilda dos Aventureiros", "Ordem dos Cavaleiros", "Liga dos Mercenários"],
+          castle: ["Castelo do Barão", "Fortaleza Antiga", "Torre do Senhor", "Cidadela"],
+        };
+        
+        const nameList = names[type] || ["Desconhecido"];
+        const name = nameList[Math.floor(rng() * nameList.length)];
         
         pois.push({
-          id: `poi-${lat.toFixed(6)}-${lng.toFixed(6)}`,
+          id: `poi-${tileLat.toFixed(6)}-${tileLng.toFixed(6)}`,
           type,
           name,
-          latitude: lat,
-          longitude: lng,
-          data: { seed },
+          latitude: tileLat + GRID_SIZE / 2,
+          longitude: tileLng + GRID_SIZE / 2,
         });
       }
     }
@@ -144,16 +126,22 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
   return pois;
 }
 
-export function PixelWorldMap({ 
+// Calculate grid distance between two points
+function getGridDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dLat = Math.abs(Math.round((lat2 - lat1) / GRID_SIZE));
+  const dLng = Math.abs(Math.round((lng2 - lng1) / GRID_SIZE));
+  return Math.max(dLat, dLng); // Chebyshev distance
+}
+
+export default function PixelWorldMap({ 
   onPOIClick, 
   onPlayerMove,
-  onPOIRemove,
+  onRandomEncounter,
   visitedPOIs = new Set(),
   className, 
   characterClass = "fighter" 
 }: PixelWorldMapProps) {
   const mapRef = useRef<google.maps.Map | null>(null);
-  const gridOverlayRef = useRef<google.maps.GroundOverlay | null>(null);
   const playerMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const poiMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const gridLinesRef = useRef<google.maps.Polyline[]>([]);
@@ -243,8 +231,8 @@ export function PixelWorldMap({
     return container;
   }, [characterClass]);
 
-  // Create POI marker element
-  const createPOIMarkerElement = useCallback((poi: POI): HTMLElement => {
+  // Create POI marker element with proximity check
+  const createPOIMarkerElement = useCallback((poi: POI, isInRange: boolean): HTMLElement => {
     const container = document.createElement("div");
     container.className = "poi-marker-pixel";
     container.style.cssText = `
@@ -253,27 +241,37 @@ export function PixelWorldMap({
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0,0,0,0.7);
-      border: 2px solid #ffd700;
+      background: ${isInRange ? 'rgba(0,100,0,0.8)' : 'rgba(0,0,0,0.5)'};
+      border: 2px solid ${isInRange ? '#00ff00' : '#666'};
       border-radius: 4px;
-      cursor: pointer;
+      cursor: ${isInRange ? 'pointer' : 'not-allowed'};
       font-size: 20px;
-      transition: transform 0.2s;
+      transition: all 0.2s;
       image-rendering: pixelated;
+      opacity: ${isInRange ? 1 : 0.6};
     `;
     container.innerHTML = POI_EMOJIS[poi.type] || "❓";
-    container.title = poi.name;
+    container.title = isInRange ? poi.name : `${poi.name} (muito longe)`;
     
-    container.addEventListener("mouseenter", () => {
-      container.style.transform = "scale(1.2)";
-    });
-    container.addEventListener("mouseleave", () => {
-      container.style.transform = "scale(1)";
-    });
-    container.addEventListener("click", (e) => {
-      e.stopPropagation();
-      onPOIClick(poi);
-    });
+    if (isInRange) {
+      container.addEventListener("mouseenter", () => {
+        container.style.transform = "scale(1.2)";
+        container.style.boxShadow = "0 0 10px #00ff00";
+      });
+      container.addEventListener("mouseleave", () => {
+        container.style.transform = "scale(1)";
+        container.style.boxShadow = "none";
+      });
+      container.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onPOIClick(poi);
+      });
+    } else {
+      container.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toast.error("Muito longe! Aproxime-se para interagir.");
+      });
+    }
     
     return container;
   }, [onPOIClick]);
@@ -296,8 +294,8 @@ export function PixelWorldMap({
           { lat: center.lat + halfGrid, lng },
         ],
         strokeColor: gridColor,
-        strokeOpacity: 0.8,
-        strokeWeight: 2,
+        strokeOpacity: 0.6,
+        strokeWeight: 1,
         map,
       });
       gridLinesRef.current.push(line);
@@ -312,127 +310,82 @@ export function PixelWorldMap({
           { lat, lng: center.lng + halfGrid },
         ],
         strokeColor: gridColor,
-        strokeOpacity: 0.8,
-        strokeWeight: 2,
+        strokeOpacity: 0.6,
+        strokeWeight: 1,
         map,
       });
       gridLinesRef.current.push(line);
     }
   }, []);
 
-  // Handle map click for grid-based movement
-  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (!e.latLng || !playerGridPosition || isMoving) return;
+  // Move player to clicked position
+  const movePlayerTo = useCallback((targetLat: number, targetLng: number) => {
+    if (!playerGridPosition || isMoving) return;
     
-    const clickedLat = snapToGrid(e.latLng.lat());
-    const clickedLng = snapToGrid(e.latLng.lng());
+    const snappedLat = snapToGrid(targetLat);
+    const snappedLng = snapToGrid(targetLng);
     
-    // Calculate grid distance
-    const dLat = Math.round((clickedLat - playerGridPosition.lat) / GRID_SIZE);
-    const dLng = Math.round((clickedLng - playerGridPosition.lng) / GRID_SIZE);
+    // Check if it's a different position
+    if (snappedLat === playerGridPosition.lat && snappedLng === playerGridPosition.lng) {
+      return;
+    }
     
-    // Only allow adjacent tile movement (1 step in any direction)
-    if (Math.abs(dLat) + Math.abs(dLng) === 1) {
-      setIsMoving(true);
-      
-      const newPosition = {
-        lat: playerGridPosition.lat + dLat * GRID_SIZE,
-        lng: playerGridPosition.lng + dLng * GRID_SIZE,
-      };
-      
-      setPlayerGridPosition(newPosition);
-      
-      // Update player marker position with animation
-      if (playerMarkerRef.current) {
-        playerMarkerRef.current.position = newPosition;
-      }
-      
-      // Update in database and check for encounters
-      moveCharacter.mutate({
-        latitude: newPosition.lat,
-        longitude: newPosition.lng,
-      }, {
-        onSuccess: (result) => {
-          refetchMovement();
-          if (result.encounter) {
-            // Handle random encounter
-            if (onPlayerMove) {
-              onPlayerMove(newPosition.lat, newPosition.lng);
-            }
-            // The parent will handle the encounter via the move result
-          }
-        },
-        onError: (error) => {
-          // Revert position if movement failed (limit reached)
-          setPlayerGridPosition(playerGridPosition);
-          if (playerMarkerRef.current) {
-            playerMarkerRef.current.position = playerGridPosition;
-          }
-          console.error("Movement failed:", error.message);
-        },
-      });
-      
-      
-      
-      // Redraw grid
-      if (mapRef.current) {
-        drawGridLines(mapRef.current, newPosition);
-        mapRef.current.panTo(newPosition);
-      }
-      
-      setTimeout(() => setIsMoving(false), 200);
-    } else if (Math.abs(dLat) <= VISIBLE_TILES && Math.abs(dLng) <= VISIBLE_TILES) {
-      // Allow clicking further tiles - move one step towards it
-      const stepLat = dLat === 0 ? 0 : (dLat > 0 ? 1 : -1);
-      const stepLng = dLng === 0 ? 0 : (dLng > 0 ? 1 : -1);
-      
-      // Prefer diagonal movement if both are non-zero, else move in one direction
-      let moveLat = 0, moveLng = 0;
-      if (stepLat !== 0 && stepLng === 0) moveLat = stepLat;
-      else if (stepLng !== 0 && stepLat === 0) moveLng = stepLng;
-      else if (Math.abs(dLat) >= Math.abs(dLng)) moveLat = stepLat;
-      else moveLng = stepLng;
-      
-      if (moveLat !== 0 || moveLng !== 0) {
-        setIsMoving(true);
+    setIsMoving(true);
+    
+    const newPosition = { lat: snappedLat, lng: snappedLng };
+    
+    // Update player position immediately for visual feedback
+    setPlayerGridPosition(newPosition);
+    
+    if (playerMarkerRef.current) {
+      playerMarkerRef.current.position = newPosition;
+    }
+    
+    // Update in database and check for encounters
+    moveCharacter.mutate({
+      latitude: newPosition.lat,
+      longitude: newPosition.lng,
+    }, {
+      onSuccess: (result) => {
+        refetchMovement();
         
-        const newPosition = {
-          lat: playerGridPosition.lat + moveLat * GRID_SIZE,
-          lng: playerGridPosition.lng + moveLng * GRID_SIZE,
-        };
-        
-        setPlayerGridPosition(newPosition);
-        
-        if (playerMarkerRef.current) {
-          playerMarkerRef.current.position = newPosition;
+        // Handle random encounter if one occurred
+        if (result.encounter && onRandomEncounter) {
+          onRandomEncounter(result.encounter);
         }
-        
-        moveCharacter.mutate({
-          latitude: newPosition.lat,
-          longitude: newPosition.lng,
-        }, {
-          onSuccess: () => refetchMovement(),
-          onError: () => {
-            setPlayerGridPosition(playerGridPosition);
-            if (playerMarkerRef.current) {
-              playerMarkerRef.current.position = playerGridPosition;
-            }
-          },
-        });
         
         if (onPlayerMove) {
           onPlayerMove(newPosition.lat, newPosition.lng);
         }
-        
-        if (mapRef.current) {
-          drawGridLines(mapRef.current, newPosition);
-          mapRef.current.panTo(newPosition);
+      },
+      onError: (error) => {
+        // Revert position if movement failed (limit reached)
+        setPlayerGridPosition(playerGridPosition);
+        if (playerMarkerRef.current) {
+          playerMarkerRef.current.position = playerGridPosition;
         }
-        
-        setTimeout(() => setIsMoving(false), 200);
-      }
+        toast.error(error.message || "Não foi possível mover");
+      },
+    });
+    
+    // Redraw grid and pan map
+    if (mapRef.current) {
+      drawGridLines(mapRef.current, newPosition);
+      mapRef.current.panTo(newPosition);
     }
-  }, [playerGridPosition, isMoving, moveCharacter, onPlayerMove, drawGridLines, refetchMovement]);
+    
+    setTimeout(() => setIsMoving(false), 300);
+  }, [playerGridPosition, isMoving, moveCharacter, onPlayerMove, onRandomEncounter, drawGridLines, refetchMovement]);
+
+  // Handle map click - move player directly to clicked tile
+  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (!e.latLng || !playerGridPosition || isMoving) return;
+    
+    const clickedLat = e.latLng.lat();
+    const clickedLng = e.latLng.lng();
+    
+    movePlayerTo(clickedLat, clickedLng);
+  }, [playerGridPosition, isMoving, movePlayerTo]);
 
   // Handle keyboard movement
   useEffect(() => {
@@ -467,57 +420,26 @@ export function PixelWorldMap({
       }
       
       e.preventDefault();
-      setIsMoving(true);
       
-      const newPosition = {
-        lat: playerGridPosition.lat + dLat * GRID_SIZE,
-        lng: playerGridPosition.lng + dLng * GRID_SIZE,
-      };
+      const newLat = playerGridPosition.lat + dLat * GRID_SIZE;
+      const newLng = playerGridPosition.lng + dLng * GRID_SIZE;
       
-      setPlayerGridPosition(newPosition);
-      
-      if (playerMarkerRef.current) {
-        playerMarkerRef.current.position = newPosition;
-      }
-      
-      moveCharacter.mutate({
-        latitude: newPosition.lat,
-        longitude: newPosition.lng,
-      }, {
-        onSuccess: () => refetchMovement(),
-        onError: () => {
-          setPlayerGridPosition(playerGridPosition);
-          if (playerMarkerRef.current) {
-            playerMarkerRef.current.position = playerGridPosition;
-          }
-        },
-      });
-      
-      if (onPlayerMove) {
-        onPlayerMove(newPosition.lat, newPosition.lng);
-      }
-      
-      if (mapRef.current) {
-        drawGridLines(mapRef.current, newPosition);
-        mapRef.current.panTo(newPosition);
-      }
-      
-      setTimeout(() => setIsMoving(false), 200);
+      movePlayerTo(newLat, newLng);
     };
-    
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playerGridPosition, isMoving, moveCharacter, onPlayerMove, drawGridLines, refetchMovement]);
+  }, [playerGridPosition, isMoving, movePlayerTo]);
 
   // Handle map ready
   const handleMapReady = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-
-    // Apply pixel art fantasy style to the map
+    
+    // Set fantasy RPG style
     map.setOptions({
       styles: [
-        // Base land - vibrant green like RPG grass
-        { elementType: "geometry", stylers: [{ color: "#3a7d32" }, { saturation: 30 }] },
+        // Base - dark fantasy theme
+        { elementType: "geometry", stylers: [{ color: "#2d3a2e" }] },
         { elementType: "labels.text.fill", stylers: [{ color: "#ffffff" }] },
         { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a1a" }, { weight: 3 }] },
         
@@ -584,9 +506,9 @@ export function PixelWorldMap({
     }
   }, [playerGridPosition, createPlayerMarkerElement]);
 
-  // Update POI markers
+  // Update POI markers with proximity check
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !playerGridPosition) return;
 
     // Clear existing POI markers
     poiMarkersRef.current.forEach(marker => {
@@ -594,18 +516,26 @@ export function PixelWorldMap({
     });
     poiMarkersRef.current = [];
 
-    // Create new POI markers
+    // Create new POI markers with proximity check
     pois.forEach(poi => {
+      const distance = getGridDistance(
+        playerGridPosition.lat, 
+        playerGridPosition.lng, 
+        poi.latitude, 
+        poi.longitude
+      );
+      const isInRange = distance <= INTERACTION_RANGE;
+      
       const marker = new google.maps.marker.AdvancedMarkerElement({
         map: mapRef.current!,
         position: { lat: poi.latitude, lng: poi.longitude },
-        content: createPOIMarkerElement(poi),
+        content: createPOIMarkerElement(poi, isInRange),
         title: poi.name,
         zIndex: 500,
       });
       poiMarkersRef.current.push(marker);
     });
-  }, [pois, createPOIMarkerElement]);
+  }, [pois, playerGridPosition, createPOIMarkerElement]);
 
   // Redraw grid when map is ready and position is set
   useEffect(() => {
@@ -619,7 +549,7 @@ export function PixelWorldMap({
       <div className={cn("flex items-center justify-center bg-card", className)}>
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Obtendo sua localização...</p>
+          <p className="text-muted-foreground">Obtendo localização...</p>
         </div>
       </div>
     );
@@ -627,120 +557,63 @@ export function PixelWorldMap({
 
   return (
     <div className={cn("relative", className)}>
-      {/* Add CSS for pixel art effect */}
+      {userLocation && (
+        <MapView
+          initialCenter={userLocation}
+          initialZoom={17}
+          onMapReady={handleMapReady}
+          className="w-full h-full"
+        />
+      )}
+      
+      {/* Movement counter */}
+      {movementStatus && (
+        <div className="absolute top-4 left-4 bg-black/80 text-white px-3 py-2 rounded-lg border-2 border-primary font-mono text-sm">
+          <div className="flex items-center gap-2">
+            <span>🚶</span>
+            <span>{movementStatus.movesRemaining}/20</span>
+          </div>
+          {movementStatus.movesRemaining === 0 && (
+            <div className="text-xs text-red-400 mt-1">
+              Aguarde reset (próxima hora)
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 bg-black/80 text-white px-3 py-2 rounded-lg border-2 border-primary text-xs">
+        <div className="font-bold mb-1">Legenda:</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          <span>👹 Monstro</span>
+          <span>🏪 Loja</span>
+          <span>💎 Tesouro</span>
+          <span>🏰 Dungeon</span>
+          <span>⚔️ Guilda</span>
+          <span>🏯 Castelo</span>
+        </div>
+        <div className="mt-2 text-yellow-400 text-[10px]">
+          💡 Clique no mapa para mover
+        </div>
+        <div className="text-green-400 text-[10px]">
+          ✅ Verde = pode interagir
+        </div>
+      </div>
+      
+      {/* Location error */}
+      {locationError && (
+        <div className="absolute top-4 right-4 bg-red-900/80 text-white px-3 py-2 rounded-lg text-sm">
+          {locationError}
+        </div>
+      )}
+      
+      {/* CSS for animations */}
       <style>{`
         @keyframes playerBounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-4px); }
         }
-        
-        /* Pixel art rendering for map images */
-        .gm-style img {
-          image-rendering: pixelated !important;
-          image-rendering: crisp-edges !important;
-        }
-        
-        /* Pixelate the entire map canvas */
-        .gm-style canvas {
-          image-rendering: pixelated !important;
-          image-rendering: crisp-edges !important;
-        }
-        
-        /* Add scanline effect for retro feel */
-        .pixel-overlay {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          background: repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(0, 0, 0, 0.03) 2px,
-            rgba(0, 0, 0, 0.03) 4px
-          );
-          z-index: 10;
-        }
       `}</style>
-      
-      {/* Pixel overlay for retro effect */}
-      <div className="pixel-overlay" />
-      
-      <MapView
-        className="w-full h-full"
-        initialCenter={playerGridPosition || userLocation || { lat: -23.5505, lng: -46.6333 }}
-        initialZoom={18}
-        onMapReady={handleMapReady}
-      />
-
-      {/* Location error banner */}
-      {locationError && (
-        <div className="absolute top-4 left-4 right-4 bg-destructive/90 text-destructive-foreground px-4 py-2 rounded-lg text-sm">
-          {locationError}
-        </div>
-      )}
-
-      {/* Movement counter */}
-      <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-2 rounded border border-primary/50">
-        <div className="text-xs font-semibold text-primary mb-1">MOVIMENTOS</div>
-        <div className="text-2xl font-bold text-center">
-          {movementStatus?.movesRemaining ?? 20} / 20
-        </div>
-        <div className="text-xs text-muted-foreground text-center mt-1">
-          por hora
-        </div>
-      </div>
-
-      {/* Grid coordinates display */}
-      {playerGridPosition && (
-        <div className="absolute bottom-4 left-4 bg-black/80 text-white text-xs px-3 py-2 rounded font-mono border border-primary/50">
-          <div>LAT: {playerGridPosition.lat.toFixed(4)}</div>
-          <div>LNG: {playerGridPosition.lng.toFixed(4)}</div>
-        </div>
-      )}
-
-      {/* Controls hint */}
-      <div className="absolute bottom-4 right-4 bg-black/80 text-white text-xs px-3 py-2 rounded border border-primary/50">
-        <div className="font-semibold mb-1">Controles:</div>
-        <div>WASD / Setas - Mover</div>
-        <div>Clique - Mover para tile</div>
-      </div>
-
-      {/* Legend */}
-      <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-sm rounded-lg p-3 border border-primary/50">
-        <h4 className="text-xs font-semibold text-primary mb-2">LEGENDA</h4>
-        <div className="space-y-1.5 text-xs text-white">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">👹</span>
-            <span>Monstro</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🏪</span>
-            <span>Loja</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">👤</span>
-            <span>NPC</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">💎</span>
-            <span>Tesouro</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🏰</span>
-            <span>Dungeon/Castelo</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🏰</span>
-            <span>Guilda</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">❗</span>
-            <span>Missão</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
-
-export default PixelWorldMap;
