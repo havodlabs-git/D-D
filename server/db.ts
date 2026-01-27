@@ -18,6 +18,7 @@ import {
   characterSpells, InsertCharacterSpell,
   spellSlots, InsertSpellSlot,
   globalChat, InsertGlobalChatMessage,
+  onlinePlayers, InsertOnlinePlayer,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { CHARACTER_CLASSES, LEVEL_XP_REQUIREMENTS, STAT_POINTS_PER_LEVEL } from "../shared/gameConstants";
@@ -1168,4 +1169,83 @@ export async function getRecentChatMessages(sinceId: number): Promise<typeof glo
     ))
     .orderBy(desc(globalChat.createdAt))
     .limit(100);
+}
+
+
+// ============================================
+// ONLINE PLAYERS FUNCTIONS
+// ============================================
+
+export async function updatePlayerOnline(data: {
+  userId: number;
+  characterId: number;
+  characterName: string;
+  characterClass: string;
+  characterLevel: number;
+  latitude?: number;
+  longitude?: number;
+  status?: "exploring" | "combat" | "dungeon" | "shop" | "idle";
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  
+  // Upsert - update if exists, insert if not
+  await db.insert(onlinePlayers).values({
+    userId: data.userId,
+    characterId: data.characterId,
+    characterName: data.characterName,
+    characterClass: data.characterClass,
+    characterLevel: data.characterLevel,
+    latitude: data.latitude?.toString(),
+    longitude: data.longitude?.toString(),
+    status: data.status || "exploring",
+    lastHeartbeat: new Date(),
+  }).onDuplicateKeyUpdate({
+    set: {
+      characterName: data.characterName,
+      characterClass: data.characterClass,
+      characterLevel: data.characterLevel,
+      latitude: data.latitude?.toString(),
+      longitude: data.longitude?.toString(),
+      status: data.status || "exploring",
+      lastHeartbeat: new Date(),
+    },
+  });
+}
+
+export async function removePlayerOnline(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(onlinePlayers).where(eq(onlinePlayers.userId, userId));
+}
+
+export async function getOnlinePlayers(nearLat?: number, nearLng?: number, radius?: number): Promise<typeof onlinePlayers.$inferSelect[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Remove players that haven't sent heartbeat in 5 minutes
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  await db.delete(onlinePlayers).where(sql`${onlinePlayers.lastHeartbeat} < ${fiveMinutesAgo}`);
+  
+  // Get all online players
+  const players = await db.select()
+    .from(onlinePlayers)
+    .orderBy(desc(onlinePlayers.lastHeartbeat))
+    .limit(100);
+  
+  return players;
+}
+
+export async function getOnlinePlayerCount(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  // Remove stale players first
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  await db.delete(onlinePlayers).where(sql`${onlinePlayers.lastHeartbeat} < ${fiveMinutesAgo}`);
+  
+  const result = await db.select({ count: sql<number>`count(*)` })
+    .from(onlinePlayers);
+  
+  return result[0]?.count || 0;
 }

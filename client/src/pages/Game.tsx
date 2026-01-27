@@ -14,6 +14,8 @@ import { LevelUpScreen } from "@/components/LevelUpScreen";
 import { DeathScreen } from "@/components/DeathScreen";
 import { RandomEncounter } from "@/components/RandomEncounter";
 import { GlobalChat } from "@/components/GlobalChat";
+import { AudioManager } from "@/components/AudioManager";
+import { OnlinePlayers } from "@/components/OnlinePlayers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, LogIn, Database, X, Swords, ShoppingBag, Users, Gem, Compass } from "lucide-react";
@@ -57,6 +59,7 @@ export default function Game() {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [pendingLevelUp, setPendingLevelUp] = useState<number | null>(null);
   const [randomEncounter, setRandomEncounter] = useState<any>(null);
+  const [audioState, setAudioState] = useState<"exploring" | "combat" | "tavern" | "victory" | "defeat">("exploring");
 
   const { data: character, isLoading: characterLoading, refetch: refetchCharacter } = trpc.character.get.useQuery(
     undefined,
@@ -118,6 +121,7 @@ export default function Game() {
       
       setCombatMonster(monster);
       setShowCombat(true);
+      setAudioState("combat");
       setSelectedPOI(null);
     } else if (poi.type === "shop") {
       // Generate a consistent NPC ID based on location
@@ -245,6 +249,7 @@ export default function Game() {
     }
     setShowCombat(false);
     setCombatMonster(null);
+    setAudioState("exploring"); // Voltar para música ambiente
     utils.character.get.invalidate();
     
     // Check if player leveled up
@@ -264,6 +269,7 @@ export default function Game() {
   const handleCombatDefeat = () => {
     setShowCombat(false);
     setCombatMonster(null);
+    setAudioState("defeat"); // Música de derrota
     // Permadeath - character dies permanently
     const monsterName = combatMonster?.name || "um monstro";
     killCharacterMutation.mutate({ deathCause: `Morto por ${monsterName}` });
@@ -600,6 +606,7 @@ export default function Game() {
           onBattle={(monster) => {
             setCombatMonster(monster);
             setShowCombat(true);
+            setAudioState("combat");
             setRandomEncounter(null);
           }}
           onCollectTreasure={(treasure) => {
@@ -668,6 +675,16 @@ export default function Game() {
       {/* Global Chat - Always visible when logged in */}
       {isAuthenticated && character && !character.isDead && (
         <GlobalChat />
+      )}
+
+      {/* Audio Manager - Medieval music */}
+      {isAuthenticated && character && (
+        <AudioManager gameState={audioState} />
+      )}
+
+      {/* Online Players - Multiplayer */}
+      {isAuthenticated && character && !character.isDead && (
+        <OnlinePlayers />
       )}
     </div>
   );

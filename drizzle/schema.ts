@@ -686,3 +686,33 @@ export const globalChat = mysqlTable("global_chat", {
 
 export type GlobalChatMessage = typeof globalChat.$inferSelect;
 export type InsertGlobalChatMessage = typeof globalChat.$inferInsert;
+
+
+// ============================================
+// ONLINE PLAYERS TABLE (Track active players)
+// ============================================
+export const onlinePlayers = mysqlTable("online_players", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  characterId: int("characterId").notNull(),
+  
+  // Character info for display
+  characterName: varchar("characterName", { length: 100 }).notNull(),
+  characterClass: varchar("characterClass", { length: 50 }).notNull(),
+  characterLevel: int("characterLevel").default(1).notNull(),
+  
+  // Current location
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  
+  // Status
+  status: mysqlEnum("status", ["exploring", "combat", "dungeon", "shop", "idle"]).default("exploring").notNull(),
+  
+  // Last heartbeat (to detect disconnects)
+  lastHeartbeat: timestamp("lastHeartbeat").defaultNow().notNull(),
+  
+  // Session start
+  connectedAt: timestamp("connectedAt").defaultNow().notNull(),
+});
+export type OnlinePlayer = typeof onlinePlayers.$inferSelect;
+export type InsertOnlinePlayer = typeof onlinePlayers.$inferInsert;

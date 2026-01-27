@@ -1486,6 +1486,73 @@ export const appRouter = router({
         return messages.reverse();
       }),
   }),
+
+  // ============================================
+  // MULTIPLAYER ROUTER
+  // ============================================
+  multiplayer: router({
+    // Update player's online status and position (heartbeat)
+    heartbeat: protectedProcedure
+      .input(z.object({
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+        status: z.enum(["exploring", "combat", "dungeon", "shop", "idle"]).default("exploring"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          return { success: false };
+        }
+        
+        await db.updatePlayerOnline({
+          userId: ctx.user.id,
+          characterId: character.id,
+          characterName: character.name,
+          characterClass: character.characterClass,
+          characterLevel: character.level,
+          latitude: input.latitude,
+          longitude: input.longitude,
+          status: input.status,
+        });
+        
+        return { success: true };
+      }),
+
+    // Get nearby online players
+    getNearbyPlayers: protectedProcedure
+      .input(z.object({
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const players = await db.getOnlinePlayers(input.latitude, input.longitude);
+        
+        // Filter out the current user
+        return players.filter(p => p.userId !== ctx.user.id).map(p => ({
+          id: p.id,
+          characterName: p.characterName,
+          characterClass: p.characterClass,
+          characterLevel: p.characterLevel,
+          latitude: p.latitude ? parseFloat(p.latitude) : null,
+          longitude: p.longitude ? parseFloat(p.longitude) : null,
+          status: p.status,
+        }));
+      }),
+
+    // Get total online player count
+    getOnlineCount: publicProcedure
+      .query(async () => {
+        const count = await db.getOnlinePlayerCount();
+        return { count };
+      }),
+
+    // Disconnect (called when leaving the game)
+    disconnect: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        await db.removePlayerOnline(ctx.user.id);
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

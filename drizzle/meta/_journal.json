@@ -71,6 +71,13 @@
       "when": 1769480130534,
       "tag": "0009_messy_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1769505766675,
+      "tag": "0010_clean_shadow_king",
+      "breakpoints": true
     }
   ]
 }

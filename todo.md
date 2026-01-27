@@ -250,3 +250,10 @@
 - [x] Alocar castelos pelo mapa mundial (Castelo do Barão, Fortaleza, Covil do Dragão, etc)
 - [x] Melhorar ícones - fundo transparente e tamanho maior (com animações de glow por tier)
 - [x] Seed do banco de dados com todos os novos monstros (53 monstros de D&D 5e)
+
+
+## Som Medieval e Multiplayer - Fase 6
+- [x] Implementar sistema de som medieval ambiente (música de fundo, efeitos sonoros)
+- [x] Adicionar controles de volume e mute
+- [x] Melhorar sistema multiplayer (ver outros jogadores no mapa, heartbeat, status)
+- [x] Melhorar chat global existente com mais funcionalidades (já existente e funcional)
