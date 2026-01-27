@@ -2597,6 +2597,52 @@ export const MAX_LEVEL = 20;
 export const STAT_POINTS_PER_LEVEL = 2;
 
 // ============================================
+// XP BY CHALLENGE RATING (D&D 5e Official)
+// ============================================
+
+export const XP_BY_CR: Record<string, number> = {
+  "0": 10,
+  "1/8": 25,
+  "1/4": 50,
+  "1/2": 100,
+  "1": 200,
+  "2": 450,
+  "3": 700,
+  "4": 1100,
+  "5": 1800,
+  "6": 2300,
+  "7": 2900,
+  "8": 3900,
+  "9": 5000,
+  "10": 5900,
+  "11": 7200,
+  "12": 8400,
+  "13": 10000,
+  "14": 11500,
+  "15": 13000,
+  "16": 15000,
+  "17": 18000,
+  "18": 20000,
+  "19": 22000,
+  "20": 25000,
+  "21": 33000,
+  "22": 41000,
+  "23": 50000,
+  "24": 62000,
+  "25": 75000,
+  "26": 90000,
+  "27": 105000,
+  "28": 120000,
+  "29": 135000,
+  "30": 155000,
+} as const;
+
+// Helper function to get XP from CR
+export function getXPFromCR(cr: string): number {
+  return XP_BY_CR[cr] || XP_BY_CR["1"];
+}
+
+// ============================================
 // COMBAT CONSTANTS
 // ============================================
 
@@ -2637,6 +2683,65 @@ export const NPC_TYPES = {
 } as const;
 
 export type NpcType = keyof typeof NPC_TYPES;
+
+// ============================================
+// LOCATION TYPES (Cities, Castles, etc)
+// ============================================
+
+export const LOCATION_TYPES = {
+  city: { name: "Cidade", icon: "🏰", description: "Uma cidade com lojas, tavernas e guildas", size: "large" },
+  castle: { name: "Castelo", icon: "🏰", description: "Uma fortaleza com guarda e nobres", size: "large" },
+  tavern: { name: "Taverna", icon: "🍺", description: "Um lugar para descansar e ouvir rumores", size: "small" },
+  guild_hall: { name: "Sede de Guilda", icon: "⚔️", description: "Centro de aventureiros e missões", size: "medium" },
+  temple: { name: "Templo", icon: "⛪", description: "Local sagrado de cura e bênçãos", size: "medium" },
+  blacksmith: { name: "Ferreiro", icon: "🔨", description: "Forja de armas e armaduras", size: "small" },
+  magic_shop: { name: "Loja Mágica", icon: "🔮", description: "Vende itens mágicos e pergaminhos", size: "small" },
+  dungeon: { name: "Masmorra", icon: "🚧", description: "Uma masmorra perigosa cheia de tesouros", size: "large" },
+  monster_spawn: { name: "Território Hostil", icon: "👹", description: "Área com monstros selvagens", size: "small" },
+  treasure: { name: "Tesouro", icon: "💰", description: "Um baú de tesouro escondido", size: "small" },
+  npc_location: { name: "NPC", icon: "👤", description: "Um personagem não-jogador", size: "small" },
+  shop: { name: "Loja", icon: "🛒", description: "Uma loja de itens gerais", size: "small" },
+  quest_marker: { name: "Missão", icon: "❗", description: "Local de uma missão", size: "small" },
+} as const;
+
+export type LocationType = keyof typeof LOCATION_TYPES;
+
+// ============================================
+// FAMOUS D&D CITIES
+// ============================================
+
+export const DND_CITIES = [
+  { name: "Waterdeep", description: "A Cidade dos Esplêndores, metrópole costeira cheia de intrigas", region: "Costa da Espada" },
+  { name: "Baldur's Gate", description: "Uma cidade portuária caótica e perigosa", region: "Costa da Espada" },
+  { name: "Neverwinter", description: "A Cidade das Gemas Hábeis, reconstruindo após a catástrofe", region: "Costa da Espada" },
+  { name: "Luskan", description: "A Cidade das Velas, controlada por piratas", region: "Costa da Espada" },
+  { name: "Silverymoon", description: "A Gema do Norte, cidade de magia e cultura", region: "Norte Selvagem" },
+  { name: "Mithral Hall", description: "Fortaleza anã sob as montanhas", region: "Norte Selvagem" },
+  { name: "Menzoberranzan", description: "Cidade drow nas profundezas do Subterrâneo", region: "Subterrâneo" },
+  { name: "Candlekeep", description: "Fortaleza-biblioteca de conhecimento antigo", region: "Costa da Espada" },
+  { name: "Elturel", description: "Cidade santa protegida por uma luz divina", region: "Elturgard" },
+  { name: "Athkatla", description: "A Cidade das Moedas, capital de Amn", region: "Amn" },
+  { name: "Calimport", description: "A maior cidade de Faerûn, cheia de intrigas", region: "Calimshan" },
+  { name: "Suzail", description: "Capital real de Cormyr", region: "Cormyr" },
+  { name: "Myth Drannor", description: "Ruínas élficas de grande poder mágico", region: "Cormanthor" },
+  { name: "Thay", description: "Nação de magos vermelhos e necromantes", region: "Thay" },
+  { name: "Ravenloft", description: "O castelo assombrado de Strahd", region: "Barovia" },
+] as const;
+
+// ============================================
+// CASTLE TYPES
+// ============================================
+
+export const CASTLE_TYPES = [
+  { name: "Castelo Real", description: "Sede de um rei ou rainha", tier: "legendary", icon: "👑" },
+  { name: "Fortaleza", description: "Uma fortaleza militar", tier: "boss", icon: "🏰" },
+  { name: "Torre do Mago", description: "Residência de um mago poderoso", tier: "elite", icon: "🪄" },
+  { name: "Ruínas Antigas", description: "Ruínas de uma civilização perdida", tier: "elite", icon: "🏚️" },
+  { name: "Castelo Assombrado", description: "Um castelo tomado por mortos-vivos", tier: "boss", icon: "💀" },
+  { name: "Forte dos Bandidos", description: "Esconderijo de foras-da-lei", tier: "common", icon: "⚔️" },
+  { name: "Templo Antigo", description: "Um templo dedicado a deuses esquecidos", tier: "elite", icon: "⛪" },
+  { name: "Covil do Dragão", description: "A toca de um dragão", tier: "legendary", icon: "🐉" },
+] as const;
 
 // ============================================
 // QUEST TYPES

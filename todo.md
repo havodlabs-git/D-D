@@ -235,3 +235,18 @@
 - [x] Criar sistema de skills para monstros (ataques especiais, magias, habilidades)
 - [x] Implementar IA inteligente para monstros usarem suas skills
 - [x] Adicionar feedback visual quando monstros usam skills
+
+
+## Bug Fix - EXP não contabiliza (Fase 4)
+- [x] Investigar fluxo completo de EXP do cliente ao servidor
+- [x] Corrigir o bug que impede o EXP de ser salvo no banco (adicionado forceVictory flag)
+- [ ] Validar que o EXP está sendo persistido corretamente
+
+
+## Grande Atualização D&D 5e - Fase 5
+- [x] Corrigir sistema de XP conforme tabela oficial de D&D 5e (XP por CR)
+- [x] Criar todos os monstros clássicos de D&D 5e com CR e stats corretos (53 monstros)
+- [x] Implementar sistema de cidades no mapa (tavernas, lojas, guildas, templos)
+- [x] Alocar castelos pelo mapa mundial (Castelo do Barão, Fortaleza, Covil do Dragão, etc)
+- [x] Melhorar ícones - fundo transparente e tamanho maior (com animações de glow por tier)
+- [x] Seed do banco de dados com todos os novos monstros (53 monstros de D&D 5e)

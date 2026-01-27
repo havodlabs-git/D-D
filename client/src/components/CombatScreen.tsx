@@ -876,13 +876,14 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
     
     try {
       // Call the server to process victory and get rewards (XP, gold, loot)
-      // We send monsterCurrentHealth: 1 so the server calculates damage and sees it reach 0
+      // forceVictory: true tells the server to give rewards regardless of damage calculation
       const result = await attackMutation.mutateAsync({
         monsterId: monster.id,
         monsterLevel: monster.level,
         monsterArmor: monster.armor,
         monsterDamage: monster.damage,
-        monsterCurrentHealth: 1, // Server will reduce this to 0 and give rewards
+        monsterCurrentHealth: 0, // Monster is dead
+        forceVictory: true, // Force victory to ensure XP is given
       });
       
       if (result.rewards) {

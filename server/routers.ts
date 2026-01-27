@@ -465,6 +465,7 @@ export const appRouter = router({
         monsterArmor: z.number(),
         monsterDamage: z.number(),
         monsterLevel: z.number(),
+        forceVictory: z.boolean().optional(), // Client already determined victory
       }))
       .mutation(async ({ ctx, input }) => {
         const character = await db.getCharacterByUserId(ctx.user.id);
@@ -524,7 +525,8 @@ export const appRouter = router({
         let result: "ongoing" | "victory" | "defeat" = "ongoing";
         let rewards = null;
 
-        if (newMonsterHealth <= 0) {
+        // Victory if monster health reaches 0 OR if client already determined victory
+        if (newMonsterHealth <= 0 || input.forceVictory) {
           result = "victory";
           const monster = await db.getMonsterById(input.monsterId);
           if (monster) {

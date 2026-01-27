@@ -1,0 +1,1 @@
+ALTER TABLE `world_locations` MODIFY COLUMN `locationType` enum('monster_spawn','npc_location','shop','dungeon','treasure','quest_marker','city','castle','tavern','guild_hall','temple','blacksmith','magic_shop') NOT NULL;

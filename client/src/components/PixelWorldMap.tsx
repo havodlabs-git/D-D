@@ -7,12 +7,13 @@ import { toast } from "sonner";
 
 interface POI {
   id: string;
-  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest" | "guild" | "castle";
+  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest" | "guild" | "castle" | "city" | "tavern" | "temple" | "blacksmith" | "magic_shop";
   name: string;
   latitude: number;
   longitude: number;
   biome?: string;
   data?: any;
+  tier?: "common" | "elite" | "boss" | "legendary";
 }
 
 interface PixelWorldMapProps {
@@ -35,10 +36,40 @@ const POI_EMOJIS: Record<string, string> = {
   npc: "👤",
   shop: "🏪",
   treasure: "💎",
-  dungeon: "🏰",
+  dungeon: "🚧",
   quest: "❗",
   guild: "⚔️",
-  castle: "🏯",
+  castle: "🏰",
+  city: "🏙️",
+  tavern: "🍺",
+  temple: "⛪",
+  blacksmith: "🔨",
+  magic_shop: "🔮",
+};
+
+// POI sizes for different types
+const POI_SIZES: Record<string, number> = {
+  monster: 32,
+  npc: 32,
+  shop: 36,
+  treasure: 28,
+  dungeon: 44,
+  quest: 32,
+  guild: 40,
+  castle: 52,
+  city: 56,
+  tavern: 36,
+  temple: 40,
+  blacksmith: 36,
+  magic_shop: 36,
+};
+
+// Tier colors for special POIs
+const TIER_COLORS: Record<string, string> = {
+  common: "#9ca3af",
+  elite: "#3b82f6",
+  boss: "#a855f7",
+  legendary: "#f59e0b",
 };
 
 // Class sprites mapping - All unique sprites
@@ -89,28 +120,48 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
         const typeRoll = rng();
         let type: POI["type"];
         
-        if (typeRoll < 0.30) type = "monster";
-        else if (typeRoll < 0.45) type = "treasure";
-        else if (typeRoll < 0.55) type = "shop";
-        else if (typeRoll < 0.65) type = "npc";
-        else if (typeRoll < 0.75) type = "dungeon";
-        else if (typeRoll < 0.85) type = "guild";
-        else if (typeRoll < 0.92) type = "castle";
+        if (typeRoll < 0.25) type = "monster";
+        else if (typeRoll < 0.35) type = "treasure";
+        else if (typeRoll < 0.42) type = "shop";
+        else if (typeRoll < 0.50) type = "npc";
+        else if (typeRoll < 0.57) type = "dungeon";
+        else if (typeRoll < 0.62) type = "guild";
+        else if (typeRoll < 0.68) type = "castle";
+        else if (typeRoll < 0.73) type = "city";
+        else if (typeRoll < 0.80) type = "tavern";
+        else if (typeRoll < 0.85) type = "temple";
+        else if (typeRoll < 0.90) type = "blacksmith";
+        else if (typeRoll < 0.95) type = "magic_shop";
         else type = "quest";
         
         const names: Record<string, string[]> = {
-          monster: ["Goblin", "Orc", "Esqueleto", "Lobo Selvagem", "Bandido", "Slime", "Kobold"],
-          npc: ["Viajante", "Guarda", "Camponês", "Aventureiro", "Sábio", "Bardo Errante"],
+          monster: ["Goblin", "Orc", "Esqueleto", "Lobo Selvagem", "Bandido", "Kobold", "Rato Gigante", "Zumbi", "Aranha Gigante"],
+          npc: ["Viajante", "Guarda", "Camponês", "Aventureiro", "Sábio", "Bardo Errante", "Mercador Ambulante"],
           shop: ["Loja do Ferreiro", "Empório Mágico", "Boticário", "Armeiro", "Joalheiro"],
           treasure: ["Baú Misterioso", "Tesouro Escondido", "Relíquia Antiga", "Cofre Abandonado"],
           dungeon: ["Caverna Sombria", "Cripta Antiga", "Torre Abandonada", "Ruínas Antigas", "Mina Perdida"],
           quest: ["Pedido de Ajuda", "Missão Urgente", "Contrato de Caça", "Investigação"],
           guild: ["Guilda dos Aventureiros", "Ordem dos Cavaleiros", "Liga dos Mercenários"],
-          castle: ["Castelo do Barão", "Fortaleza Antiga", "Torre do Senhor", "Cidadela"],
+          castle: ["Castelo do Barão", "Fortaleza Antiga", "Torre do Senhor", "Cidadela", "Castelo Assombrado", "Covil do Dragão"],
+          city: ["Waterdeep", "Baldur's Gate", "Neverwinter", "Silverymoon", "Luskan", "Athkatla", "Suzail"],
+          tavern: ["Taverna do Dragão Dourado", "Estalagem do Viajante", "O Porco Preguicoso", "A Caneca Cheia", "Taverna da Lua"],
+          temple: ["Templo de Pelor", "Santuário de Tyr", "Capela de Lathander", "Templo de Mystra", "Altar de Helm"],
+          blacksmith: ["Forja do Mestre", "Ferreiro Anão", "Armeiro Real", "Forja das Lendas"],
+          magic_shop: ["Empório Arcano", "Loja do Mago", "Pergaminhos & Poções", "Artefatos Místicos"],
         };
         
         const nameList = names[type] || ["Desconhecido"];
         const name = nameList[Math.floor(rng() * nameList.length)];
+        
+        // Determine tier for special POIs
+        let tier: POI["tier"] = undefined;
+        if (type === "castle" || type === "dungeon" || type === "monster") {
+          const tierRoll = rng();
+          if (tierRoll > 0.95) tier = "legendary";
+          else if (tierRoll > 0.85) tier = "boss";
+          else if (tierRoll > 0.65) tier = "elite";
+          else tier = "common";
+        }
         
         pois.push({
           id: `poi-${tileLat.toFixed(6)}-${tileLng.toFixed(6)}`,
@@ -118,6 +169,7 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
           name,
           latitude: tileLat + GRID_SIZE / 2,
           longitude: tileLng + GRID_SIZE / 2,
+          tier,
         });
       }
     }
@@ -235,32 +287,47 @@ export default function PixelWorldMap({
   const createPOIMarkerElement = useCallback((poi: POI, isInRange: boolean): HTMLElement => {
     const container = document.createElement("div");
     container.className = "poi-marker-pixel";
+    
+    // Get size based on POI type
+    const size = POI_SIZES[poi.type] || 32;
+    const fontSize = Math.floor(size * 0.7);
+    
+    // Get tier color if available
+    const tierColor = poi.tier ? TIER_COLORS[poi.tier] : null;
+    const borderColor = isInRange ? (tierColor || '#00ff00') : '#666';
+    const glowColor = tierColor || '#00ff00';
+    
     container.style.cssText = `
-      width: 36px;
-      height: 36px;
+      width: ${size}px;
+      height: ${size}px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: ${isInRange ? 'rgba(0,100,0,0.8)' : 'rgba(0,0,0,0.5)'};
-      border: 2px solid ${isInRange ? '#00ff00' : '#666'};
-      border-radius: 4px;
+      background: transparent;
+      border: 3px solid ${borderColor};
+      border-radius: 50%;
       cursor: ${isInRange ? 'pointer' : 'not-allowed'};
-      font-size: 20px;
+      font-size: ${fontSize}px;
       transition: all 0.2s;
       image-rendering: pixelated;
-      opacity: ${isInRange ? 1 : 0.6};
+      opacity: ${isInRange ? 1 : 0.5};
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+      ${poi.tier === 'legendary' ? 'animation: legendaryGlow 2s ease-in-out infinite;' : ''}
+      ${poi.tier === 'boss' ? 'animation: bossGlow 1.5s ease-in-out infinite;' : ''}
     `;
     container.innerHTML = POI_EMOJIS[poi.type] || "❓";
     container.title = isInRange ? poi.name : `${poi.name} (muito longe)`;
     
     if (isInRange) {
       container.addEventListener("mouseenter", () => {
-        container.style.transform = "scale(1.2)";
-        container.style.boxShadow = "0 0 10px #00ff00";
+        container.style.transform = "scale(1.3)";
+        container.style.boxShadow = `0 0 15px ${glowColor}`;
+        container.style.background = 'rgba(0,0,0,0.3)';
       });
       container.addEventListener("mouseleave", () => {
         container.style.transform = "scale(1)";
         container.style.boxShadow = "none";
+        container.style.background = 'transparent';
       });
       container.addEventListener("click", (e) => {
         e.stopPropagation();

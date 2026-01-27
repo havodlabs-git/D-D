@@ -185,6 +185,9 @@ export const monsters = mysqlTable("monsters", {
   // Base level (scales with player)
   baseLevel: int("baseLevel").default(1).notNull(),
   
+  // Challenge Rating (D&D 5e official CR)
+  challengeRating: varchar("challengeRating", { length: 10 }).default("1").notNull(),
+  
   // Stats
   health: int("health").default(50).notNull(),
   damage: int("damage").default(10).notNull(),
@@ -374,7 +377,8 @@ export const worldLocations = mysqlTable("world_locations", {
   id: int("id").autoincrement().primaryKey(),
   
   locationType: mysqlEnum("locationType", [
-    "monster_spawn", "npc_location", "shop", "dungeon", "treasure", "quest_marker"
+    "monster_spawn", "npc_location", "shop", "dungeon", "treasure", "quest_marker",
+    "city", "castle", "tavern", "guild_hall", "temple", "blacksmith", "magic_shop"
   ]).notNull(),
   
   // Reference to what's at this location

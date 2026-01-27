@@ -21,12 +21,13 @@ import { toast } from "sonner";
 
 interface GamePOI {
   id: string;
-  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest" | "guild" | "castle";
+  type: "monster" | "npc" | "shop" | "treasure" | "dungeon" | "quest" | "guild" | "castle" | "city" | "tavern" | "temple" | "blacksmith" | "magic_shop";
   name: string;
   latitude: number;
   longitude: number;
   biome?: string;
   data?: any;
+  tier?: "common" | "elite" | "boss" | "legendary";
 }
 
 // Seeded random for consistent generation
@@ -193,6 +194,31 @@ export default function Game() {
       setSelectedPOI(null);
     } else if (poi.type === "quest") {
       toast.info(`Missão: ${poi.name} - Sistema de quests em desenvolvimento!`);
+      setSelectedPOI(null);
+    } else if (poi.type === "city") {
+      toast.success(`Você chegou a ${poi.name}! Uma cidade cheia de oportunidades.`);
+      setSelectedPOI(null);
+    } else if (poi.type === "tavern") {
+      toast.info(`Bem-vindo à ${poi.name}! Descanse e ouça rumores dos aventureiros.`);
+      setSelectedPOI(null);
+    } else if (poi.type === "temple") {
+      toast.info(`${poi.name} - Um local sagrado. Você sente paz interior.`);
+      setSelectedPOI(null);
+    } else if (poi.type === "blacksmith") {
+      setShopData({
+        npcId: Math.abs(Math.floor(poi.latitude * 10000 + poi.longitude * 100000)),
+        npcName: poi.name,
+        npcType: "blacksmith",
+      });
+      setShowShop(true);
+      setSelectedPOI(null);
+    } else if (poi.type === "magic_shop") {
+      setShopData({
+        npcId: Math.abs(Math.floor(poi.latitude * 10000 + poi.longitude * 100000)),
+        npcName: poi.name,
+        npcType: "wizard_vendor",
+      });
+      setShowShop(true);
       setSelectedPOI(null);
     }
   }, []);

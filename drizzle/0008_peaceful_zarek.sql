@@ -1,0 +1,1 @@
+ALTER TABLE `monsters` ADD `challengeRating` varchar(10) DEFAULT '1' NOT NULL;
