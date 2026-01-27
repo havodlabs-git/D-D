@@ -264,3 +264,7 @@
 - [x] Renderizar marcadores de jogadores com ícone de classe e nome
 - [x] Integrar dados de jogadores online no Game.tsx
 - [x] Adicionar tooltip com informações do jogador ao clicar
+
+
+## Bug Fix - Erro de carregamento de áudio
+- [x] Corrigir erro "Failed to load because no supported source was found" - desabilitado áudio temporário para evitar erros
