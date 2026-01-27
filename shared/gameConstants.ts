@@ -3435,3 +3435,828 @@ export const EQUIPMENT_PACKS = {
 } as const;
 
 export type EquipmentPack = keyof typeof EQUIPMENT_PACKS;
+
+
+// ============================================
+// MONSTER ABILITIES (Skills/Attacks)
+// ============================================
+
+export type MonsterAbilityType = "attack" | "spell" | "buff" | "debuff" | "heal" | "special";
+
+export interface MonsterAbility {
+  id: string;
+  name: string;
+  description: string;
+  type: MonsterAbilityType;
+  damage?: { dice: string; type: string };
+  healing?: { dice: string };
+  effect?: { type: string; duration: number; value: number };
+  cooldown: number;
+  useChance: number;
+  minHealth?: number;
+  maxHealth?: number;
+}
+
+// Pre-defined monster abilities by monster type
+export const MONSTER_ABILITIES: Record<string, MonsterAbility[]> = {
+  // GOBLIN abilities
+  goblin: [
+    {
+      id: "sneaky_stab",
+      name: "Facada Traiçoeira",
+      description: "O goblin ataca pelas costas causando dano extra",
+      type: "attack",
+      damage: { dice: "2d6", type: "piercing" },
+      cooldown: 2,
+      useChance: 0.4,
+    },
+    {
+      id: "goblin_retreat",
+      name: "Recuo Covarde",
+      description: "O goblin recua e ganha bônus de defesa",
+      type: "buff",
+      effect: { type: "armor_boost", duration: 2, value: 3 },
+      cooldown: 3,
+      useChance: 0.3,
+      minHealth: 0,
+      maxHealth: 40,
+    },
+  ],
+  
+  // GOBLIN ARCHER abilities
+  goblin_archer: [
+    {
+      id: "aimed_shot",
+      name: "Tiro Certeiro",
+      description: "Um tiro bem mirado que causa dano extra",
+      type: "attack",
+      damage: { dice: "2d8", type: "piercing" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "poison_arrow",
+      name: "Flecha Envenenada",
+      description: "Dispara uma flecha com veneno que causa dano ao longo do tempo",
+      type: "debuff",
+      damage: { dice: "1d4", type: "poison" },
+      effect: { type: "poison", duration: 3, value: 3 },
+      cooldown: 4,
+      useChance: 0.3,
+    },
+  ],
+  
+  // GOBLIN SHAMAN abilities
+  goblin_shaman: [
+    {
+      id: "dark_bolt",
+      name: "Raio Sombrio",
+      description: "Dispara um raio de energia sombria",
+      type: "spell",
+      damage: { dice: "2d6", type: "necrotic" },
+      cooldown: 1,
+      useChance: 0.6,
+    },
+    {
+      id: "heal_ally",
+      name: "Cura Tribal",
+      description: "O xamã cura a si mesmo",
+      type: "heal",
+      healing: { dice: "2d6" },
+      cooldown: 3,
+      useChance: 0.5,
+      minHealth: 0,
+      maxHealth: 50,
+    },
+    {
+      id: "curse",
+      name: "Maldição",
+      description: "Amaldiçoa o alvo reduzindo sua defesa",
+      type: "debuff",
+      effect: { type: "armor_reduce", duration: 3, value: -2 },
+      cooldown: 4,
+      useChance: 0.4,
+    },
+  ],
+  
+  // GOBLIN BOSS abilities
+  goblin_boss: [
+    {
+      id: "commanding_strike",
+      name: "Golpe Comandante",
+      description: "Um ataque poderoso que inspira medo",
+      type: "attack",
+      damage: { dice: "3d6", type: "slashing" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "battle_cry",
+      name: "Grito de Guerra",
+      description: "O chefe grita aumentando seu próprio poder",
+      type: "buff",
+      effect: { type: "damage_boost", duration: 3, value: 5 },
+      cooldown: 4,
+      useChance: 0.4,
+    },
+    {
+      id: "dirty_trick",
+      name: "Truque Sujo",
+      description: "Joga areia nos olhos do inimigo",
+      type: "debuff",
+      effect: { type: "blind", duration: 2, value: -4 },
+      cooldown: 3,
+      useChance: 0.3,
+    },
+  ],
+  
+  // RAT abilities
+  rat: [
+    {
+      id: "disease_bite",
+      name: "Mordida Infectada",
+      description: "Uma mordida que pode causar doença",
+      type: "attack",
+      damage: { dice: "1d4", type: "piercing" },
+      effect: { type: "disease", duration: 3, value: 2 },
+      cooldown: 2,
+      useChance: 0.4,
+    },
+  ],
+  
+  // RAT GIANT abilities
+  rat_giant: [
+    {
+      id: "gnaw",
+      name: "Roer",
+      description: "O rato gigante morde com força",
+      type: "attack",
+      damage: { dice: "2d6", type: "piercing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "plague_bite",
+      name: "Mordida da Peste",
+      description: "Uma mordida que espalha doença",
+      type: "attack",
+      damage: { dice: "1d6", type: "piercing" },
+      effect: { type: "poison", duration: 4, value: 4 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+  ],
+  
+  // RAT KING abilities
+  rat_king: [
+    {
+      id: "swarm_attack",
+      name: "Ataque em Enxame",
+      description: "Invoca ratos menores para atacar",
+      type: "special",
+      damage: { dice: "3d6", type: "piercing" },
+      cooldown: 3,
+      useChance: 0.5,
+    },
+    {
+      id: "plague_aura",
+      name: "Aura da Peste",
+      description: "Emana uma aura de doença",
+      type: "debuff",
+      effect: { type: "poison", duration: 5, value: 5 },
+      cooldown: 4,
+      useChance: 0.4,
+    },
+    {
+      id: "regenerate",
+      name: "Regeneração",
+      description: "O Rei dos Ratos se cura",
+      type: "heal",
+      healing: { dice: "3d6" },
+      cooldown: 4,
+      useChance: 0.6,
+      minHealth: 0,
+      maxHealth: 40,
+    },
+  ],
+  
+  // SKELETON abilities
+  skeleton: [
+    {
+      id: "bone_strike",
+      name: "Golpe Ósseo",
+      description: "Um ataque com ossos afiados",
+      type: "attack",
+      damage: { dice: "1d8", type: "slashing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "reassemble",
+      name: "Remontar",
+      description: "O esqueleto se remonta parcialmente",
+      type: "heal",
+      healing: { dice: "1d8" },
+      cooldown: 4,
+      useChance: 0.3,
+      minHealth: 0,
+      maxHealth: 30,
+    },
+  ],
+  
+  // SKELETON WARRIOR abilities
+  skeleton_warrior: [
+    {
+      id: "shield_bash",
+      name: "Golpe de Escudo",
+      description: "Ataca com o escudo atordoando o alvo",
+      type: "attack",
+      damage: { dice: "1d6", type: "bludgeoning" },
+      effect: { type: "stun", duration: 1, value: 0 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+    {
+      id: "sword_flurry",
+      name: "Rajada de Espada",
+      description: "Uma série rápida de ataques",
+      type: "attack",
+      damage: { dice: "2d8", type: "slashing" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+  ],
+  
+  // ZOMBIE abilities
+  zombie: [
+    {
+      id: "grab",
+      name: "Agarrar",
+      description: "O zumbi agarra o alvo",
+      type: "attack",
+      damage: { dice: "1d6", type: "bludgeoning" },
+      effect: { type: "grapple", duration: 2, value: -2 },
+      cooldown: 2,
+      useChance: 0.4,
+    },
+    {
+      id: "undead_fortitude",
+      name: "Fortitude Morta-Viva",
+      description: "O zumbi resiste à morte",
+      type: "buff",
+      effect: { type: "damage_resist", duration: 2, value: 5 },
+      cooldown: 4,
+      useChance: 0.3,
+      minHealth: 0,
+      maxHealth: 25,
+    },
+  ],
+  
+  // WOLF abilities
+  wolf: [
+    {
+      id: "pack_tactics",
+      name: "Táticas de Matilha",
+      description: "O lobo ataca com vantagem",
+      type: "attack",
+      damage: { dice: "2d6", type: "piercing" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "howl",
+      name: "Uivo",
+      description: "Um uivo aterrorizante",
+      type: "debuff",
+      effect: { type: "fear", duration: 2, value: -2 },
+      cooldown: 4,
+      useChance: 0.3,
+    },
+  ],
+  
+  // DIRE WOLF abilities
+  dire_wolf: [
+    {
+      id: "savage_bite",
+      name: "Mordida Selvagem",
+      description: "Uma mordida devastadora",
+      type: "attack",
+      damage: { dice: "3d6", type: "piercing" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "knockdown",
+      name: "Derrubar",
+      description: "Derruba o alvo no chão",
+      type: "attack",
+      damage: { dice: "1d6", type: "bludgeoning" },
+      effect: { type: "prone", duration: 1, value: -4 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+    {
+      id: "terrifying_howl",
+      name: "Uivo Aterrorizante",
+      description: "Um uivo que causa medo",
+      type: "debuff",
+      effect: { type: "fear", duration: 3, value: -3 },
+      cooldown: 4,
+      useChance: 0.3,
+    },
+  ],
+  
+  // SPIDER abilities
+  spider: [
+    {
+      id: "web_shot",
+      name: "Teia",
+      description: "Dispara uma teia que prende o alvo",
+      type: "debuff",
+      effect: { type: "restrained", duration: 2, value: -4 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+    {
+      id: "poison_bite",
+      name: "Mordida Venenosa",
+      description: "Uma mordida com veneno",
+      type: "attack",
+      damage: { dice: "1d8", type: "piercing" },
+      effect: { type: "poison", duration: 3, value: 4 },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+  ],
+  
+  // GIANT SPIDER abilities
+  spider_giant: [
+    {
+      id: "web_cocoon",
+      name: "Casulo de Teia",
+      description: "Envolve o alvo em teia",
+      type: "debuff",
+      effect: { type: "restrained", duration: 3, value: -6 },
+      cooldown: 4,
+      useChance: 0.4,
+    },
+    {
+      id: "deadly_venom",
+      name: "Veneno Mortal",
+      description: "Injeta veneno letal",
+      type: "attack",
+      damage: { dice: "2d8", type: "poison" },
+      effect: { type: "poison", duration: 4, value: 6 },
+      cooldown: 3,
+      useChance: 0.5,
+    },
+    {
+      id: "ambush",
+      name: "Emboscada",
+      description: "Ataca de surpresa",
+      type: "attack",
+      damage: { dice: "3d6", type: "piercing" },
+      cooldown: 4,
+      useChance: 0.3,
+    },
+  ],
+  
+  // ORC abilities
+  orc: [
+    {
+      id: "aggressive_charge",
+      name: "Investida Agressiva",
+      description: "O orc avança com fúria",
+      type: "attack",
+      damage: { dice: "2d8", type: "slashing" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "battle_rage",
+      name: "Fúria de Batalha",
+      description: "Entra em fúria aumentando o dano",
+      type: "buff",
+      effect: { type: "damage_boost", duration: 3, value: 4 },
+      cooldown: 4,
+      useChance: 0.4,
+    },
+  ],
+  
+  // TROLL abilities
+  troll: [
+    {
+      id: "claw_rend",
+      name: "Rasgar com Garras",
+      description: "Ataca com garras afiadas",
+      type: "attack",
+      damage: { dice: "2d10", type: "slashing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "regeneration",
+      name: "Regeneração",
+      description: "O troll se regenera rapidamente",
+      type: "heal",
+      healing: { dice: "2d8" },
+      cooldown: 2,
+      useChance: 0.6,
+    },
+    {
+      id: "bite",
+      name: "Mordida",
+      description: "Uma mordida brutal",
+      type: "attack",
+      damage: { dice: "1d8", type: "piercing" },
+      cooldown: 1,
+      useChance: 0.4,
+    },
+  ],
+  
+  // OGRE abilities
+  ogre: [
+    {
+      id: "club_smash",
+      name: "Esmagar com Clava",
+      description: "Um golpe devastador com a clava",
+      type: "attack",
+      damage: { dice: "3d8", type: "bludgeoning" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "ground_pound",
+      name: "Golpe no Chão",
+      description: "Golpeia o chão causando tremor",
+      type: "attack",
+      damage: { dice: "2d6", type: "bludgeoning" },
+      effect: { type: "prone", duration: 1, value: -2 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+  ],
+  
+  // BANDIT abilities
+  bandit: [
+    {
+      id: "cheap_shot",
+      name: "Golpe Baixo",
+      description: "Um ataque traiçoeiro",
+      type: "attack",
+      damage: { dice: "2d6", type: "piercing" },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "throw_sand",
+      name: "Jogar Areia",
+      description: "Joga areia nos olhos",
+      type: "debuff",
+      effect: { type: "blind", duration: 1, value: -4 },
+      cooldown: 3,
+      useChance: 0.3,
+    },
+  ],
+  
+  // KOBOLD abilities
+  kobold: [
+    {
+      id: "trap_trigger",
+      name: "Ativar Armadilha",
+      description: "Ativa uma armadilha escondida",
+      type: "attack",
+      damage: { dice: "2d4", type: "piercing" },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+    {
+      id: "pack_tactics",
+      name: "Táticas de Grupo",
+      description: "Ataca em coordenação",
+      type: "attack",
+      damage: { dice: "1d6", type: "piercing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+  ],
+  
+  // GHOUL abilities
+  ghoul: [
+    {
+      id: "paralyzing_touch",
+      name: "Toque Paralisante",
+      description: "Um toque que paralisa",
+      type: "attack",
+      damage: { dice: "2d6", type: "necrotic" },
+      effect: { type: "paralysis", duration: 2, value: 0 },
+      cooldown: 3,
+      useChance: 0.5,
+    },
+    {
+      id: "bite",
+      name: "Mordida",
+      description: "Uma mordida faminta",
+      type: "attack",
+      damage: { dice: "2d8", type: "piercing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+  ],
+  
+  // HARPY abilities
+  harpy: [
+    {
+      id: "luring_song",
+      name: "Canção Sedutora",
+      description: "Uma canção que encanta",
+      type: "debuff",
+      effect: { type: "charm", duration: 2, value: -3 },
+      cooldown: 4,
+      useChance: 0.4,
+    },
+    {
+      id: "claw_attack",
+      name: "Ataque de Garras",
+      description: "Ataca com garras afiadas",
+      type: "attack",
+      damage: { dice: "2d6", type: "slashing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "dive_bomb",
+      name: "Mergulho",
+      description: "Mergulha do alto para atacar",
+      type: "attack",
+      damage: { dice: "3d6", type: "piercing" },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+  ],
+  
+  // MIMIC abilities
+  mimic: [
+    {
+      id: "adhesive",
+      name: "Adesivo",
+      description: "Gruda no alvo",
+      type: "debuff",
+      effect: { type: "grapple", duration: 3, value: -4 },
+      cooldown: 3,
+      useChance: 0.5,
+    },
+    {
+      id: "bite",
+      name: "Mordida",
+      description: "Uma mordida surpresa",
+      type: "attack",
+      damage: { dice: "2d8", type: "piercing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "pseudopod",
+      name: "Pseudópode",
+      description: "Ataca com um tentáculo",
+      type: "attack",
+      damage: { dice: "1d8", type: "bludgeoning" },
+      cooldown: 1,
+      useChance: 0.4,
+    },
+  ],
+  
+  // GELATINOUS CUBE abilities
+  gelatinous_cube: [
+    {
+      id: "engulf",
+      name: "Engolfar",
+      description: "Tenta engolfar o alvo",
+      type: "attack",
+      damage: { dice: "3d6", type: "acid" },
+      effect: { type: "restrained", duration: 2, value: -4 },
+      cooldown: 3,
+      useChance: 0.5,
+    },
+    {
+      id: "acid_touch",
+      name: "Toque Ácido",
+      description: "Dissolve com ácido",
+      type: "attack",
+      damage: { dice: "2d6", type: "acid" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+  ],
+  
+  // IMP abilities
+  imp: [
+    {
+      id: "sting",
+      name: "Ferrão",
+      description: "Ataca com ferrão venenoso",
+      type: "attack",
+      damage: { dice: "1d6", type: "piercing" },
+      effect: { type: "poison", duration: 3, value: 5 },
+      cooldown: 2,
+      useChance: 0.5,
+    },
+    {
+      id: "invisibility",
+      name: "Invisibilidade",
+      description: "Fica invisível",
+      type: "buff",
+      effect: { type: "invisible", duration: 2, value: 4 },
+      cooldown: 4,
+      useChance: 0.3,
+    },
+    {
+      id: "fire_bolt",
+      name: "Raio de Fogo",
+      description: "Dispara um raio de fogo",
+      type: "spell",
+      damage: { dice: "1d10", type: "fire" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+  ],
+  
+  // GIANT BAT abilities
+  bat_giant: [
+    {
+      id: "sonic_screech",
+      name: "Grito Sônico",
+      description: "Um grito ensurdecedor",
+      type: "attack",
+      damage: { dice: "2d6", type: "thunder" },
+      effect: { type: "deafen", duration: 2, value: -2 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+    {
+      id: "bite",
+      name: "Mordida",
+      description: "Uma mordida rápida",
+      type: "attack",
+      damage: { dice: "1d8", type: "piercing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+  ],
+  
+  // SLIME abilities
+  slime: [
+    {
+      id: "acid_splash",
+      name: "Respingo Ácido",
+      description: "Espirra ácido",
+      type: "attack",
+      damage: { dice: "1d6", type: "acid" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "split",
+      name: "Dividir",
+      description: "Divide-se quando ferido",
+      type: "special",
+      effect: { type: "split", duration: 0, value: 0 },
+      cooldown: 5,
+      useChance: 0.3,
+      minHealth: 0,
+      maxHealth: 50,
+    },
+  ],
+  
+  // FIRE ELEMENTAL abilities
+  elemental_fire: [
+    {
+      id: "fire_touch",
+      name: "Toque Flamejante",
+      description: "Queima com fogo intenso",
+      type: "attack",
+      damage: { dice: "2d8", type: "fire" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "fire_form",
+      name: "Forma de Fogo",
+      description: "Causa dano a quem o toca",
+      type: "buff",
+      effect: { type: "fire_aura", duration: 3, value: 5 },
+      cooldown: 4,
+      useChance: 0.4,
+    },
+    {
+      id: "ignite",
+      name: "Incendiar",
+      description: "Incendeia o alvo",
+      type: "debuff",
+      effect: { type: "burning", duration: 3, value: 5 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+  ],
+  
+  // YOUNG DRAGON abilities
+  dragon_young: [
+    {
+      id: "breath_weapon",
+      name: "Sopro de Fogo",
+      description: "Sopra fogo devastador",
+      type: "spell",
+      damage: { dice: "6d6", type: "fire" },
+      cooldown: 4,
+      useChance: 0.6,
+    },
+    {
+      id: "claw",
+      name: "Garras",
+      description: "Ataca com garras",
+      type: "attack",
+      damage: { dice: "2d8", type: "slashing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "bite",
+      name: "Mordida",
+      description: "Uma mordida poderosa",
+      type: "attack",
+      damage: { dice: "2d10", type: "piercing" },
+      cooldown: 1,
+      useChance: 0.5,
+    },
+    {
+      id: "frightful_presence",
+      name: "Presença Aterrorizante",
+      description: "Causa medo em todos ao redor",
+      type: "debuff",
+      effect: { type: "fear", duration: 3, value: -4 },
+      cooldown: 5,
+      useChance: 0.3,
+    },
+    {
+      id: "wing_attack",
+      name: "Ataque de Asas",
+      description: "Bate as asas com força",
+      type: "attack",
+      damage: { dice: "2d6", type: "bludgeoning" },
+      effect: { type: "prone", duration: 1, value: -2 },
+      cooldown: 3,
+      useChance: 0.4,
+    },
+  ],
+};
+
+// Helper function to get abilities for a monster by name
+export function getMonsterAbilities(monsterName: string): MonsterAbility[] {
+  const normalizedName = monsterName.toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[áàãâä]/g, 'a')
+    .replace(/[éèêë]/g, 'e')
+    .replace(/[íìîï]/g, 'i')
+    .replace(/[óòõôö]/g, 'o')
+    .replace(/[úùûü]/g, 'u');
+  
+  // Try exact match first
+  if (MONSTER_ABILITIES[normalizedName]) {
+    return MONSTER_ABILITIES[normalizedName];
+  }
+  
+  // Try partial match
+  for (const key of Object.keys(MONSTER_ABILITIES)) {
+    if (normalizedName.includes(key) || key.includes(normalizedName)) {
+      return MONSTER_ABILITIES[key];
+    }
+  }
+  
+  // Return default basic attack if no abilities found
+  return [{
+    id: "basic_attack",
+    name: "Ataque Básico",
+    description: "Um ataque comum",
+    type: "attack",
+    damage: { dice: "1d6", type: "physical" },
+    cooldown: 0,
+    useChance: 0.3,
+  }];
+}
+
+// Helper function to roll dice
+export function rollDiceString(diceString: string): number {
+  const match = diceString.match(/(\d+)d(\d+)([+-]\d+)?/);
+  if (!match) return 0;
+  
+  const numDice = parseInt(match[1]);
+  const dieSize = parseInt(match[2]);
+  const modifier = match[3] ? parseInt(match[3]) : 0;
+  
+  let total = 0;
+  for (let i = 0; i < numDice; i++) {
+    total += Math.floor(Math.random() * dieSize) + 1;
+  }
+  
+  return total + modifier;
+}

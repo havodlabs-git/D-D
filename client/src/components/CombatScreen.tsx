@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Sword, Shield, Wind, X, Zap, Target, Clock, BookOpen, Flame, Skull, Heart, Star } from "lucide-react";
 import { toast } from "sonner";
-import { MONSTER_TIERS, SPELLS, Spell, SPELL_SLOTS_BY_LEVEL, CHARACTER_CLASSES, CLASS_ABILITIES } from "../../../shared/gameConstants";
+import { MONSTER_TIERS, SPELLS, Spell, SPELL_SLOTS_BY_LEVEL, CHARACTER_CLASSES, CLASS_ABILITIES, MONSTER_ABILITIES, MonsterAbility, getMonsterAbilities, rollDiceString } from "../../../shared/gameConstants";
 
 // Monster sprites mapping
 const MONSTER_SPRITES: Record<string, string> = {
@@ -190,6 +190,13 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
   const [layOnHandsPool, setLayOnHandsPool] = useState(0);
   const [hasAdvantage, setHasAdvantage] = useState(false);
   const [damageResistance, setDamageResistance] = useState<string[]>([]);
+  
+  // Monster AI states
+  const [monsterAbilities] = useState<MonsterAbility[]>(() => getMonsterAbilities(monster.name));
+  const [monsterAbilityCooldowns, setMonsterAbilityCooldowns] = useState<Record<string, number>>({});
+  const [monsterBuffs, setMonsterBuffs] = useState<Array<{ type: string; duration: number; value: number }>>([]);
+  const [playerDebuffs, setPlayerDebuffs] = useState<Array<{ type: string; duration: number; value: number }>>([]);
+  const [turnCount, setTurnCount] = useState(0);
 
   const { data: character } = trpc.character.get.useQuery();
   const attackMutation = trpc.combat.attack.useMutation();
@@ -658,20 +665,161 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
 
         setIsAttacking(false);
 
-        // Monster's turn
+        // Monster's turn with AI
         if (monsterHealth > 0) {
           setTimeout(() => {
+            // Increment turn count
+            setTurnCount(prev => prev + 1);
+            
+            // Reduce cooldowns
+            setMonsterAbilityCooldowns(prev => {
+              const newCooldowns: Record<string, number> = {};
+              for (const [key, value] of Object.entries(prev)) {
+                if (value > 0) newCooldowns[key] = value - 1;
+              }
+              return newCooldowns;
+            });
+            
+            // Update buff/debuff durations
+            setMonsterBuffs(prev => prev.filter(b => b.duration > 1).map(b => ({ ...b, duration: b.duration - 1 })));
+            setPlayerDebuffs(prev => prev.filter(d => d.duration > 1).map(d => ({ ...d, duration: d.duration - 1 })));
+            
+            // Calculate monster HP percentage
+            const monsterHpPercent = (monsterHealth / monster.health) * 100;
+            
+            // Monster AI: Choose action
+            let chosenAbility: MonsterAbility | null = null;
+            const availableAbilities = monsterAbilities.filter(ability => {
+              // Check cooldown
+              if (monsterAbilityCooldowns[ability.id] > 0) return false;
+              
+              // Check HP conditions
+              if (ability.minHealth !== undefined && monsterHpPercent < ability.minHealth) return false;
+              if (ability.maxHealth !== undefined && monsterHpPercent > ability.maxHealth) return false;
+              
+              // Roll for use chance
+              return Math.random() < ability.useChance;
+            });
+            
+            // Prioritize healing when low HP
+            if (monsterHpPercent < 30) {
+              const healAbility = availableAbilities.find(a => a.type === "heal");
+              if (healAbility) chosenAbility = healAbility;
+            }
+            
+            // Prioritize buffs at start of combat
+            if (!chosenAbility && turnCount < 3) {
+              const buffAbility = availableAbilities.find(a => a.type === "buff");
+              if (buffAbility) chosenAbility = buffAbility;
+            }
+            
+            // Otherwise pick a random available ability
+            if (!chosenAbility && availableAbilities.length > 0) {
+              chosenAbility = availableAbilities[Math.floor(Math.random() * availableAbilities.length)];
+            }
+            
             let monsterDamage = result.monsterAttack.damage;
+            let abilityUsed = false;
+            
+            // Execute chosen ability
+            if (chosenAbility) {
+              abilityUsed = true;
+              setMonsterAbilityCooldowns(prev => ({ ...prev, [chosenAbility!.id]: chosenAbility!.cooldown }));
+              
+              const abilityIcon = {
+                attack: "⚔️",
+                spell: "✨",
+                buff: "💪",
+                debuff: "👾",
+                heal: "💚",
+                special: "🌟",
+              }[chosenAbility.type];
+              
+              switch (chosenAbility.type) {
+                case "attack":
+                case "spell":
+                case "special":
+                  if (chosenAbility.damage) {
+                    const abilityDamage = rollDiceString(chosenAbility.damage.dice);
+                    monsterDamage = abilityDamage;
+                    addLog("monster", `${abilityIcon} ${monster.name} usa ${chosenAbility.name}!`);
+                    
+                    // Apply effect if any
+                    if (chosenAbility.effect) {
+                      setPlayerDebuffs(prev => [...prev, { 
+                        type: chosenAbility!.effect!.type, 
+                        duration: chosenAbility!.effect!.duration, 
+                        value: chosenAbility!.effect!.value 
+                      }]);
+                      addLog("system", `💥 Você sofre ${chosenAbility.effect.type}!`);
+                    }
+                  }
+                  break;
+                  
+                case "heal":
+                  if (chosenAbility.healing) {
+                    const healAmount = rollDiceString(chosenAbility.healing.dice);
+                    const newMonsterHp = Math.min(monster.health, monsterHealth + healAmount);
+                    setMonsterHealth(newMonsterHp);
+                    addLog("monster", `${abilityIcon} ${monster.name} usa ${chosenAbility.name} e recupera ${healAmount} HP!`);
+                    monsterDamage = 0; // No attack this turn
+                  }
+                  break;
+                  
+                case "buff":
+                  if (chosenAbility.effect) {
+                    setMonsterBuffs(prev => [...prev, { 
+                      type: chosenAbility!.effect!.type, 
+                      duration: chosenAbility!.effect!.duration, 
+                      value: chosenAbility!.effect!.value 
+                    }]);
+                    addLog("monster", `${abilityIcon} ${monster.name} usa ${chosenAbility.name}!`);
+                    monsterDamage = 0; // No attack this turn
+                  }
+                  break;
+                  
+                case "debuff":
+                  if (chosenAbility.effect) {
+                    setPlayerDebuffs(prev => [...prev, { 
+                      type: chosenAbility!.effect!.type, 
+                      duration: chosenAbility!.effect!.duration, 
+                      value: chosenAbility!.effect!.value 
+                    }]);
+                    addLog("monster", `${abilityIcon} ${monster.name} usa ${chosenAbility.name}!`);
+                    
+                    // Some debuffs also do damage
+                    if (chosenAbility.damage) {
+                      monsterDamage = rollDiceString(chosenAbility.damage.dice);
+                    } else {
+                      monsterDamage = 0;
+                    }
+                  }
+                  break;
+              }
+            }
+            
+            // Apply monster buffs to damage
+            const damageBuffs = monsterBuffs.filter(b => b.type === "damage_boost");
+            for (const buff of damageBuffs) {
+              monsterDamage += buff.value;
+            }
+            
+            // Apply player debuffs
+            const armorDebuffs = playerDebuffs.filter(d => d.type === "armor_reduce");
+            // These would affect hit chance, but for simplicity we'll add extra damage
+            for (const debuff of armorDebuffs) {
+              monsterDamage += Math.abs(debuff.value);
+            }
             
             // Apply damage resistance from Rage
-            if (damageResistance.length > 0) {
+            if (damageResistance.length > 0 && monsterDamage > 0) {
               monsterDamage = Math.floor(monsterDamage / 2);
               addLog("system", `🛡️ Resistência a dano! Dano reduzido para ${monsterDamage}.`);
             }
             
             // Uncanny Dodge
             const uncannyDodge = classAbilities.find(a => a.id === "uncanny_dodge" && a.isActive);
-            if (uncannyDodge) {
+            if (uncannyDodge && monsterDamage > 0) {
               monsterDamage = Math.floor(monsterDamage / 2);
               addLog("ability", `🛡️ Esquiva Sobrenatural! Dano reduzido para ${monsterDamage}.`);
               setClassAbilities(prev => prev.map(a => 
@@ -679,15 +827,27 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
               ));
             }
             
-            if (result.monsterAttack.hit) {
-              setIsPlayerHit(true);
-              setTimeout(() => setIsPlayerHit(false), 300);
-              addLog("monster", `👹 ${monster.name} atacou: ${monsterDamage} de dano!`, monsterDamage);
-            } else {
-              addLog("monster", `👹 ${monster.name} errou o ataque!`);
+            // Apply damage if monster attacked
+            if (monsterDamage > 0) {
+              if (!abilityUsed) {
+                // Normal attack
+                if (result.monsterAttack.hit) {
+                  setIsPlayerHit(true);
+                  setTimeout(() => setIsPlayerHit(false), 300);
+                  addLog("monster", `👹 ${monster.name} atacou: ${monsterDamage} de dano!`, monsterDamage);
+                } else {
+                  addLog("monster", `👹 ${monster.name} errou o ataque!`);
+                  monsterDamage = 0;
+                }
+              } else {
+                // Ability attack - always hits for simplicity
+                setIsPlayerHit(true);
+                setTimeout(() => setIsPlayerHit(false), 300);
+                addLog("monster", `💥 ${monsterDamage} de dano!`, monsterDamage);
+              }
             }
 
-            const newPlayerHealth = Math.max(0, playerHealth - (result.monsterAttack.hit ? monsterDamage : 0));
+            const newPlayerHealth = Math.max(0, playerHealth - monsterDamage);
             setPlayerHealth(newPlayerHealth);
 
             if (newPlayerHealth <= 0) {
@@ -715,13 +875,14 @@ export function CombatScreen({ monster, latitude, longitude, onClose, onVictory,
     setCombatEnded(true);
     
     try {
-      // Call the server to get real rewards (XP, gold, loot)
+      // Call the server to process victory and get rewards (XP, gold, loot)
+      // We send monsterCurrentHealth: 1 so the server calculates damage and sees it reach 0
       const result = await attackMutation.mutateAsync({
         monsterId: monster.id,
         monsterLevel: monster.level,
         monsterArmor: monster.armor,
         monsterDamage: monster.damage,
-        monsterCurrentHealth: 0, // Monster is dead
+        monsterCurrentHealth: 1, // Server will reduce this to 0 and give rewards
       });
       
       if (result.rewards) {

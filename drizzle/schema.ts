@@ -197,6 +197,21 @@ export const monsters = mysqlTable("monsters", {
   // Loot table (JSON array of item IDs with drop chances)
   lootTable: json("lootTable").$type<Array<{ itemId: number; dropChance: number }>>(),
   
+  // Monster abilities/skills (JSON array)
+  abilities: json("abilities").$type<Array<{
+    id: string;
+    name: string;
+    description: string;
+    type: "attack" | "spell" | "buff" | "debuff" | "heal" | "special";
+    damage?: { dice: string; type: string };
+    healing?: { dice: string };
+    effect?: { type: string; duration: number; value: number };
+    cooldown: number; // turns between uses
+    useChance: number; // 0-1 probability of using when available
+    minHealth?: number; // only use below this HP percentage
+    maxHealth?: number; // only use above this HP percentage
+  }>>(),
+  
   // Spawn conditions
   biomeType: mysqlEnum("biomeType", [
     "urban", "forest", "water", "mountain", "desert", "plains"
@@ -209,6 +224,21 @@ export const monsters = mysqlTable("monsters", {
 
 export type Monster = typeof monsters.$inferSelect;
 export type InsertMonster = typeof monsters.$inferInsert;
+
+// Monster ability type for use in code
+export type MonsterAbility = {
+  id: string;
+  name: string;
+  description: string;
+  type: "attack" | "spell" | "buff" | "debuff" | "heal" | "special";
+  damage?: { dice: string; type: string };
+  healing?: { dice: string };
+  effect?: { type: string; duration: number; value: number };
+  cooldown: number;
+  useChance: number;
+  minHealth?: number;
+  maxHealth?: number;
+};
 
 // ============================================
 // NPCS TABLE (NPC templates)

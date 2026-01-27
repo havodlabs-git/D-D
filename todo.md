@@ -228,3 +228,10 @@
 - [x] Corrigir sistema de EXP para funcionar corretamente
 - [x] Adicionar ícones para magias preparadas na interface
 - [x] Criar sistema de chat global com tabela e API
+
+
+## Bug Fix e Melhorias - Fase 3
+- [x] Corrigir sistema de EXP para contar corretamente por combate
+- [x] Criar sistema de skills para monstros (ataques especiais, magias, habilidades)
+- [x] Implementar IA inteligente para monstros usarem suas skills
+- [x] Adicionar feedback visual quando monstros usam skills
