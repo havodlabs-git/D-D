@@ -257,3 +257,10 @@
 - [x] Adicionar controles de volume e mute
 - [x] Melhorar sistema multiplayer (ver outros jogadores no mapa, heartbeat, status)
 - [x] Melhorar chat global existente com mais funcionalidades (já existente e funcional)
+
+
+## Jogadores Online no Mapa - Fase 7
+- [x] Atualizar PixelWorldMap para receber lista de jogadores online
+- [x] Renderizar marcadores de jogadores com ícone de classe e nome
+- [x] Integrar dados de jogadores online no Game.tsx
+- [x] Adicionar tooltip com informações do jogador ao clicar

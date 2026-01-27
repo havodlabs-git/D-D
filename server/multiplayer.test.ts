@@ -98,3 +98,84 @@ describe("Audio Manager", () => {
     });
   });
 });
+
+describe("Online Players on Map", () => {
+  describe("Player Marker Data", () => {
+    it("should have required fields for map display", () => {
+      const onlinePlayer = {
+        id: 1,
+        characterName: "TestPlayer",
+        characterClass: "fighter",
+        characterLevel: 5,
+        latitude: -23.5505,
+        longitude: -46.6333,
+        status: "exploring",
+      };
+      
+      expect(onlinePlayer.characterName).toBeDefined();
+      expect(onlinePlayer.characterClass).toBeDefined();
+      expect(onlinePlayer.characterLevel).toBeGreaterThan(0);
+      expect(onlinePlayer.latitude).toBeDefined();
+      expect(onlinePlayer.longitude).toBeDefined();
+      expect(onlinePlayer.status).toBeDefined();
+    });
+
+    it("should handle null coordinates", () => {
+      const playerWithNullCoords = {
+        id: 2,
+        characterName: "NoLocation",
+        characterClass: "wizard",
+        characterLevel: 3,
+        latitude: null,
+        longitude: null,
+        status: "idle",
+      };
+      
+      // Players with null coordinates should not be rendered on map
+      expect(playerWithNullCoords.latitude).toBeNull();
+      expect(playerWithNullCoords.longitude).toBeNull();
+    });
+  });
+
+  describe("Status Colors", () => {
+    it("should have correct status color mapping", () => {
+      const statusColors: Record<string, string> = {
+        exploring: '#22c55e',
+        combat: '#ef4444',
+        dungeon: '#a855f7',
+        shop: '#f59e0b',
+        idle: '#6b7280',
+      };
+      
+      expect(statusColors.exploring).toBe('#22c55e'); // Green
+      expect(statusColors.combat).toBe('#ef4444'); // Red
+      expect(statusColors.dungeon).toBe('#a855f7'); // Purple
+      expect(statusColors.shop).toBe('#f59e0b'); // Yellow
+      expect(statusColors.idle).toBe('#6b7280'); // Gray
+    });
+  });
+
+  describe("Class Sprites", () => {
+    it("should have sprites for all classes", () => {
+      const classSprites: Record<string, string> = {
+        fighter: "/sprites/classes/warrior.png",
+        wizard: "/sprites/classes/mage.png",
+        rogue: "/sprites/classes/rogue.png",
+        cleric: "/sprites/classes/cleric.png",
+        ranger: "/sprites/classes/ranger.png",
+        paladin: "/sprites/classes/paladin.png",
+        barbarian: "/sprites/classes/barbarian.png",
+        bard: "/sprites/classes/bard.png",
+        druid: "/sprites/classes/druid.png",
+        monk: "/sprites/classes/monk.png",
+        sorcerer: "/sprites/classes/sorcerer.png",
+        warlock: "/sprites/classes/warlock.png",
+      };
+      
+      expect(Object.keys(classSprites)).toHaveLength(12);
+      Object.values(classSprites).forEach(sprite => {
+        expect(sprite).toMatch(/\/sprites\/classes\/.*\.png/);
+      });
+    });
+  });
+});

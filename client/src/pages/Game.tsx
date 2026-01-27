@@ -66,6 +66,15 @@ export default function Game() {
     { enabled: isAuthenticated }
   );
 
+  // Fetch online players for the map
+  const { data: onlinePlayers } = trpc.multiplayer.getNearbyPlayers.useQuery(
+    { latitude: undefined, longitude: undefined },
+    { 
+      enabled: isAuthenticated && !!character,
+      refetchInterval: 10000, // Refresh every 10 seconds
+    }
+  );
+
   const seedMutation = trpc.gameData.seed.useMutation();
   const utils = trpc.useUtils();
 
@@ -325,6 +334,7 @@ export default function Game() {
         onRandomEncounter={(encounter) => setRandomEncounter(encounter)}
         characterClass={character.characterClass}
         visitedPOIs={visitedPOIs}
+        onlinePlayers={onlinePlayers || []}
       />
 
       {/* Player HUD - Top left */}

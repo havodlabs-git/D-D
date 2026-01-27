@@ -16,6 +16,17 @@ interface POI {
   tier?: "common" | "elite" | "boss" | "legendary";
 }
 
+// Online player interface
+interface OnlinePlayer {
+  id: number;
+  characterName: string;
+  characterClass: string;
+  characterLevel: number;
+  latitude: number | null;
+  longitude: number | null;
+  status: string;
+}
+
 interface PixelWorldMapProps {
   onPOIClick: (poi: POI) => void;
   onPlayerMove?: (lat: number, lng: number) => void;
@@ -24,6 +35,7 @@ interface PixelWorldMapProps {
   visitedPOIs?: Set<string>;
   className?: string;
   characterClass?: string;
+  onlinePlayers?: OnlinePlayer[];
 }
 
 // Grid configuration
@@ -191,11 +203,13 @@ export default function PixelWorldMap({
   onRandomEncounter,
   visitedPOIs = new Set(),
   className, 
-  characterClass = "fighter" 
+  characterClass = "fighter",
+  onlinePlayers = []
 }: PixelWorldMapProps) {
   const mapRef = useRef<google.maps.Map | null>(null);
   const playerMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const poiMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const onlinePlayerMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const gridLinesRef = useRef<google.maps.Polyline[]>([]);
   
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -610,6 +624,139 @@ export default function PixelWorldMap({
       drawGridLines(mapRef.current, playerGridPosition);
     }
   }, [playerGridPosition, drawGridLines]);
+
+  // Render online players on the map
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Clear existing online player markers
+    onlinePlayerMarkersRef.current.forEach(marker => {
+      marker.map = null;
+    });
+    onlinePlayerMarkersRef.current = [];
+
+    // Create markers for each online player with valid coordinates
+    onlinePlayers.forEach(player => {
+      if (player.latitude === null || player.longitude === null) return;
+      
+      // Create player marker element
+      const markerDiv = document.createElement('div');
+      markerDiv.className = 'online-player-marker';
+      markerDiv.style.cssText = `
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        transition: transform 0.2s ease;
+      `;
+      
+      // Player sprite
+      const spriteImg = document.createElement('img');
+      const playerSprite = CLASS_SPRITES[player.characterClass] || CLASS_SPRITES.fighter;
+      spriteImg.src = playerSprite;
+      spriteImg.style.cssText = `
+        width: 36px;
+        height: 36px;
+        image-rendering: pixelated;
+        border: 2px solid #22c55e;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.7);
+        padding: 2px;
+      `;
+      
+      // Player name label
+      const nameLabel = document.createElement('div');
+      nameLabel.textContent = player.characterName;
+      nameLabel.style.cssText = `
+        background: rgba(0,0,0,0.85);
+        color: #22c55e;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 2px;
+        white-space: nowrap;
+        border: 1px solid #22c55e;
+        font-family: 'Press Start 2P', monospace;
+      `;
+      
+      // Level badge
+      const levelBadge = document.createElement('div');
+      levelBadge.textContent = `Lv.${player.characterLevel}`;
+      levelBadge.style.cssText = `
+        position: absolute;
+        top: -4px;
+        right: -8px;
+        background: #f59e0b;
+        color: #000;
+        font-size: 8px;
+        font-weight: bold;
+        padding: 1px 3px;
+        border-radius: 3px;
+        font-family: monospace;
+      `;
+      
+      // Status indicator
+      const statusIndicator = document.createElement('div');
+      const statusColors: Record<string, string> = {
+        exploring: '#22c55e',
+        combat: '#ef4444',
+        dungeon: '#a855f7',
+        shop: '#f59e0b',
+        idle: '#6b7280',
+      };
+      statusIndicator.style.cssText = `
+        position: absolute;
+        bottom: 20px;
+        right: -4px;
+        width: 10px;
+        height: 10px;
+        background: ${statusColors[player.status] || statusColors.exploring};
+        border: 2px solid #fff;
+        border-radius: 50%;
+        animation: ${player.status === 'combat' ? 'pulse 1s infinite' : 'none'};
+      `;
+      
+      markerDiv.appendChild(spriteImg);
+      markerDiv.appendChild(levelBadge);
+      markerDiv.appendChild(statusIndicator);
+      markerDiv.appendChild(nameLabel);
+      
+      // Hover effect
+      markerDiv.addEventListener('mouseenter', () => {
+        markerDiv.style.transform = 'scale(1.15)';
+      });
+      markerDiv.addEventListener('mouseleave', () => {
+        markerDiv.style.transform = 'scale(1)';
+      });
+      
+      // Click to show player info
+      markerDiv.addEventListener('click', () => {
+        const statusText: Record<string, string> = {
+          exploring: 'Explorando',
+          combat: 'Em Combate',
+          dungeon: 'Na Dungeon',
+          shop: 'Na Loja',
+          idle: 'Inativo',
+        };
+        toast.info(`${player.characterName} - ${player.characterClass.charAt(0).toUpperCase() + player.characterClass.slice(1)} Lv.${player.characterLevel}`, {
+          description: statusText[player.status] || 'Online',
+        });
+      });
+      
+      const marker = new google.maps.marker.AdvancedMarkerElement({
+        map: mapRef.current!,
+        position: { lat: player.latitude, lng: player.longitude },
+        content: markerDiv,
+        title: `${player.characterName} (${player.characterClass})`,
+        zIndex: 600, // Above POIs but below player
+      });
+      
+      onlinePlayerMarkersRef.current.push(marker);
+    });
+  }, [onlinePlayers]);
 
   if (isLoadingLocation) {
     return (
