@@ -39,9 +39,10 @@ interface PixelWorldMapProps {
 }
 
 // Grid configuration
-const GRID_SIZE = 0.0005; // ~50 meters per tile at equator
-const VISIBLE_TILES = 15; // Number of tiles visible in each direction
-const INTERACTION_RANGE = 2; // Can only interact with POIs within 2 tiles
+const GRID_SIZE = 0.0001; // ~10 meters per tile at equator (limited movement)
+const VISIBLE_TILES = 30; // Number of tiles visible in each direction
+const INTERACTION_RANGE = 3; // Can only interact with POIs within 3 tiles
+const MAX_MOVE_DISTANCE = 5; // Maximum tiles player can move per click (~50 meters)
 
 const POI_EMOJIS: Record<string, string> = {
   monster: "👹",
@@ -378,9 +379,30 @@ export default function PixelWorldMap({
       return;
     }
     
+    // Calculate distance in grid tiles
+    const distance = getGridDistance(playerGridPosition.lat, playerGridPosition.lng, snappedLat, snappedLng);
+    
+    // Limit movement to MAX_MOVE_DISTANCE tiles per click
+    let finalLat = snappedLat;
+    let finalLng = snappedLng;
+    
+    if (distance > MAX_MOVE_DISTANCE) {
+      // Calculate direction and limit to max distance
+      const dLat = snappedLat - playerGridPosition.lat;
+      const dLng = snappedLng - playerGridPosition.lng;
+      const maxDist = MAX_MOVE_DISTANCE * GRID_SIZE;
+      const currentDist = Math.max(Math.abs(dLat), Math.abs(dLng));
+      const ratio = maxDist / currentDist;
+      
+      finalLat = snapToGrid(playerGridPosition.lat + dLat * ratio);
+      finalLng = snapToGrid(playerGridPosition.lng + dLng * ratio);
+      
+      toast.info(`Movimento limitado a ${MAX_MOVE_DISTANCE * 10}m por vez`);
+    }
+    
     setIsMoving(true);
     
-    const newPosition = { lat: snappedLat, lng: snappedLng };
+    const newPosition = { lat: finalLat, lng: finalLng };
     
     // Update player position immediately for visual feedback
     setPlayerGridPosition(newPosition);
