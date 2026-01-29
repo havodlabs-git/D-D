@@ -357,46 +357,13 @@ export default function PixelWorldMap({
     return container;
   }, [onPOIClick]);
 
-  // Draw grid lines on the map
+  // Draw grid lines on the map - DISABLED for cleaner look
   const drawGridLines = useCallback((map: google.maps.Map, center: { lat: number; lng: number }) => {
-    // Clear existing grid lines
+    // Grid lines disabled - keeping function for potential future use
+    // Clear any existing grid lines
     gridLinesRef.current.forEach(line => line.setMap(null));
     gridLinesRef.current = [];
-
-    const gridColor = "#ffd700"; // Gold color for grid
-    const halfGrid = VISIBLE_TILES * GRID_SIZE;
-    
-    // Vertical lines
-    for (let i = -VISIBLE_TILES; i <= VISIBLE_TILES; i++) {
-      const lng = snapToGrid(center.lng) + i * GRID_SIZE;
-      const line = new google.maps.Polyline({
-        path: [
-          { lat: center.lat - halfGrid, lng },
-          { lat: center.lat + halfGrid, lng },
-        ],
-        strokeColor: gridColor,
-        strokeOpacity: 0.6,
-        strokeWeight: 1,
-        map,
-      });
-      gridLinesRef.current.push(line);
-    }
-    
-    // Horizontal lines
-    for (let i = -VISIBLE_TILES; i <= VISIBLE_TILES; i++) {
-      const lat = snapToGrid(center.lat) + i * GRID_SIZE;
-      const line = new google.maps.Polyline({
-        path: [
-          { lat, lng: center.lng - halfGrid },
-          { lat, lng: center.lng + halfGrid },
-        ],
-        strokeColor: gridColor,
-        strokeOpacity: 0.6,
-        strokeWeight: 1,
-        map,
-      });
-      gridLinesRef.current.push(line);
-    }
+    // Grid drawing disabled for cleaner map appearance
   }, []);
 
   // Move player to clicked position

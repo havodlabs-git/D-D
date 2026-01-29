@@ -268,3 +268,9 @@
 
 ## Bug Fix - Erro de carregamento de áudio
 - [x] Corrigir erro "Failed to load because no supported source was found" - desabilitado áudio temporário para evitar erros
+
+
+## Correções Visuais - Grid e Sprites
+- [x] Remover padrão de grid repetitivo do mapa
+- [x] Corrigir fundo branco do sprite do Monge
+- [x] Verificar e corrigir fundo branco de outros sprites (20 classes + 27 monstros)
