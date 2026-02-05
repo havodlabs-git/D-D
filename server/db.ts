@@ -1,5 +1,6 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import { 
   InsertUser, users, 
   characters, InsertCharacter, Character,
@@ -26,11 +27,37 @@ import { calculateMaxHealth, calculateMaxMana, calculateArmorClass } from "../sh
 import type { CharacterClass } from "../shared/gameConstants";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: mysql.Pool | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      // Parse DATABASE_URL to extract connection options
+      const dbUrl = new URL(process.env.DATABASE_URL);
+      const socketPath = dbUrl.searchParams.get('socket');
+      
+      const connectionConfig: mysql.PoolOptions = {
+        user: dbUrl.username,
+        password: decodeURIComponent(dbUrl.password),
+        database: dbUrl.pathname.slice(1), // Remove leading slash
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+      };
+      
+      // Use socket if provided (Cloud SQL), otherwise use host/port
+      if (socketPath) {
+        connectionConfig.socketPath = socketPath;
+        console.log("[Database] Connecting via socket:", socketPath);
+      } else {
+        connectionConfig.host = dbUrl.hostname;
+        connectionConfig.port = parseInt(dbUrl.port) || 3306;
+        console.log("[Database] Connecting via TCP:", dbUrl.hostname, dbUrl.port);
+      }
+      
+      _pool = mysql.createPool(connectionConfig);
+      _db = drizzle(_pool);
+      console.log("[Database] Connected successfully");
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;

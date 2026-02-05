@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import PixelWorldMap from "@/components/PixelWorldMap";
+import PixelWorldMap from "@/components/PixelWorldMapMapbox";
 import StreetView3D from "@/components/StreetView3D";
 import { PlayerHUD } from "@/components/PlayerHUD";
 import { CharacterCreation } from "@/components/CharacterCreation";
@@ -84,6 +84,38 @@ export default function Game() {
 
   const seedMutation = trpc.gameData.seed.useMutation();
   const utils = trpc.useUtils();
+
+  // Handle Street View movement - must be before conditional returns
+  const handleStreetViewMove = useCallback((direction: "forward" | "backward" | "left" | "right") => {
+    if (!playerPosition) return;
+    
+    const MOVE_DISTANCE = 0.0001; // ~10 meters
+    let newLat = playerPosition.lat;
+    let newLng = playerPosition.lng;
+    let newHeading = playerHeading;
+    
+    const headingRad = playerHeading * Math.PI / 180;
+    
+    switch (direction) {
+      case "forward":
+        newLat += MOVE_DISTANCE * Math.cos(headingRad);
+        newLng += MOVE_DISTANCE * Math.sin(headingRad);
+        break;
+      case "backward":
+        newLat -= MOVE_DISTANCE * Math.cos(headingRad);
+        newLng -= MOVE_DISTANCE * Math.sin(headingRad);
+        break;
+      case "left":
+        newHeading = (playerHeading - 30 + 360) % 360;
+        break;
+      case "right":
+        newHeading = (playerHeading + 30) % 360;
+        break;
+    }
+    
+    setPlayerPosition({ lat: newLat, lng: newLng });
+    setPlayerHeading(newHeading);
+  }, [playerPosition, playerHeading]);
 
   // Handle POI interaction
   const handlePOIClick = useCallback((poi: GamePOI) => {
@@ -330,38 +362,6 @@ export default function Game() {
   if (!character) {
     return <CharacterCreation onCharacterCreated={() => refetchCharacter()} />;
   }
-
-  // Handle Street View movement
-  const handleStreetViewMove = useCallback((direction: "forward" | "backward" | "left" | "right") => {
-    if (!playerPosition) return;
-    
-    const MOVE_DISTANCE = 0.0001; // ~10 meters
-    let newLat = playerPosition.lat;
-    let newLng = playerPosition.lng;
-    let newHeading = playerHeading;
-    
-    const headingRad = playerHeading * Math.PI / 180;
-    
-    switch (direction) {
-      case "forward":
-        newLat += MOVE_DISTANCE * Math.cos(headingRad);
-        newLng += MOVE_DISTANCE * Math.sin(headingRad);
-        break;
-      case "backward":
-        newLat -= MOVE_DISTANCE * Math.cos(headingRad);
-        newLng -= MOVE_DISTANCE * Math.sin(headingRad);
-        break;
-      case "left":
-        newHeading = (playerHeading - 30 + 360) % 360;
-        break;
-      case "right":
-        newHeading = (playerHeading + 30) % 360;
-        break;
-    }
-    
-    setPlayerPosition({ lat: newLat, lng: newLng });
-    setPlayerHeading(newHeading);
-  }, [playerPosition, playerHeading]);
 
   // Main game view
   return (
