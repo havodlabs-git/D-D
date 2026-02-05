@@ -9,6 +9,7 @@ import { CharacterCreation } from "@/components/CharacterCreation";
 import { InventoryScreen } from "@/components/InventoryScreen";
 import { CharacterSheet } from "@/components/CharacterSheet";
 import { CombatScreen } from "@/components/CombatScreen";
+import { CombatScreenPokemon } from "@/components/CombatScreenPokemon";
 import { ShopScreen } from "@/components/ShopScreen";
 import { DungeonScreen } from "@/components/DungeonScreen";
 import { LevelUpScreen } from "@/components/LevelUpScreen";
@@ -61,6 +62,7 @@ export default function Game() {
   const [pendingLevelUp, setPendingLevelUp] = useState<number | null>(null);
   const [randomEncounter, setRandomEncounter] = useState<any>(null);
   const [audioState, setAudioState] = useState<"exploring" | "combat" | "tavern" | "victory" | "defeat">("exploring");
+  const [usePokemonCombat, setUsePokemonCombat] = useState(true); // Use Pokemon-style combat by default
   const [viewMode, setViewMode] = useState<"map" | "streetview">("map");
   const [playerHeading, setPlayerHeading] = useState(0);
   const [playerPosition, setPlayerPosition] = useState<{ lat: number; lng: number } | null>(null);
@@ -454,17 +456,31 @@ export default function Game() {
       )}
 
       {showCombat && combatMonster && (
-        <CombatScreen
-          monster={combatMonster}
-          latitude={0}
-          longitude={0}
-          onClose={() => {
-            setShowCombat(false);
-            setCombatMonster(null);
-          }}
-          onVictory={handleCombatVictory}
-          onDefeat={handleCombatDefeat}
-        />
+        usePokemonCombat ? (
+          <CombatScreenPokemon
+            monster={combatMonster}
+            latitude={0}
+            longitude={0}
+            onClose={() => {
+              setShowCombat(false);
+              setCombatMonster(null);
+            }}
+            onVictory={handleCombatVictory}
+            onDefeat={handleCombatDefeat}
+          />
+        ) : (
+          <CombatScreen
+            monster={combatMonster}
+            latitude={0}
+            longitude={0}
+            onClose={() => {
+              setShowCombat(false);
+              setCombatMonster(null);
+            }}
+            onVictory={handleCombatVictory}
+            onDefeat={handleCombatDefeat}
+          />
+        )
       )}
 
       {showShop && shopData && (
