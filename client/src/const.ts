@@ -1,7 +1,6 @@
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
-// Generate login URL - now uses Google OAuth
+// Generate login URL - uses dev login for demo mode
 export const getLoginUrl = () => {
-  // Redirect to our Google OAuth endpoint
-  return `${window.location.origin}/api/oauth/google`;
+  return `${window.location.origin}/api/auth/dev-login?name=Aventureiro&id=player-${Date.now()}`;
 };

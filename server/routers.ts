@@ -121,12 +121,61 @@ export const appRouter = router({
   character: router({
     // Get current character
     get: protectedProcedure.query(async ({ ctx }) => {
+      console.log("[Character.get] userId:", ctx.user.id, "openId:", ctx.user.openId);
+      // Check demo storage first
+      const demoKey = `demo_char_${ctx.user.id}`;
+      const demoStored = (global as any)[demoKey];
+      if (demoStored) {
+        console.log("[Character.get] Found demo character for", demoKey);
+        return demoStored;
+      }
+      // Try DB
       const character = await db.getCharacterByUserId(ctx.user.id);
-      // If character is dead, return null so user can create new one
       if (character?.isDead) {
         return { ...character, isDead: true };
       }
-      return character;
+      if (character) return character;
+      
+      // Auto-create a default character when none exists (demo mode)
+      console.log("[Character.get] No character found, auto-creating default for userId:", ctx.user.id);
+      const defaultChar = {
+        id: ctx.user.id,
+        userId: ctx.user.id,
+        name: ctx.user.name || "Aventureiro",
+        characterClass: "fighter" as const,
+        level: 1,
+        experience: 0,
+        experienceToNextLevel: 100,
+        strength: 16,
+        dexterity: 13,
+        constitution: 14,
+        intelligence: 10,
+        wisdom: 12,
+        charisma: 8,
+        maxHealth: 24,
+        currentHealth: 24,
+        maxMana: 10,
+        currentMana: 10,
+        armorClass: 11,
+        gold: 100,
+        lastLatitude: null,
+        lastLongitude: null,
+        availableStatPoints: 0,
+        subclass: null,
+        knownSpells: null,
+        preparedSpells: null,
+        usedSpellSlots: null,
+        isDead: false,
+        deathTimestamp: null,
+        deathCause: null,
+        movesUsedThisHour: 0,
+        lastMoveResetTime: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      (global as any)[demoKey] = defaultChar;
+      console.log("[Character.get] Auto-created default character for", demoKey);
+      return defaultChar;
     }),
     
     // Delete dead character to create new one
@@ -166,25 +215,75 @@ export const appRouter = router({
         characterClass: z.enum(["fighter", "wizard", "rogue", "cleric", "ranger", "paladin", "barbarian", "bard", "druid", "monk", "sorcerer", "warlock"]),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Check if user already has a character
+        // Check if demo character already exists
+        const demoKey = `demo_char_${ctx.user.id}`;
+        if ((global as any)[demoKey]) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Você já possui um personagem" });
+        }
+        
+        // Try DB first
         const existing = await db.getCharacterByUserId(ctx.user.id);
         if (existing) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Você já possui um personagem" });
         }
-
         const character = await db.createCharacter(ctx.user.id, input.name, input.characterClass);
+        if (character) return character;
         
-        // Give starting items
-        if (character) {
-          // Starting weapon based on class
-          const startingWeapons: Record<string, number> = {
-            fighter: 1, wizard: 2, rogue: 3, cleric: 4, ranger: 5, paladin: 6, barbarian: 7, bard: 8,
-            druid: 9, monk: 10, sorcerer: 11, warlock: 12
+        // DB not available - create demo character
+        console.log("[Character] Creating demo character for userId:", ctx.user.id);
+          const classStats: Record<string, { hp: number; mana: number; str: number; dex: number; con: number; int: number; wis: number; cha: number }> = {
+            fighter: { hp: 24, mana: 10, str: 16, dex: 13, con: 14, int: 10, wis: 12, cha: 8 },
+            wizard: { hp: 14, mana: 30, str: 8, dex: 13, con: 12, int: 16, wis: 14, cha: 10 },
+            rogue: { hp: 18, mana: 15, str: 10, dex: 16, con: 12, int: 13, wis: 10, cha: 14 },
+            cleric: { hp: 20, mana: 25, str: 14, dex: 10, con: 13, int: 10, wis: 16, cha: 12 },
+            ranger: { hp: 22, mana: 15, str: 12, dex: 16, con: 14, int: 10, wis: 14, cha: 8 },
+            paladin: { hp: 24, mana: 15, str: 16, dex: 10, con: 14, int: 8, wis: 12, cha: 14 },
+            barbarian: { hp: 28, mana: 5, str: 16, dex: 14, con: 16, int: 8, wis: 10, cha: 10 },
+            bard: { hp: 18, mana: 20, str: 10, dex: 14, con: 12, int: 12, wis: 10, cha: 16 },
+            druid: { hp: 18, mana: 25, str: 10, dex: 12, con: 14, int: 12, wis: 16, cha: 10 },
+            monk: { hp: 20, mana: 15, str: 12, dex: 16, con: 14, int: 10, wis: 14, cha: 8 },
+            sorcerer: { hp: 14, mana: 30, str: 8, dex: 14, con: 12, int: 10, wis: 12, cha: 16 },
+            warlock: { hp: 18, mana: 20, str: 10, dex: 12, con: 14, int: 12, wis: 10, cha: 16 },
           };
-          // Note: These item IDs would need to be seeded in the database
-        }
-
-        return character;
+          const stats = classStats[input.characterClass] || classStats.fighter;
+          const demoChar = {
+            id: ctx.user.id,
+            userId: ctx.user.id,
+            name: input.name,
+            characterClass: input.characterClass,
+            level: 1,
+            experience: 0,
+            experienceToNextLevel: 100,
+            strength: stats.str,
+            dexterity: stats.dex,
+            constitution: stats.con,
+            intelligence: stats.int,
+            wisdom: stats.wis,
+            charisma: stats.cha,
+            maxHealth: stats.hp,
+            currentHealth: stats.hp,
+            maxMana: stats.mana,
+            currentMana: stats.mana,
+            armorClass: 10 + Math.floor((stats.dex - 10) / 2),
+            gold: 100,
+            lastLatitude: null,
+            lastLongitude: null,
+            availableStatPoints: 0,
+            subclass: null,
+            knownSpells: null,
+            preparedSpells: null,
+            usedSpellSlots: null,
+            isDead: false,
+            deathTimestamp: null,
+            deathCause: null,
+            movesUsedThisHour: 0,
+            lastMoveResetTime: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        (global as any)[demoKey] = demoChar;
+        console.log("[Character] Demo character created and stored as", demoKey);
+        return demoChar;
       }),
 
     // Update character location
@@ -250,36 +349,41 @@ export const appRouter = router({
       }));
     }),
     
-    // Move character (uses movement points)
+    // Move character (no movement limits)
     move: protectedProcedure
       .input(z.object({
         latitude: z.number(),
         longitude: z.number(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        let character: any = null;
+        try {
+          character = await db.getCharacterByUserId(ctx.user.id);
+        } catch (e) {
+          const demoKey = `demo_char_${ctx.user.id}`;
+          character = (global as any)[demoKey];
+        }
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
-        if (character.isDead) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Personagem está morto" });
-        }
 
-        // Check movement limit
-        const moveResult = await db.useMovement(character.id);
-        if (!moveResult.canMove) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Limite de movimento atingido. Aguarde para se mover novamente." });
+        // Update location (no movement limit)
+        try {
+          await db.updateCharacterLocation(character.id, input.latitude, input.longitude);
+        } catch (e) {
+          // Demo mode - update in memory
+          const demoKey = `demo_char_${ctx.user.id}`;
+          if ((global as any)[demoKey]) {
+            (global as any)[demoKey].lastLatitude = input.latitude.toString();
+            (global as any)[demoKey].lastLongitude = input.longitude.toString();
+          }
         }
-
-        // Update location
-        await db.updateCharacterLocation(character.id, input.latitude, input.longitude);
 
         // Check for random encounter (15% chance per move)
         const encounterRoll = Math.random();
         let encounter = null;
         
         if (encounterRoll < 0.15) {
-          // Random encounter!
           const encounterTypes = [
             { type: "battle", weight: 50 },
             { type: "treasure", weight: 20 },
@@ -308,19 +412,22 @@ export const appRouter = router({
 
         return {
           success: true,
-          movesRemaining: moveResult.movesRemaining,
+          movesRemaining: 999999,
           encounter,
         };
       }),
     
     // Get movement status
     getMovementStatus: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
-      if (!character) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+      try {
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (!character) {
+          return { movesRemaining: 999999, maxMoves: 999999, resetTime: new Date() };
+        }
+        return await db.getMovementStatus(character.id);
+      } catch (e) {
+        return { movesRemaining: 999999, maxMoves: 999999, resetTime: new Date() };
       }
-      
-      return await db.getMovementStatus(character.id);
     }),
   }),
 

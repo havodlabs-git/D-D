@@ -270,9 +270,15 @@ class SDKServer {
 
     const sessionUserId = session.openId;
     const signedInAt = new Date();
-    let user = await db.getUserByOpenId(sessionUserId);
+    let user: User | null = null;
 
-    // If user not in DB, sync from OAuth server automatically
+    try {
+      user = await db.getUserByOpenId(sessionUserId);
+    } catch (dbError) {
+      console.warn("[Auth] DB not available, using demo user");
+    }
+
+    // If user not in DB, try to sync or create demo user
     if (!user) {
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
@@ -285,8 +291,19 @@ class SDKServer {
         });
         user = await db.getUserByOpenId(userInfo.openId);
       } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
+        console.warn("[Auth] OAuth/DB not available, creating demo user");
+        // Create a demo user object when DB is not available
+        user = {
+          id: Math.abs(sessionUserId.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)) % 100000,
+          openId: sessionUserId,
+          name: session.name || "Aventureiro",
+          email: null,
+          loginMethod: "dev",
+          role: "user" as const,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastSignedIn: signedInAt,
+        };
       }
     }
 
@@ -294,10 +311,14 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
+    try {
+      await db.upsertUser({
+        openId: user.openId,
+        lastSignedIn: signedInAt,
+      });
+    } catch (e) {
+      console.warn("[Auth] Could not update lastSignedIn (DB not available)");
+    }
 
     return user;
   }

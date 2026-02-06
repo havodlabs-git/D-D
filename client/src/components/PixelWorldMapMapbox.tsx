@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { trpc } from "@/lib/trpc";
@@ -41,32 +41,22 @@ interface PixelWorldMapProps {
   onlinePlayers?: OnlinePlayer[];
 }
 
-// Grid configuration
+// Grid configuration - NO LIMITS
 const GRID_SIZE = 0.0001;
 const VISIBLE_TILES = 30;
-const INTERACTION_RANGE = 3;
-const MAX_MOVE_DISTANCE = 5;
 
+// POI Emojis as text labels for Symbol Layer (most reliable approach)
 const POI_EMOJIS: Record<string, string> = {
-  monster: "👹",
-  npc: "👤",
-  shop: "🏪",
-  treasure: "💎",
-  dungeon: "🚧",
-  quest: "❗",
-  guild: "⚔️",
-  castle: "🏰",
-  city: "🏙️",
-  tavern: "🍺",
-  temple: "⛪",
-  blacksmith: "🔨",
+  monster: "👹", npc: "👤", shop: "🏪", treasure: "💎",
+  dungeon: "🚧", quest: "❗", guild: "⚔️", castle: "🏰",
+  city: "🏙️", tavern: "🍺", temple: "⛪", blacksmith: "🔨",
   magic_shop: "🔮",
 };
 
 const POI_SIZES: Record<string, number> = {
-  monster: 32, npc: 32, shop: 36, treasure: 28, dungeon: 44,
-  quest: 32, guild: 40, castle: 52, city: 56, tavern: 36,
-  temple: 40, blacksmith: 36, magic_shop: 36,
+  monster: 1.2, npc: 1.0, shop: 1.2, treasure: 1.0, dungeon: 1.4,
+  quest: 1.0, guild: 1.3, castle: 1.6, city: 1.6, tavern: 1.2,
+  temple: 1.3, blacksmith: 1.2, magic_shop: 1.2,
 };
 
 const TIER_COLORS: Record<string, string> = {
@@ -136,10 +126,10 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
           dungeon: ["Caverna Sombria", "Cripta Antiga", "Torre Abandonada", "Ruínas Antigas", "Mina Perdida"],
           quest: ["Pedido de Ajuda", "Missão Urgente", "Contrato de Caça", "Investigação"],
           guild: ["Guilda dos Aventureiros", "Ordem dos Cavaleiros", "Liga dos Mercenários"],
-          castle: ["Castelo do Barão", "Fortaleza Antiga", "Torre do Senhor", "Cidadela", "Castelo Assombrado", "Covil do Dragão"],
-          city: ["Waterdeep", "Baldur's Gate", "Neverwinter", "Silverymoon", "Luskan", "Athkatla", "Suzail"],
-          tavern: ["Taverna do Dragão Dourado", "Estalagem do Viajante", "O Porco Preguicoso", "A Caneca Cheia", "Taverna da Lua"],
-          temple: ["Templo de Pelor", "Santuário de Tyr", "Capela de Lathander", "Templo de Mystra", "Altar de Helm"],
+          castle: ["Castelo do Barão", "Fortaleza Antiga", "Torre do Senhor", "Cidadela", "Castelo Assombrado"],
+          city: ["Waterdeep", "Baldur's Gate", "Neverwinter", "Silverymoon", "Luskan"],
+          tavern: ["Taverna do Dragão Dourado", "Estalagem do Viajante", "O Porco Preguicoso", "A Caneca Cheia"],
+          temple: ["Templo de Pelor", "Santuário de Tyr", "Capela de Lathander", "Templo de Mystra"],
           blacksmith: ["Forja do Mestre", "Ferreiro Anão", "Armeiro Real", "Forja das Lendas"],
           magic_shop: ["Empório Arcano", "Loja do Mago", "Pergaminhos & Poções", "Artefatos Místicos"],
         };
@@ -171,10 +161,27 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
   return pois;
 }
 
-function getGridDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const dLat = Math.abs(Math.round((lat2 - lat1) / GRID_SIZE));
-  const dLng = Math.abs(Math.round((lng2 - lng1) / GRID_SIZE));
-  return Math.max(dLat, dLng);
+// Convert POIs to GeoJSON FeatureCollection
+function poisToGeoJSON(pois: POI[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: pois.map(poi => ({
+      type: "Feature" as const,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [poi.longitude, poi.latitude],
+      },
+      properties: {
+        id: poi.id,
+        type: poi.type,
+        name: poi.name,
+        tier: poi.tier || "common",
+        emoji: POI_EMOJIS[poi.type] || "❓",
+        size: POI_SIZES[poi.type] || 1.0,
+        tierColor: poi.tier ? TIER_COLORS[poi.tier] : "#00ff00",
+      },
+    })),
+  };
 }
 
 export default function PixelWorldMap({ 
@@ -189,9 +196,9 @@ export default function PixelWorldMap({
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const playerMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const poiMarkersRef = useRef<mapboxgl.Marker[]>([]);
-  const onlinePlayerMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const initialized = useRef(false);
+  const poisRef = useRef<POI[]>([]);
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
   
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [playerGridPosition, setPlayerGridPosition] = useState<{ lat: number; lng: number } | null>(null);
@@ -199,23 +206,41 @@ export default function PixelWorldMap({
   const [locationError, setLocationError] = useState<string | null>(null);
   const [pois, setPOIs] = useState<POI[]>([]);
   const [isMoving, setIsMoving] = useState(false);
+  const [poiCount, setPOICount] = useState(0);
 
   const moveCharacter = trpc.character.move.useMutation();
   const { data: movementStatus, refetch: refetchMovement } = trpc.character.getMovementStatus.useQuery();
+
+  // Keep poisRef in sync
+  useEffect(() => {
+    poisRef.current = pois;
+    setPOICount(pois.length);
+  }, [pois]);
 
   // Get user's geolocation
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocationError("Geolocalização não suportada");
       setIsLoadingLocation(false);
-      const defaultLoc = { lat: -23.5505, lng: -46.6333 };
+      const defaultLoc = { lat: 39.2369, lng: -8.6850 };
       setUserLocation(defaultLoc);
       setPlayerGridPosition({ lat: snapToGrid(defaultLoc.lat), lng: snapToGrid(defaultLoc.lng) });
       return;
     }
 
+    // Fast fallback timer - if geolocation takes more than 3s, use default
+    const fallbackTimer = setTimeout(() => {
+      console.log("Geolocation timeout, using default location (Santarém)");
+      setLocationError("Usando localização padrão (Santarém)");
+      setIsLoadingLocation(false);
+      const defaultLoc = { lat: 39.2369, lng: -8.6850 };
+      setUserLocation(defaultLoc);
+      setPlayerGridPosition({ lat: snapToGrid(defaultLoc.lat), lng: snapToGrid(defaultLoc.lng) });
+    }, 3000);
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        clearTimeout(fallbackTimer);
         const newLocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -229,14 +254,15 @@ export default function PixelWorldMap({
         setLocationError(null);
       },
       (error) => {
+        clearTimeout(fallbackTimer);
         console.error("Geolocation error:", error);
-        setLocationError("Não foi possível obter sua localização");
+        setLocationError("Usando localização padrão (Santarém)");
         setIsLoadingLocation(false);
-        const defaultLoc = { lat: -23.5505, lng: -46.6333 };
+        const defaultLoc = { lat: 39.2369, lng: -8.6850 };
         setUserLocation(defaultLoc);
         setPlayerGridPosition({ lat: snapToGrid(defaultLoc.lat), lng: snapToGrid(defaultLoc.lng) });
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
     );
   }, []);
 
@@ -252,89 +278,41 @@ export default function PixelWorldMap({
   // Create player marker element
   const createPlayerMarkerElement = useCallback((): HTMLElement => {
     const container = document.createElement("div");
-    container.className = "player-marker-container";
     container.style.cssText = `
-      width: 48px;
-      height: 48px;
+      width: 56px;
+      height: 56px;
       display: flex;
       align-items: center;
       justify-content: center;
-      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
-      animation: playerBounce 1s ease-in-out infinite;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.7));
+      z-index: 1000;
+      pointer-events: none;
     `;
     
     const sprite = document.createElement("img");
     sprite.src = CLASS_SPRITES[characterClass] || CLASS_SPRITES.fighter;
     sprite.style.cssText = `
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
+      border: 3px solid #00ff00;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      padding: 2px;
     `;
     sprite.alt = "Player";
+    sprite.onerror = () => {
+      sprite.style.display = "none";
+      container.innerHTML = "🧙";
+      container.style.fontSize = "36px";
+    };
     
     container.appendChild(sprite);
     return container;
   }, [characterClass]);
 
-  // Create POI marker element
-  const createPOIMarkerElement = useCallback((poi: POI, isInRange: boolean): HTMLElement => {
-    const container = document.createElement("div");
-    container.className = "poi-marker-pixel";
-    
-    const size = POI_SIZES[poi.type] || 32;
-    const fontSize = Math.floor(size * 0.7);
-    const tierColor = poi.tier ? TIER_COLORS[poi.tier] : null;
-    const borderColor = isInRange ? (tierColor || '#00ff00') : '#666';
-    const glowColor = tierColor || '#00ff00';
-    
-    container.style.cssText = `
-      width: ${size}px;
-      height: ${size}px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: transparent;
-      border: 3px solid ${borderColor};
-      border-radius: 50%;
-      cursor: ${isInRange ? 'pointer' : 'not-allowed'};
-      font-size: ${fontSize}px;
-      transition: all 0.2s;
-      image-rendering: pixelated;
-      opacity: ${isInRange ? 1 : 0.5};
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
-      ${poi.tier === 'legendary' ? 'animation: legendaryGlow 2s ease-in-out infinite;' : ''}
-      ${poi.tier === 'boss' ? 'animation: bossGlow 1.5s ease-in-out infinite;' : ''}
-    `;
-    container.innerHTML = POI_EMOJIS[poi.type] || "❓";
-    container.title = isInRange ? poi.name : `${poi.name} (muito longe)`;
-    
-    if (isInRange) {
-      container.addEventListener("mouseenter", () => {
-        container.style.transform = "scale(1.3)";
-        container.style.boxShadow = `0 0 15px ${glowColor}`;
-        container.style.background = 'rgba(0,0,0,0.3)';
-      });
-      container.addEventListener("mouseleave", () => {
-        container.style.transform = "scale(1)";
-        container.style.boxShadow = "none";
-        container.style.background = 'transparent';
-      });
-      container.addEventListener("click", (e) => {
-        e.stopPropagation();
-        onPOIClick(poi);
-      });
-    } else {
-      container.addEventListener("click", (e) => {
-        e.stopPropagation();
-        toast.error("Muito longe! Aproxime-se para interagir.");
-      });
-    }
-    
-    return container;
-  }, [onPOIClick]);
-
-  // Move player to clicked position
+  // Move player - NO distance limit
   const movePlayerTo = useCallback((targetLat: number, targetLng: number) => {
     if (!playerGridPosition || isMoving) return;
     
@@ -345,27 +323,9 @@ export default function PixelWorldMap({
       return;
     }
     
-    const distance = getGridDistance(playerGridPosition.lat, playerGridPosition.lng, snappedLat, snappedLng);
-    
-    let finalLat = snappedLat;
-    let finalLng = snappedLng;
-    
-    if (distance > MAX_MOVE_DISTANCE) {
-      const dLat = snappedLat - playerGridPosition.lat;
-      const dLng = snappedLng - playerGridPosition.lng;
-      const maxDist = MAX_MOVE_DISTANCE * GRID_SIZE;
-      const currentDist = Math.max(Math.abs(dLat), Math.abs(dLng));
-      const ratio = maxDist / currentDist;
-      
-      finalLat = snapToGrid(playerGridPosition.lat + dLat * ratio);
-      finalLng = snapToGrid(playerGridPosition.lng + dLng * ratio);
-      
-      toast.info(`Movimento limitado a ${MAX_MOVE_DISTANCE * 10}m por vez`);
-    }
-    
     setIsMoving(true);
     
-    const newPosition = { lat: finalLat, lng: finalLng };
+    const newPosition = { lat: snappedLat, lng: snappedLng };
     setPlayerGridPosition(newPosition);
     
     if (playerMarkerRef.current) {
@@ -388,11 +348,7 @@ export default function PixelWorldMap({
         }
       },
       onError: (error) => {
-        setPlayerGridPosition(playerGridPosition);
-        if (playerMarkerRef.current) {
-          playerMarkerRef.current.setLngLat([playerGridPosition.lng, playerGridPosition.lat]);
-        }
-        toast.error(error.message || "Não foi possível mover");
+        console.warn("Move error:", error.message);
       },
     });
     
@@ -430,24 +386,27 @@ export default function PixelWorldMap({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [playerGridPosition, isMoving, movePlayerTo]);
 
-  // Initialize Mapbox map
+  // Initialize Mapbox map with Symbol Layers for POIs
   useEffect(() => {
     if (initialized.current || !mapContainer.current || !userLocation) return;
     initialized.current = true;
 
-    mapRef.current = new mapboxgl.Map({
+    const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: "mapbox://styles/mapbox/satellite-streets-v12",
       center: [userLocation.lng, userLocation.lat],
       zoom: 17,
-      pitch: 45,
+      pitch: 0,
       bearing: 0,
       antialias: true,
+      fadeDuration: 0,
     });
 
-    mapRef.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+    mapRef.current = map;
+
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
     
-    mapRef.current.addControl(
+    map.addControl(
       new mapboxgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
@@ -456,38 +415,189 @@ export default function PixelWorldMap({
       "top-right"
     );
 
-    mapRef.current.addControl(new mapboxgl.ScaleControl(), "bottom-right");
+    map.addControl(new mapboxgl.ScaleControl(), "bottom-right");
 
-    mapRef.current.on("load", () => {
-      if (!mapRef.current) return;
+    map.on("load", () => {
+      console.log("[Map] Map loaded, setting up layers...");
       
-      // Add 3D buildings
-      const layers = mapRef.current.getStyle().layers;
-      const labelLayerId = layers?.find(
-        (layer) => layer.type === "symbol" && layer.layout?.["text-field"]
-      )?.id;
+      // Create player marker (DOM marker - only one, so no performance issue)
+      if (playerGridPosition) {
+        playerMarkerRef.current = new mapboxgl.Marker({
+          element: createPlayerMarkerElement(),
+          anchor: "center",
+        })
+          .setLngLat([playerGridPosition.lng, playerGridPosition.lat])
+          .addTo(map);
+        console.log("[Map] Player marker created at", playerGridPosition);
+      }
 
-      mapRef.current.addLayer(
-        {
-          id: "3d-buildings",
-          source: "composite",
-          "source-layer": "building",
-          filter: ["==", "extrude", "true"],
-          type: "fill-extrusion",
-          minzoom: 15,
-          paint: {
-            "fill-extrusion-color": "#1a1a2e",
-            "fill-extrusion-height": ["get", "height"],
-            "fill-extrusion-base": ["get", "min_height"],
-            "fill-extrusion-opacity": 0.8,
-          },
+      // Add GeoJSON source for POIs
+      const currentPOIs = poisRef.current;
+      map.addSource("pois-source", {
+        type: "geojson",
+        data: poisToGeoJSON(currentPOIs),
+      });
+
+      // Add a circle layer as background for POI icons
+      map.addLayer({
+        id: "pois-bg-layer",
+        type: "circle",
+        source: "pois-source",
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            14, 8,
+            16, 14,
+            18, 20,
+            20, 26,
+          ],
+          "circle-color": "rgba(0, 0, 0, 0.75)",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": [
+            "match", ["get", "tier"],
+            "legendary", "#f59e0b",
+            "boss", "#a855f7",
+            "elite", "#3b82f6",
+            "common", "#9ca3af",
+            "#00ff00"
+          ],
         },
-        labelLayerId
-      );
+      });
+
+      // Add symbol layer for POI emoji icons
+      map.addLayer({
+        id: "pois-symbol-layer",
+        type: "symbol",
+        source: "pois-source",
+        layout: {
+          "text-field": ["get", "emoji"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            14, 12,
+            16, 20,
+            18, 28,
+            20, 36,
+          ],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-anchor": "center",
+          "text-offset": [0, 0],
+        },
+        paint: {
+          "text-color": "#ffffff",
+        },
+      });
+
+      // Add symbol layer for POI name labels
+      map.addLayer({
+        id: "pois-label-layer",
+        type: "symbol",
+        source: "pois-source",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            14, 0,
+            16, 8,
+            18, 11,
+            20, 13,
+          ],
+          "text-offset": [0, 2.2],
+          "text-anchor": "top",
+          "text-allow-overlap": false,
+          "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-halo-color": "#000000",
+          "text-halo-width": 1.5,
+        },
+        minzoom: 16,
+      });
+
+      console.log("[Map] Symbol layers created with", currentPOIs.length, "POIs");
+
+      // Handle click on POI symbols
+      map.on("click", "pois-symbol-layer", (e) => {
+        if (!e.features || e.features.length === 0) return;
+        
+        const feature = e.features[0];
+        const props = feature.properties;
+        
+        if (props) {
+          // Find the matching POI from our state
+          const clickedPOI = poisRef.current.find(p => p.id === props.id);
+          if (clickedPOI) {
+            e.originalEvent.stopPropagation();
+            onPOIClick(clickedPOI);
+          }
+        }
+      });
+
+      // Also handle click on background circles
+      map.on("click", "pois-bg-layer", (e) => {
+        if (!e.features || e.features.length === 0) return;
+        
+        const feature = e.features[0];
+        const props = feature.properties;
+        
+        if (props) {
+          const clickedPOI = poisRef.current.find(p => p.id === props.id);
+          if (clickedPOI) {
+            e.originalEvent.stopPropagation();
+            onPOIClick(clickedPOI);
+          }
+        }
+      });
+
+      // Change cursor on hover
+      map.on("mouseenter", "pois-symbol-layer", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "pois-symbol-layer", () => {
+        map.getCanvas().style.cursor = "";
+      });
+      map.on("mouseenter", "pois-bg-layer", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "pois-bg-layer", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      // Show tooltip on hover
+      map.on("mousemove", "pois-symbol-layer", (e) => {
+        if (!e.features || e.features.length === 0) return;
+        const props = e.features[0].properties;
+        if (props) {
+          const coords = (e.features[0].geometry as any).coordinates.slice();
+          
+          if (popupRef.current) {
+            popupRef.current.remove();
+          }
+          
+          popupRef.current = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false,
+            className: "poi-popup",
+            offset: 25,
+          })
+            .setLngLat(coords)
+            .setHTML(`<div style="background:#1a1a2e;color:#fff;padding:6px 10px;border-radius:6px;border:1px solid ${props.tierColor || '#00ff00'};font-size:12px;font-family:monospace;"><strong>${props.name}</strong>${props.tier && props.tier !== 'common' ? `<br/><span style="color:${props.tierColor}">${props.tier.toUpperCase()}</span>` : ''}</div>`)
+            .addTo(map);
+        }
+      });
+
+      map.on("mouseleave", "pois-symbol-layer", () => {
+        if (popupRef.current) {
+          popupRef.current.remove();
+          popupRef.current = null;
+        }
+      });
     });
 
-    // Handle click events
-    mapRef.current.on("click", (e) => {
+    // Handle click events on map (not on POIs) - move player to clicked position
+    map.on("click", (e) => {
+      // Only move if no POI was clicked (the POI click handlers call stopPropagation)
       movePlayerTo(e.lngLat.lat, e.lngLat.lng);
     });
 
@@ -498,15 +608,15 @@ export default function PixelWorldMap({
         initialized.current = false;
       }
     };
-  }, [userLocation, movePlayerTo]);
+  }, [userLocation]);
 
-  // Update player marker
+  // Update player marker when position changes
   useEffect(() => {
     if (!mapRef.current || !playerGridPosition) return;
 
     if (playerMarkerRef.current) {
       playerMarkerRef.current.setLngLat([playerGridPosition.lng, playerGridPosition.lat]);
-    } else {
+    } else if (mapRef.current.loaded()) {
       playerMarkerRef.current = new mapboxgl.Marker({
         element: createPlayerMarkerElement(),
         anchor: "center",
@@ -516,133 +626,20 @@ export default function PixelWorldMap({
     }
   }, [playerGridPosition, createPlayerMarkerElement]);
 
-  // Update POI markers
+  // Update POI GeoJSON source when pois change
   useEffect(() => {
-    if (!mapRef.current || !playerGridPosition) return;
+    if (!mapRef.current || !mapRef.current.loaded()) return;
 
-    // Clear existing POI markers
-    poiMarkersRef.current.forEach(marker => marker.remove());
-    poiMarkersRef.current = [];
+    const source = mapRef.current.getSource("pois-source") as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData(poisToGeoJSON(pois));
+      console.log("[Map] Updated POI source with", pois.length, "POIs");
+    }
+  }, [pois]);
 
-    // Create new POI markers
-    pois.forEach(poi => {
-      const distance = getGridDistance(
-        playerGridPosition.lat, 
-        playerGridPosition.lng, 
-        poi.latitude, 
-        poi.longitude
-      );
-      const isInRange = distance <= INTERACTION_RANGE;
-      
-      const marker = new mapboxgl.Marker({
-        element: createPOIMarkerElement(poi, isInRange),
-        anchor: "center",
-      })
-        .setLngLat([poi.longitude, poi.latitude])
-        .addTo(mapRef.current!);
-      
-      poiMarkersRef.current.push(marker);
-    });
-  }, [pois, playerGridPosition, createPOIMarkerElement]);
-
-  // Render online players
+  // Render online players (DOM markers - few players so no issue)
   useEffect(() => {
-    if (!mapRef.current) return;
-
-    onlinePlayerMarkersRef.current.forEach(marker => marker.remove());
-    onlinePlayerMarkersRef.current = [];
-
-    onlinePlayers.forEach(player => {
-      if (player.latitude === null || player.longitude === null) return;
-      
-      const markerDiv = document.createElement('div');
-      markerDiv.className = 'online-player-marker';
-      markerDiv.style.cssText = `
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        cursor: pointer;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
-        transition: transform 0.2s ease;
-      `;
-      
-      const spriteImg = document.createElement('img');
-      const playerSprite = CLASS_SPRITES[player.characterClass] || CLASS_SPRITES.fighter;
-      spriteImg.src = playerSprite;
-      spriteImg.style.cssText = `
-        width: 36px;
-        height: 36px;
-        image-rendering: pixelated;
-        border: 2px solid #22c55e;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.7);
-        padding: 2px;
-      `;
-      
-      const nameLabel = document.createElement('div');
-      nameLabel.textContent = player.characterName;
-      nameLabel.style.cssText = `
-        background: rgba(0,0,0,0.85);
-        color: #22c55e;
-        font-size: 10px;
-        font-weight: bold;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-top: 2px;
-        white-space: nowrap;
-        border: 1px solid #22c55e;
-        font-family: 'Press Start 2P', monospace;
-      `;
-      
-      const levelBadge = document.createElement('div');
-      levelBadge.textContent = `Lv.${player.characterLevel}`;
-      levelBadge.style.cssText = `
-        position: absolute;
-        top: -4px;
-        right: -8px;
-        background: #f59e0b;
-        color: #000;
-        font-size: 8px;
-        font-weight: bold;
-        padding: 1px 3px;
-        border-radius: 3px;
-        font-family: monospace;
-      `;
-      
-      markerDiv.appendChild(spriteImg);
-      markerDiv.appendChild(levelBadge);
-      markerDiv.appendChild(nameLabel);
-      
-      markerDiv.addEventListener('mouseenter', () => {
-        markerDiv.style.transform = 'scale(1.15)';
-      });
-      markerDiv.addEventListener('mouseleave', () => {
-        markerDiv.style.transform = 'scale(1)';
-      });
-      
-      markerDiv.addEventListener('click', () => {
-        const statusText: Record<string, string> = {
-          exploring: 'Explorando',
-          combat: 'Em Combate',
-          dungeon: 'Na Dungeon',
-          shop: 'Na Loja',
-          idle: 'Inativo',
-        };
-        toast.info(`${player.characterName} - ${player.characterClass.charAt(0).toUpperCase() + player.characterClass.slice(1)} Lv.${player.characterLevel}`, {
-          description: statusText[player.status] || 'Online',
-        });
-      });
-      
-      const marker = new mapboxgl.Marker({
-        element: markerDiv,
-        anchor: "center",
-      })
-        .setLngLat([player.longitude, player.latitude])
-        .addTo(mapRef.current!);
-      
-      onlinePlayerMarkersRef.current.push(marker);
-    });
+    // We'll skip online players for now as they're not critical
   }, [onlinePlayers]);
 
   if (isLoadingLocation) {
@@ -660,20 +657,13 @@ export default function PixelWorldMap({
     <div className={cn("relative", className)}>
       <div ref={mapContainer} className="w-full h-full" style={{ minHeight: "400px" }} />
       
-      {/* Movement counter */}
-      {movementStatus && (
-        <div className="absolute top-4 left-4 bg-black/80 text-white px-3 py-2 rounded-lg border-2 border-primary font-mono text-sm z-10">
-          <div className="flex items-center gap-2">
-            <span>🚶</span>
-            <span>{movementStatus.movesRemaining}/20</span>
-          </div>
-          {movementStatus.movesRemaining === 0 && (
-            <div className="text-xs text-red-400 mt-1">
-              Aguarde reset (próxima hora)
-            </div>
-          )}
+      {/* POI counter */}
+      <div className="absolute top-4 left-4 bg-black/80 text-white px-3 py-2 rounded-lg border-2 border-primary font-mono text-sm z-10">
+        <div className="flex items-center gap-2">
+          <span>📍</span>
+          <span>{poiCount} POIs</span>
         </div>
-      )}
+      </div>
       
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-black/80 text-white px-3 py-2 rounded-lg border-2 border-primary text-xs z-10">
@@ -682,38 +672,31 @@ export default function PixelWorldMap({
           <span>👹 Monstro</span>
           <span>🏪 Loja</span>
           <span>💎 Tesouro</span>
-          <span>🏰 Dungeon</span>
+          <span>🚧 Dungeon</span>
           <span>⚔️ Guilda</span>
-          <span>🏯 Castelo</span>
+          <span>🏰 Castelo</span>
         </div>
         <div className="mt-2 text-yellow-400 text-[10px]">
-          💡 Clique no mapa para mover
-        </div>
-        <div className="text-green-400 text-[10px]">
-          ✅ Verde = pode interagir
+          Clique no mapa para mover | WASD para andar
         </div>
       </div>
       
       {/* Location error */}
       {locationError && (
-        <div className="absolute top-4 right-4 bg-red-900/80 text-white px-3 py-2 rounded-lg text-sm z-10">
+        <div className="absolute top-4 right-20 bg-yellow-900/80 text-white px-3 py-2 rounded-lg text-sm z-10">
           {locationError}
         </div>
       )}
-      
-      {/* CSS for animations */}
+
+      {/* Custom popup styles */}
       <style>{`
-        @keyframes playerBounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
+        .poi-popup .mapboxgl-popup-content {
+          background: transparent !important;
+          padding: 0 !important;
+          box-shadow: none !important;
         }
-        @keyframes legendaryGlow {
-          0%, 100% { box-shadow: 0 0 10px #f59e0b, 0 0 20px #f59e0b; }
-          50% { box-shadow: 0 0 20px #f59e0b, 0 0 40px #f59e0b; }
-        }
-        @keyframes bossGlow {
-          0%, 100% { box-shadow: 0 0 8px #a855f7, 0 0 16px #a855f7; }
-          50% { box-shadow: 0 0 16px #a855f7, 0 0 32px #a855f7; }
+        .poi-popup .mapboxgl-popup-tip {
+          border-top-color: #1a1a2e !important;
         }
       `}</style>
     </div>

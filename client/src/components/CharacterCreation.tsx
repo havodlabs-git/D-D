@@ -269,11 +269,13 @@ export function CharacterCreation({ onCharacterCreated }: CharacterCreationProps
   };
 
   const handleSubmit = () => {
+    console.log('[DEBUG] handleSubmit called', { name, selectedClass, selectedRace, selectedBackground });
     if (!name.trim() || !selectedClass || !selectedRace || !selectedBackground) {
+      console.log('[DEBUG] Validation failed', { name: !name.trim(), class: !selectedClass, race: !selectedRace, bg: !selectedBackground });
       toast.error("Preencha todos os campos obrigatórios");
       return;
     }
-
+    console.log('[DEBUG] Calling createCharacter.mutate');
     createCharacter.mutate({
       name: name.trim(),
       characterClass: selectedClass,
