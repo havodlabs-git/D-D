@@ -106,6 +106,28 @@ function generateEncounterData(type: string, playerLevel: number) {
   }
 }
 
+// Helper: get character from DB or demo mode (fallback)
+async function getCharacterOrDemo(userId: number): Promise<any | null> {
+  // Check demo storage first (fastest)
+  const demoKey = `demo_char_${userId}`;
+  const demoStored = (global as any)[demoKey];
+  if (demoStored) return demoStored;
+  // Try DB
+  try {
+    const character = await db.getCharacterByUserId(userId);
+    if (character) return character;
+  } catch (e) {
+    // DB not available, continue to demo fallback
+  }
+  return null;
+}
+
+// Helper: check if character is from demo mode
+function isDemoCharacter(userId: number): boolean {
+  const demoKey = `demo_char_${userId}`;
+  return !!(global as any)[demoKey];
+}
+
 export const appRouter = router({
   system: systemRouter,
   
@@ -133,7 +155,7 @@ export const appRouter = router({
         return demoStored;
       }
       // Try DB
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (character?.isDead) {
         return { ...character, isDead: true };
       }
@@ -183,7 +205,7 @@ export const appRouter = router({
     
     // Delete dead character to create new one
     deleteDeadCharacter: protectedProcedure.mutation(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
       }
@@ -200,7 +222,7 @@ export const appRouter = router({
         deathCause: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -225,7 +247,7 @@ export const appRouter = router({
         }
         
         // Try DB first
-        const existing = await db.getCharacterByUserId(ctx.user.id);
+        const existing = await getCharacterOrDemo(ctx.user.id);
         if (existing) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Você já possui um personagem" });
         }
@@ -296,7 +318,7 @@ export const appRouter = router({
         longitude: z.number(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -311,7 +333,7 @@ export const appRouter = router({
         attribute: z.enum(["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -321,7 +343,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Não foi possível alocar o ponto" });
         }
 
-        return await db.getCharacterByUserId(ctx.user.id);
+        return await getCharacterOrDemo(ctx.user.id);
       }),
 
     // Apply level up choices (attributes, spells, subclass)
@@ -333,7 +355,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         // Try DB first
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (character) {
           // Apply attribute increases via DB
           if (input.attributeIncreases) {
@@ -344,7 +366,7 @@ export const appRouter = router({
             }
           }
           // TODO: Apply spells and subclass via DB when schema supports it
-          return await db.getCharacterByUserId(ctx.user.id);
+          return await getCharacterOrDemo(ctx.user.id);
         }
 
         // Demo mode
@@ -398,7 +420,7 @@ export const appRouter = router({
 
     // Rest (heal and restore mana)
     rest: protectedProcedure.mutation(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
       }
@@ -431,26 +453,22 @@ export const appRouter = router({
         longitude: z.number(),
       }))
       .mutation(async ({ ctx, input }) => {
-        let character: any = null;
-        try {
-          character = await db.getCharacterByUserId(ctx.user.id);
-        } catch (e) {
-          const demoKey = `demo_char_${ctx.user.id}`;
-          character = (global as any)[demoKey];
-        }
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
 
-        // Update location (no movement limit)
-        try {
-          await db.updateCharacterLocation(character.id, input.latitude, input.longitude);
-        } catch (e) {
-          // Demo mode - update in memory
-          const demoKey = `demo_char_${ctx.user.id}`;
-          if ((global as any)[demoKey]) {
-            (global as any)[demoKey].lastLatitude = input.latitude.toString();
-            (global as any)[demoKey].lastLongitude = input.longitude.toString();
+        // Update location
+        if (isDemoCharacter(ctx.user.id)) {
+          character.lastLatitude = input.latitude.toString();
+          character.lastLongitude = input.longitude.toString();
+        } else {
+          try {
+            await db.updateCharacterLocation(character.id, input.latitude, input.longitude);
+          } catch (e) {
+            // Fallback to in-memory
+            character.lastLatitude = input.latitude.toString();
+            character.lastLongitude = input.longitude.toString();
           }
         }
 
@@ -495,7 +513,7 @@ export const appRouter = router({
     // Get movement status
     getMovementStatus: protectedProcedure.query(async ({ ctx }) => {
       try {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           return { movesRemaining: 999999, maxMoves: 999999, resetTime: new Date() };
         }
@@ -512,7 +530,7 @@ export const appRouter = router({
   inventory: router({
     // Get inventory
     get: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return [];
 
       return await db.getCharacterInventory(character.id);
@@ -520,7 +538,7 @@ export const appRouter = router({
 
     // Get equipped items
     getEquipped: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return [];
 
       return await db.getEquippedItems(character.id);
@@ -533,7 +551,7 @@ export const appRouter = router({
         slot: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -554,7 +572,7 @@ export const appRouter = router({
     useItem: protectedProcedure
       .input(z.object({ inventoryId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -602,7 +620,7 @@ export const appRouter = router({
         longitude: z.number(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -650,7 +668,7 @@ export const appRouter = router({
         forceVictory: z.boolean().optional(), // Client already determined victory
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -811,7 +829,7 @@ export const appRouter = router({
         monsterDamage: z.number(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -846,72 +864,73 @@ export const appRouter = router({
         monsterTier: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Try DB first
-        const character = await db.getCharacterByUserId(ctx.user.id);
-        if (character) {
-          const levelResult = await db.addExperience(character.id, input.experience);
-          await db.addGold(character.id, input.gold);
-          return {
-            success: true,
-            experience: input.experience,
-            gold: input.gold,
-            leveledUp: levelResult.leveledUp,
-            newLevel: levelResult.newLevel,
-            totalExperience: character.experience + input.experience,
-          };
+        const character = await getCharacterOrDemo(ctx.user.id);
+        if (!character) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        }
+
+        // DB character
+        if (!isDemoCharacter(ctx.user.id)) {
+          try {
+            const levelResult = await db.addExperience(character.id, input.experience);
+            await db.addGold(character.id, input.gold);
+            return {
+              success: true,
+              experience: input.experience,
+              gold: input.gold,
+              leveledUp: levelResult.leveledUp,
+              newLevel: levelResult.newLevel,
+              totalExperience: character.experience + input.experience,
+            };
+          } catch (e) {
+            // DB failed, fall through to demo mode logic
+          }
         }
 
         // Demo mode - update in-memory character
-        const demoKey = `demo_char_${ctx.user.id}`;
-        const demoChar = (global as any)[demoKey];
-        if (demoChar) {
-          demoChar.experience = (demoChar.experience || 0) + input.experience;
-          demoChar.gold = (demoChar.gold || 0) + input.gold;
-          
-          // Check for level up using D&D 5e XP table
-          const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
-          let leveledUp = false;
-          let oldLevel = demoChar.level || 1;
-          let newLevel = oldLevel;
-          
-          while (newLevel < 20 && demoChar.experience >= XP_TABLE[newLevel]) {
-            newLevel++;
-            leveledUp = true;
-          }
-          
-          if (leveledUp) {
-            demoChar.level = newLevel;
-            demoChar.availableStatPoints = (demoChar.availableStatPoints || 0) + (newLevel - oldLevel) * 2;
-            // Recalculate HP/MP on level up using proper D&D formulas
-            demoChar.maxHealth = calculateMaxHealth(
-              demoChar.characterClass as CharacterClass,
-              newLevel,
-              demoChar.constitution || 14
-            );
-            demoChar.currentHealth = demoChar.maxHealth; // Full heal on level up
-            demoChar.maxMana = calculateMaxMana(
-              demoChar.characterClass as CharacterClass,
-              newLevel,
-              demoChar.intelligence || 10
-            );
-            demoChar.currentMana = demoChar.maxMana; // Full mana on level up
-          }
-          
-          demoChar.experienceToNextLevel = newLevel < 20 ? XP_TABLE[newLevel] : XP_TABLE[19];
-          
-          console.log(`[ClaimVictory] Demo: +${input.experience} XP, +${input.gold} gold. Total XP: ${demoChar.experience}, Level: ${demoChar.level}, Next: ${demoChar.experienceToNextLevel}`);
-          
-          return {
-            success: true,
-            experience: input.experience,
-            gold: input.gold,
-            leveledUp,
-            newLevel: demoChar.level,
-            totalExperience: demoChar.experience,
-          };
+        character.experience = (character.experience || 0) + input.experience;
+        character.gold = (character.gold || 0) + input.gold;
+        
+        // Check for level up using D&D 5e XP table
+        const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+        let leveledUp = false;
+        let oldLevel = character.level || 1;
+        let newLevel = oldLevel;
+        
+        while (newLevel < 20 && character.experience >= XP_TABLE[newLevel]) {
+          newLevel++;
+          leveledUp = true;
         }
-
-        throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
+        
+        if (leveledUp) {
+          character.level = newLevel;
+          character.availableStatPoints = (character.availableStatPoints || 0) + (newLevel - oldLevel) * 2;
+          character.maxHealth = calculateMaxHealth(
+            character.characterClass as CharacterClass,
+            newLevel,
+            character.constitution || 14
+          );
+          character.currentHealth = character.maxHealth;
+          character.maxMana = calculateMaxMana(
+            character.characterClass as CharacterClass,
+            newLevel,
+            character.intelligence || 10
+          );
+          character.currentMana = character.maxMana;
+        }
+        
+        character.experienceToNextLevel = newLevel < 20 ? XP_TABLE[newLevel] : XP_TABLE[19];
+        
+        console.log(`[ClaimVictory] +${input.experience} XP, +${input.gold} gold. Total XP: ${character.experience}, Level: ${character.level}, Next: ${character.experienceToNextLevel}`);
+        
+        return {
+          success: true,
+          experience: input.experience,
+          gold: input.gold,
+          leveledUp,
+          newLevel: character.level,
+          totalExperience: character.experience,
+        };
       }),
 
     // Roll dice (utility)
@@ -937,7 +956,7 @@ export const appRouter = router({
         radius: z.number().default(500), // meters
       }))
       .query(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) return [];
 
         // Use location seed for deterministic generation
@@ -1034,7 +1053,7 @@ export const appRouter = router({
         goldAmount: z.number(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1153,7 +1172,7 @@ export const appRouter = router({
         quantity: z.number().min(1).default(1),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1212,7 +1231,7 @@ export const appRouter = router({
         quantity: z.number().min(1).default(1),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1259,7 +1278,7 @@ export const appRouter = router({
 
     // Get character's active quests
     getActive: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return [];
 
       return await db.getCharacterQuests(character.id);
@@ -1269,7 +1288,7 @@ export const appRouter = router({
     accept: protectedProcedure
       .input(z.object({ questId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1417,7 +1436,7 @@ export const appRouter = router({
         respawnMinutes: z.number().optional(), // Minutes until respawn
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1448,7 +1467,7 @@ export const appRouter = router({
         radius: z.number().default(500),
       }))
       .query(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) return [];
 
         return await db.getVisitedPois(character.id, input.latitude, input.longitude, input.radius);
@@ -1458,7 +1477,7 @@ export const appRouter = router({
     isVisited: protectedProcedure
       .input(z.object({ poiHash: z.string() }))
       .query(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) return { visited: false, canInteract: true };
 
         const visited = await db.checkPoiVisited(character.id, input.poiHash);
@@ -1472,7 +1491,7 @@ export const appRouter = router({
   spells: router({
     // Get available spells for character's class
     getAvailable: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return [];
 
       const classData = CHARACTER_CLASSES[character.characterClass as keyof typeof CHARACTER_CLASSES];
@@ -1496,7 +1515,7 @@ export const appRouter = router({
 
     // Get character's known/prepared spells
     getKnown: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return [];
 
       return await db.getCharacterSpells(character.id);
@@ -1506,7 +1525,7 @@ export const appRouter = router({
     learn: protectedProcedure
       .input(z.object({ spellId: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1526,7 +1545,7 @@ export const appRouter = router({
 
     // Get spell slots
     getSlots: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return null;
 
       return await db.getSpellSlots(character.id);
@@ -1539,7 +1558,7 @@ export const appRouter = router({
         slotLevel: z.number().min(1).max(9).optional(), // For leveled spells
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1568,7 +1587,7 @@ export const appRouter = router({
     rest: protectedProcedure
       .input(z.object({ restType: z.enum(["short", "long"]) }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1605,7 +1624,7 @@ export const appRouter = router({
 
     // Get character's guild membership
     getMembership: protectedProcedure.query(async ({ ctx }) => {
-      const character = await db.getCharacterByUserId(ctx.user.id);
+      const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return null;
 
       return await db.getGuildMembership(character.id);
@@ -1615,7 +1634,7 @@ export const appRouter = router({
     join: protectedProcedure
       .input(z.object({ guildId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1666,7 +1685,7 @@ export const appRouter = router({
     enterDungeon: protectedProcedure
       .input(z.object({ castleId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1701,7 +1720,7 @@ export const appRouter = router({
         messageType: z.enum(["normal", "trade", "guild"]).default("normal"),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
@@ -1759,7 +1778,7 @@ export const appRouter = router({
         status: z.enum(["exploring", "combat", "dungeon", "shop", "idle"]).default("exploring"),
       }))
       .mutation(async ({ ctx, input }) => {
-        const character = await db.getCharacterByUserId(ctx.user.id);
+        const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           return { success: false };
         }
