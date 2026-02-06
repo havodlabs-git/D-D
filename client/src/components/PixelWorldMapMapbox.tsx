@@ -403,6 +403,7 @@ export default function PixelWorldMap({
     });
 
     mapRef.current = map;
+    (window as any)._mapboxMap = map;
 
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
     

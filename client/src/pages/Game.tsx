@@ -366,8 +366,8 @@ export default function Game() {
   // Main game view
   return (
     <div className="h-screen w-screen overflow-hidden bg-background relative">
-      {/* Main View - Street View or Map */}
-      {viewMode === "streetview" && playerPosition ? (
+      {/* Main View - Street View or Map (hidden during combat) */}
+      {showCombat ? null : viewMode === "streetview" && playerPosition ? (
         <StreetView3D
           className="absolute inset-0"
           playerPosition={playerPosition}
@@ -403,8 +403,8 @@ export default function Game() {
         </div>
       )}
       
-      {/* View Mode Toggle */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-30">
+      {/* View Mode Toggle (hidden during combat) */}
+      {!showCombat && <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-30">
         <Button
           onClick={() => setViewMode(viewMode === "map" ? "streetview" : "map")}
           className="bg-black/80 hover:bg-black/90 border border-primary/50 px-6"
@@ -412,17 +412,17 @@ export default function Game() {
           <Compass className="w-4 h-4 mr-2" />
           {viewMode === "map" ? "Modo Street View" : "Modo Mapa"}
         </Button>
-      </div>
+      </div>}
 
-      {/* Player HUD - Top left */}
-      <div className="absolute top-4 left-4 z-20">
+      {/* Player HUD - Top left (hidden during combat) */}
+      {!showCombat && <div className="absolute top-4 left-4 z-20">
         <PlayerHUD
           className="w-64"
           onOpenInventory={() => setShowInventory(true)}
           onOpenQuests={() => toast.info("Sistema de missões em desenvolvimento!")}
           onOpenCharacter={() => setShowCharacter(true)}
         />
-      </div>
+      </div>}
 
       {/* Admin Controls - Top right */}
       {user?.role === "admin" && (
