@@ -32,6 +32,7 @@ interface GamePOI {
   biome?: string;
   data?: any;
   tier?: "common" | "elite" | "boss" | "legendary";
+  spriteKey?: string;
 }
 
 // Seeded random for consistent generation
@@ -164,7 +165,7 @@ export default function Game() {
         id: seed,
         name: poi.name,
         description: `Um ${poi.name} selvagem apareceu! (Nível ${monsterLevel})`,
-        monsterType: poi.name.toLowerCase(),
+        monsterType: poi.spriteKey ? poi.spriteKey.replace('monster-', '') : poi.name.toLowerCase(),
         tier,
         health: Math.floor(baseHealth * mult.hp),
         damage: Math.floor(baseDamage * mult.dmg),
