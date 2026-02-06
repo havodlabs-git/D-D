@@ -1,0 +1,15 @@
+node_modules
+.git
+.gitignore
+.gcloudignore
+*.md
+dist/
+client/dist/
+.DS_Store
+*.log
+*.db
+*.sqlite
+*.sqlite3
+gcloud-key.json
+.env
+.env.*
