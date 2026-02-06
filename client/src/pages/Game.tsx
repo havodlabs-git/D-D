@@ -90,6 +90,7 @@ export default function Game() {
 
   const seedMutation = trpc.gameData.seed.useMutation();
   const applyLevelUpMutation = trpc.character.applyLevelUpChoices.useMutation();
+  const collectTreasureMutation = trpc.world.collectTreasure.useMutation();
   const utils = trpc.useUtils();
 
   // Handle Street View movement - must be before conditional returns
@@ -125,7 +126,7 @@ export default function Game() {
   }, [playerPosition, playerHeading]);
 
   // Handle POI interaction
-  const handlePOIClick = useCallback((poi: GamePOI) => {
+  const handlePOIClick = useCallback(async (poi: GamePOI) => {
     setSelectedPOI(poi);
 
     if (poi.type === "monster") {
@@ -194,7 +195,22 @@ export default function Game() {
     } else if (poi.type === "treasure") {
       const goldFound = Math.floor(Math.random() * 50) + 10;
       const xpFound = Math.floor(Math.random() * 30) + 5;
-      toast.success(`Tesouro encontrado! +${goldFound} ouro, +${xpFound} XP`);
+      // Persist treasure rewards via API
+      try {
+        const result = await collectTreasureMutation.mutateAsync({
+          poiId: poi.id,
+          goldAmount: goldFound,
+          xpAmount: xpFound,
+        });
+        toast.success(`Tesouro encontrado! +${goldFound} ouro, +${xpFound} XP`);
+        utils.character.get.invalidate();
+        if (result.leveledUp) {
+          setPendingLevelUp(result.newLevel);
+          setShowLevelUp(true);
+        }
+      } catch (e) {
+        toast.error("Erro ao recolher tesouro");
+      }
       // Mark treasure as visited (collected)
       setVisitedPOIs(prev => {
         const newSet = new Set(prev);

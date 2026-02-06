@@ -122,10 +122,74 @@ async function getCharacterOrDemo(userId: number): Promise<any | null> {
   return null;
 }
 
+// D&D 5e XP Table (global constant)
+const XP_TABLE_GLOBAL = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+
 // Helper: check if character is from demo mode
 function isDemoCharacter(userId: number): boolean {
   const demoKey = `demo_char_${userId}`;
   return !!(global as any)[demoKey];
+}
+
+// ============================================
+// DEMO MODE IN-MEMORY STORAGE
+// ============================================
+
+// Demo inventory: Map<userId, Array<{id, itemId, item, quantity, isEquipped, equipSlot}>>
+function getDemoInventory(userId: number): any[] {
+  const key = `demo_inv_${userId}`;
+  if (!(global as any)[key]) {
+    // Start with 2 health potions
+    (global as any)[key] = [
+      { id: 9001, itemId: 9001, quantity: 2, isEquipped: false, equipSlot: null, item: {
+        id: 9001, name: "Poção de Cura Menor", description: "Restaura 25 pontos de vida",
+        itemType: "potion", rarity: "common", buyPrice: 15, sellPrice: 7,
+        levelRequired: 1, damageMin: null, damageMax: null, armorValue: null,
+        healAmount: 25, manaAmount: null, statBonuses: null, createdAt: new Date()
+      }}
+    ];
+  }
+  return (global as any)[key];
+}
+
+function addDemoItem(userId: number, item: any, quantity: number = 1): void {
+  const inv = getDemoInventory(userId);
+  const existing = inv.find((i: any) => i.item.name === item.name);
+  if (existing) {
+    existing.quantity += quantity;
+  } else {
+    const newId = 9000 + inv.length + 1;
+    inv.push({
+      id: newId, itemId: item.id || newId, quantity, isEquipped: false, equipSlot: null,
+      item: { ...item, id: item.id || newId }
+    });
+  }
+}
+
+function removeDemoItem(userId: number, inventoryId: number, quantity: number = 1): boolean {
+  const inv = getDemoInventory(userId);
+  const idx = inv.findIndex((i: any) => i.id === inventoryId);
+  if (idx === -1 || inv[idx].quantity < quantity) return false;
+  inv[idx].quantity -= quantity;
+  if (inv[idx].quantity <= 0) inv.splice(idx, 1);
+  return true;
+}
+
+// Demo gold operations
+function addDemoGold(userId: number, amount: number): void {
+  const char = getCharacterOrDemo(userId);
+  // char is a promise, we need sync access - use global directly
+  const demoKey = `demo_char_${userId}`;
+  const demoChar = (global as any)[demoKey];
+  if (demoChar) demoChar.gold = (demoChar.gold || 0) + amount;
+}
+
+function spendDemoGold(userId: number, amount: number): boolean {
+  const demoKey = `demo_char_${userId}`;
+  const demoChar = (global as any)[demoKey];
+  if (!demoChar || demoChar.gold < amount) return false;
+  demoChar.gold -= amount;
+  return true;
 }
 
 export const appRouter = router({
@@ -431,6 +495,11 @@ export const appRouter = router({
 
       await db.healCharacter(character.id, healthRestore);
       await db.restoreMana(character.id, manaRestore);
+      // Demo mode fallback
+      if (isDemoCharacter(ctx.user.id)) {
+        character.currentHealth = Math.min(character.maxHealth, character.currentHealth + healthRestore);
+        character.currentMana = Math.min(character.maxMana, character.currentMana + manaRestore);
+      }
 
       return {
         healthRestored: healthRestore,
@@ -533,7 +602,17 @@ export const appRouter = router({
       const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return [];
 
-      return await db.getCharacterInventory(character.id);
+      const dbInv = await db.getCharacterInventory(character.id);
+      if (dbInv.length > 0) return dbInv;
+      
+      // Fallback to demo inventory
+      if (isDemoCharacter(ctx.user.id)) {
+        return getDemoInventory(ctx.user.id).map((i: any) => ({
+          inventory: { id: i.id, characterId: character.id, itemId: i.item.id, quantity: i.quantity, isEquipped: i.isEquipped, equipSlot: i.equipSlot },
+          item: i.item,
+        }));
+      }
+      return [];
     }),
 
     // Get equipped items
@@ -541,7 +620,19 @@ export const appRouter = router({
       const character = await getCharacterOrDemo(ctx.user.id);
       if (!character) return [];
 
-      return await db.getEquippedItems(character.id);
+      const dbEquipped = await db.getEquippedItems(character.id);
+      if (dbEquipped.length > 0) return dbEquipped;
+      
+      // Fallback to demo inventory equipped items
+      if (isDemoCharacter(ctx.user.id)) {
+        return getDemoInventory(ctx.user.id)
+          .filter((i: any) => i.isEquipped)
+          .map((i: any) => ({
+            inventory: { id: i.id, characterId: character.id, itemId: i.item.id, quantity: i.quantity, isEquipped: true, equipSlot: i.equipSlot },
+            item: i.item,
+          }));
+      }
+      return [];
     }),
 
     // Equip item
@@ -557,14 +648,28 @@ export const appRouter = router({
         }
 
         await db.equipItem(character.id, input.inventoryId, input.slot);
+        // Demo mode equip
+        if (isDemoCharacter(ctx.user.id)) {
+          const inv = getDemoInventory(ctx.user.id);
+          // Unequip any item in the same slot
+          inv.forEach((i: any) => { if (i.equipSlot === input.slot) { i.isEquipped = false; i.equipSlot = null; } });
+          const item = inv.find((i: any) => i.id === input.inventoryId);
+          if (item) { item.isEquipped = true; item.equipSlot = input.slot; }
+        }
         return { success: true };
       }),
 
     // Unequip item
     unequip: protectedProcedure
       .input(z.object({ inventoryId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
         await db.unequipItem(input.inventoryId);
+        // Demo mode unequip
+        if (isDemoCharacter(ctx.user.id)) {
+          const inv = getDemoInventory(ctx.user.id);
+          const item = inv.find((i: any) => i.id === input.inventoryId);
+          if (item) { item.isEquipped = false; item.equipSlot = null; }
+        }
         return { success: true };
       }),
 
@@ -577,8 +682,17 @@ export const appRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
 
-        const inventory = await db.getCharacterInventory(character.id);
-        const invItem = inventory.find(i => i.inventory.id === input.inventoryId);
+        let inventory = await db.getCharacterInventory(character.id);
+        let invItem: any = inventory.find((i: any) => i.inventory.id === input.inventoryId);
+        
+        // Fallback to demo inventory
+        if (!invItem && isDemoCharacter(ctx.user.id)) {
+          const demoInv = getDemoInventory(ctx.user.id);
+          const demoItem = demoInv.find((i: any) => i.id === input.inventoryId);
+          if (demoItem) {
+            invItem = { inventory: { id: demoItem.id, quantity: demoItem.quantity }, item: demoItem.item };
+          }
+        }
         
         if (!invItem) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Item não encontrado" });
@@ -590,16 +704,25 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Este item não pode ser usado" });
         }
 
-        // Apply effects
+        // Apply effects - DB and demo mode
         if (item.healAmount) {
           await db.healCharacter(character.id, item.healAmount);
+          if (isDemoCharacter(ctx.user.id)) {
+            character.currentHealth = Math.min(character.maxHealth, character.currentHealth + item.healAmount);
+          }
         }
         if (item.manaAmount) {
           await db.restoreMana(character.id, item.manaAmount);
+          if (isDemoCharacter(ctx.user.id)) {
+            character.currentMana = Math.min(character.maxMana, character.currentMana + item.manaAmount);
+          }
         }
 
-        // Remove item from inventory
+        // Remove item from inventory - DB and demo mode
         await db.removeItemFromInventory(character.id, item.id, 1);
+        if (isDemoCharacter(ctx.user.id)) {
+          removeDemoItem(ctx.user.id, input.inventoryId, 1);
+        }
 
         return {
           healAmount: item.healAmount || 0,
@@ -739,6 +862,11 @@ export const appRouter = router({
             
             const levelResult = await db.addExperience(character.id, rewards.experience);
             await db.addGold(character.id, rewards.gold);
+            // Demo mode fallback
+            if (isDemoCharacter(ctx.user.id)) {
+              character.experience = (character.experience || 0) + rewards.experience;
+              addDemoGold(ctx.user.id, rewards.gold);
+            }
 
             // Generate loot from monster's loot table
             const lootEarned: Array<{ itemId: number; quantity: number; itemName?: string }> = [];
@@ -892,7 +1020,7 @@ export const appRouter = router({
         character.gold = (character.gold || 0) + input.gold;
         
         // Check for level up using D&D 5e XP table
-        const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+        const XP_TABLE = XP_TABLE_GLOBAL;
         let leveledUp = false;
         let oldLevel = character.level || 1;
         let newLevel = oldLevel;
@@ -1047,22 +1175,55 @@ export const appRouter = router({
     }),
 
     // Collect treasure
-    collectTreasure: protectedProcedure
+     collectTreasure: protectedProcedure
       .input(z.object({
         poiId: z.string(),
         goldAmount: z.number(),
+        xpAmount: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const character = await getCharacterOrDemo(ctx.user.id);
         if (!character) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
-
+        
+        // Update gold - DB and demo mode
         await db.addGold(character.id, input.goldAmount);
+        if (isDemoCharacter(ctx.user.id)) {
+          addDemoGold(ctx.user.id, input.goldAmount);
+        }
+        
+        // Update XP if provided
+        const xpAmount = input.xpAmount || 0;
+        let leveledUp = false;
+        let newLevel = character.level;
+        if (xpAmount > 0) {
+          await db.addExperience(character.id, xpAmount);
+          if (isDemoCharacter(ctx.user.id)) {
+            character.experience = (character.experience || 0) + xpAmount;
+            // Check level up
+            while (character.experience >= character.experienceToNextLevel) {
+              character.level += 1;
+              leveledUp = true;
+              newLevel = character.level;
+              const classData = CHARACTER_CLASSES[character.class as keyof typeof CHARACTER_CLASSES];
+              character.experienceToNextLevel = XP_TABLE_GLOBAL[character.level] || (character.level * 1000);
+              character.maxHealth = calculateMaxHealth(character.level, character.class, character.constitution);
+              character.maxMana = calculateMaxMana(character.level, character.class, character.intelligence);
+              character.currentHealth = character.maxHealth;
+              character.currentMana = character.maxMana;
+              character.attributePoints = (character.attributePoints || 0) + 2;
+            }
+          }
+        }
         
         return {
           goldCollected: input.goldAmount,
-          newGold: character.gold + input.goldAmount,
+          xpCollected: xpAmount,
+          newGold: character.gold,
+          newXp: character.experience,
+          leveledUp,
+          newLevel,
         };
       }),
   }),
@@ -1179,7 +1340,7 @@ export const appRouter = router({
 
         let item = await db.getItemById(input.itemId);
         
-        // If item doesn't exist in DB but we have itemData, create it
+        // If item doesn't exist in DB but we have itemData, create/use it
         if (!item && input.itemData) {
           const newItem = await db.createItem({
             name: input.itemData.name,
@@ -1196,7 +1357,26 @@ export const appRouter = router({
             manaAmount: input.itemData.manaAmount,
             statBonuses: input.itemData.statBonuses,
           });
-          item = newItem;
+          // In demo mode, db.createItem returns null - use itemData directly
+          item = newItem || ({
+            id: input.itemId,
+            name: input.itemData.name,
+            description: input.itemData.description,
+            itemType: input.itemData.itemType,
+            rarity: input.itemData.rarity,
+            buyPrice: input.itemData.buyPrice,
+            sellPrice: input.itemData.sellPrice,
+            levelRequired: input.itemData.levelRequired || 1,
+            damageMin: input.itemData.damageMin || null,
+            damageMax: input.itemData.damageMax || null,
+            armorValue: input.itemData.armorValue || null,
+            healAmount: input.itemData.healAmount || null,
+            manaAmount: input.itemData.manaAmount || null,
+            statBonuses: input.itemData.statBonuses || null,
+            classRequired: null,
+            iconUrl: null,
+            createdAt: new Date(),
+          } as any);
         }
         
         if (!item) {
@@ -1209,18 +1389,28 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Ouro insuficiente" });
         }
 
-        const success = await db.spendGold(character.id, totalCost);
-        if (!success) {
+        // Spend gold - DB and demo mode
+        const dbSuccess = await db.spendGold(character.id, totalCost);
+        if (!dbSuccess && isDemoCharacter(ctx.user.id)) {
+          const demoSuccess = spendDemoGold(ctx.user.id, totalCost);
+          if (!demoSuccess) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Ouro insuficiente" });
+          }
+        } else if (!dbSuccess) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Falha ao comprar item" });
         }
 
+        // Add item to inventory - DB and demo mode
         await db.addItemToInventory(character.id, item.id, input.quantity);
+        if (isDemoCharacter(ctx.user.id)) {
+          addDemoItem(ctx.user.id, item, input.quantity);
+        }
 
         return {
           itemName: item.name,
           quantity: input.quantity,
           totalCost,
-          newGold: character.gold - totalCost,
+          newGold: character.gold,
         };
       }),
 
@@ -1236,8 +1426,18 @@ export const appRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
         }
 
-        const inventory = await db.getCharacterInventory(character.id);
-        const invItem = inventory.find(i => i.inventory.id === input.inventoryId);
+        // Get inventory from DB or demo mode
+        let invItems = await db.getCharacterInventory(character.id);
+        let invItem: any = invItems.find((i: any) => i.inventory.id === input.inventoryId);
+        
+        // Fallback to demo inventory
+        if (!invItem && isDemoCharacter(ctx.user.id)) {
+          const demoInv = getDemoInventory(ctx.user.id);
+          const demoItem = demoInv.find((i: any) => i.id === input.inventoryId);
+          if (demoItem) {
+            invItem = { inventory: { id: demoItem.id, quantity: demoItem.quantity }, item: demoItem.item };
+          }
+        }
 
         if (!invItem || invItem.inventory.quantity < input.quantity) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Quantidade insuficiente" });
@@ -1245,14 +1445,19 @@ export const appRouter = router({
 
         const totalValue = invItem.item.sellPrice * input.quantity;
         
+        // Remove item and add gold - DB and demo mode
         await db.removeItemFromInventory(character.id, invItem.item.id, input.quantity);
         await db.addGold(character.id, totalValue);
+        if (isDemoCharacter(ctx.user.id)) {
+          removeDemoItem(ctx.user.id, input.inventoryId, input.quantity);
+          addDemoGold(ctx.user.id, totalValue);
+        }
 
         return {
           itemName: invItem.item.name,
           quantity: input.quantity,
           totalValue,
-          newGold: character.gold + totalValue,
+          newGold: character.gold,
         };
       }),
   }),
@@ -1597,10 +1802,17 @@ export const appRouter = router({
           await db.restoreAllSpellSlots(character.id, character.level);
           await db.healCharacter(character.id, character.maxHealth);
           await db.restoreMana(character.id, character.maxMana);
+          if (isDemoCharacter(ctx.user.id)) {
+            character.currentHealth = character.maxHealth;
+            character.currentMana = character.maxMana;
+          }
         } else {
           // Short rest - recover some HP and limited slots (warlock style)
           const healAmount = Math.floor(character.maxHealth * 0.25);
           await db.healCharacter(character.id, healAmount);
+          if (isDemoCharacter(ctx.user.id)) {
+            character.currentHealth = Math.min(character.maxHealth, character.currentHealth + healAmount);
+          }
         }
 
         return { success: true, restType: input.restType };
@@ -1652,7 +1864,10 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: `${guild.goldRequired} de ouro necessário` });
         }
 
-        await db.spendGold(character.id, guild.goldRequired);
+        const guildSpendSuccess = await db.spendGold(character.id, guild.goldRequired);
+        if (!guildSpendSuccess && isDemoCharacter(ctx.user.id)) {
+          spendDemoGold(ctx.user.id, guild.goldRequired);
+        }
         await db.joinGuild(character.id, input.guildId);
 
         return { success: true, guildName: guild.name };
