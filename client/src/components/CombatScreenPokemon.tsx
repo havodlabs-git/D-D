@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -165,6 +165,8 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
   const [showVictory, setShowVictory] = useState(false);
   const [showDefeat, setShowDefeat] = useState(false);
   const [victoryRewards, setVictoryRewards] = useState({ experience: 0, gold: 0, leveledUp: false, newLevel: 1 });
+  const victoryRewardsRef = useRef(victoryRewards);
+  useEffect(() => { victoryRewardsRef.current = victoryRewards; }, [victoryRewards]);
 
   const { data: character } = trpc.character.get.useQuery();
   const attackMutation = trpc.combat.attack.useMutation();
@@ -517,13 +519,44 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
     }, 1000);
   };
 
+  // D&D 5e XP by CR/tier table
+  const claimVictoryMutation = trpc.combat.claimVictory.useMutation({
+    onSuccess: (data) => {
+      console.log('[Combat] Victory claimed:', data);
+      if (data.leveledUp) {
+        setVictoryRewards(prev => ({ ...prev, leveledUp: true, newLevel: data.newLevel }));
+      }
+    },
+    onError: (err) => {
+      console.error('[Combat] Failed to claim victory:', err);
+    },
+  });
+
   const handleVictory = () => {
     setCombatEnded(true); audioSystem.playSFX('victory');
-    const tierMultiplier = { common: 1, uncommon: 1.5, rare: 2, epic: 3, legendary: 5 };
-    const multiplier = tierMultiplier[monster.tier as keyof typeof tierMultiplier] || 1;
-    const experience = Math.floor((monster.level * 10 + 20) * multiplier);
-    const gold = Math.floor((monster.level * 5 + 10) * multiplier);
+    // D&D 5e XP rewards by tier
+    const XP_BY_TIER: Record<string, number[]> = {
+      // [base per level, bonus]
+      common:    [25, 10],   // ~25-60 XP
+      elite:     [50, 30],   // ~80-180 XP  
+      boss:      [100, 75],  // ~175-500 XP
+      legendary: [200, 150], // ~350-1000 XP
+    };
+    const tierData = XP_BY_TIER[monster.tier] || XP_BY_TIER.common;
+    const experience = Math.floor(tierData[0] * monster.level + tierData[1]);
+    const gold = Math.floor((monster.level * 8 + 5) * (monster.tier === 'legendary' ? 5 : monster.tier === 'boss' ? 3 : monster.tier === 'elite' ? 2 : 1));
+    
     setVictoryRewards({ experience, gold, leveledUp: false, newLevel: character?.level || 1 });
+    
+    // Persist XP and gold to server
+    claimVictoryMutation.mutate({
+      experience,
+      gold,
+      monsterName: monster.name,
+      monsterLevel: monster.level,
+      monsterTier: monster.tier,
+    });
+    
     typeMessage(`${monster.name} foi derrotado!`);
     setTimeout(() => setShowVictory(true), 1500);
   };
@@ -790,7 +823,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
       </div>
 
       {/* Victory overlay */}
-      {showVictory && <VictoryAnimation experience={victoryRewards.experience} gold={victoryRewards.gold} leveledUp={victoryRewards.leveledUp} newLevel={victoryRewards.newLevel} onComplete={() => onVictory(victoryRewards)} />}
+      {showVictory && <VictoryAnimation experience={victoryRewards.experience} gold={victoryRewards.gold} leveledUp={victoryRewards.leveledUp} newLevel={victoryRewards.newLevel} onComplete={() => onVictory(victoryRewardsRef.current)} />}
       {showDefeat && <DefeatAnimation onComplete={onDefeat} />}
     </div>
   );

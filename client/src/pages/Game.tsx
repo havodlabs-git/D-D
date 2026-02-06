@@ -89,6 +89,7 @@ export default function Game() {
   const handlePlayerMove = useCallback((lat: number, lng: number) => setPlayerPosition({ lat, lng }), []);
 
   const seedMutation = trpc.gameData.seed.useMutation();
+  const applyLevelUpMutation = trpc.character.applyLevelUpChoices.useMutation();
   const utils = trpc.useUtils();
 
   // Handle Street View movement - must be before conditional returns
@@ -680,11 +681,26 @@ export default function Game() {
           }}
           newLevel={pendingLevelUp}
           onComplete={(choices) => {
-            toast.success(`Você subiu para o nível ${pendingLevelUp}!`);
-            // TODO: Apply choices via API
-            setShowLevelUp(false);
-            setPendingLevelUp(null);
-            refetchCharacter();
+            // Apply level up choices via API
+            applyLevelUpMutation.mutate({
+              attributeIncreases: choices.attributeIncreases,
+              newSpells: choices.newSpells,
+              subclass: choices.subclass,
+            }, {
+              onSuccess: () => {
+                toast.success(`Subiste para o nível ${pendingLevelUp}!`);
+                setShowLevelUp(false);
+                setPendingLevelUp(null);
+                utils.character.get.invalidate();
+              },
+              onError: (err) => {
+                console.error('Failed to apply level up:', err);
+                toast.error('Erro ao aplicar level up');
+                setShowLevelUp(false);
+                setPendingLevelUp(null);
+                utils.character.get.invalidate();
+              }
+            });
           }}
           onClose={() => {
             setShowLevelUp(false);

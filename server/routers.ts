@@ -31,6 +31,9 @@ import {
   pickRandom,
   getRandomPointInRadius,
   calculateDistance,
+  calculateMaxHealth,
+  calculateMaxMana,
+  calculateArmorClass,
 } from "../shared/gameUtils";
 import type { CharacterClass, BiomeType, MonsterTier } from "../shared/gameConstants";
 
@@ -145,18 +148,18 @@ export const appRouter = router({
         characterClass: "fighter" as const,
         level: 1,
         experience: 0,
-        experienceToNextLevel: 100,
+        experienceToNextLevel: 300, // D&D 5e: 300 XP para nível 2
         strength: 16,
         dexterity: 13,
         constitution: 14,
         intelligence: 10,
         wisdom: 12,
         charisma: 8,
-        maxHealth: 24,
-        currentHealth: 24,
-        maxMana: 10,
-        currentMana: 10,
-        armorClass: 11,
+        maxHealth: calculateMaxHealth("fighter", 1, 14), // Fighter, level 1, CON 14
+        currentHealth: calculateMaxHealth("fighter", 1, 14),
+        maxMana: calculateMaxMana("fighter", 1, 10), // Fighter, level 1, INT 10
+        currentMana: calculateMaxMana("fighter", 1, 10),
+        armorClass: calculateArmorClass(13), // DEX 13
         gold: 100,
         lastLatitude: null,
         lastLongitude: null,
@@ -253,7 +256,7 @@ export const appRouter = router({
             characterClass: input.characterClass,
             level: 1,
             experience: 0,
-            experienceToNextLevel: 100,
+            experienceToNextLevel: 300, // D&D 5e: 300 XP para nível 2
             strength: stats.str,
             dexterity: stats.dex,
             constitution: stats.con,
@@ -319,6 +322,78 @@ export const appRouter = router({
         }
 
         return await db.getCharacterByUserId(ctx.user.id);
+      }),
+
+    // Apply level up choices (attributes, spells, subclass)
+    applyLevelUpChoices: protectedProcedure
+      .input(z.object({
+        attributeIncreases: z.record(z.string(), z.number()).optional(),
+        newSpells: z.array(z.string()).optional(),
+        subclass: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Try DB first
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (character) {
+          // Apply attribute increases via DB
+          if (input.attributeIncreases) {
+            for (const [attr, count] of Object.entries(input.attributeIncreases)) {
+              for (let i = 0; i < count; i++) {
+                await db.allocateStatPoint(character.id, attr as any);
+              }
+            }
+          }
+          // TODO: Apply spells and subclass via DB when schema supports it
+          return await db.getCharacterByUserId(ctx.user.id);
+        }
+
+        // Demo mode
+        const demoKey = `demo_char_${ctx.user.id}`;
+        const demoChar = (global as any)[demoKey];
+        if (demoChar) {
+          // Apply attribute increases
+          if (input.attributeIncreases) {
+            let totalPoints = 0;
+            for (const [attr, count] of Object.entries(input.attributeIncreases)) {
+              if (count > 0 && (demoChar as any)[attr] !== undefined) {
+                (demoChar as any)[attr] += count;
+                totalPoints += count;
+              }
+            }
+            demoChar.availableStatPoints = Math.max(0, (demoChar.availableStatPoints || 0) - totalPoints);
+            
+            // Recalculate derived stats after attribute changes
+            demoChar.maxHealth = calculateMaxHealth(
+              demoChar.characterClass as CharacterClass,
+              demoChar.level,
+              demoChar.constitution
+            );
+            demoChar.currentHealth = demoChar.maxHealth;
+            demoChar.maxMana = calculateMaxMana(
+              demoChar.characterClass as CharacterClass,
+              demoChar.level,
+              demoChar.intelligence
+            );
+            demoChar.currentMana = demoChar.maxMana;
+            demoChar.armorClass = calculateArmorClass(demoChar.dexterity);
+          }
+          
+          // Apply new spells
+          if (input.newSpells && input.newSpells.length > 0) {
+            const currentSpells = demoChar.knownSpells ? JSON.parse(demoChar.knownSpells) : [];
+            demoChar.knownSpells = JSON.stringify([...currentSpells, ...input.newSpells]);
+          }
+          
+          // Apply subclass
+          if (input.subclass) {
+            demoChar.subclass = input.subclass;
+          }
+          
+          console.log(`[ApplyLevelUp] Demo: attrs=${JSON.stringify(input.attributeIncreases)}, spells=${input.newSpells}, subclass=${input.subclass}`);
+          return demoChar;
+        }
+
+        throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
       }),
 
     // Rest (heal and restore mana)
@@ -759,6 +834,84 @@ export const appRouter = router({
           newHealth,
           fleeChance: Math.floor(fleeChance * 100),
         };
+      }),
+
+    // Claim victory rewards (persist XP and gold)
+    claimVictory: protectedProcedure
+      .input(z.object({
+        experience: z.number().min(0),
+        gold: z.number().min(0),
+        monsterName: z.string().optional(),
+        monsterLevel: z.number().optional(),
+        monsterTier: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Try DB first
+        const character = await db.getCharacterByUserId(ctx.user.id);
+        if (character) {
+          const levelResult = await db.addExperience(character.id, input.experience);
+          await db.addGold(character.id, input.gold);
+          return {
+            success: true,
+            experience: input.experience,
+            gold: input.gold,
+            leveledUp: levelResult.leveledUp,
+            newLevel: levelResult.newLevel,
+            totalExperience: character.experience + input.experience,
+          };
+        }
+
+        // Demo mode - update in-memory character
+        const demoKey = `demo_char_${ctx.user.id}`;
+        const demoChar = (global as any)[demoKey];
+        if (demoChar) {
+          demoChar.experience = (demoChar.experience || 0) + input.experience;
+          demoChar.gold = (demoChar.gold || 0) + input.gold;
+          
+          // Check for level up using D&D 5e XP table
+          const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+          let leveledUp = false;
+          let oldLevel = demoChar.level || 1;
+          let newLevel = oldLevel;
+          
+          while (newLevel < 20 && demoChar.experience >= XP_TABLE[newLevel]) {
+            newLevel++;
+            leveledUp = true;
+          }
+          
+          if (leveledUp) {
+            demoChar.level = newLevel;
+            demoChar.availableStatPoints = (demoChar.availableStatPoints || 0) + (newLevel - oldLevel) * 2;
+            // Recalculate HP/MP on level up using proper D&D formulas
+            demoChar.maxHealth = calculateMaxHealth(
+              demoChar.characterClass as CharacterClass,
+              newLevel,
+              demoChar.constitution || 14
+            );
+            demoChar.currentHealth = demoChar.maxHealth; // Full heal on level up
+            demoChar.maxMana = calculateMaxMana(
+              demoChar.characterClass as CharacterClass,
+              newLevel,
+              demoChar.intelligence || 10
+            );
+            demoChar.currentMana = demoChar.maxMana; // Full mana on level up
+          }
+          
+          demoChar.experienceToNextLevel = newLevel < 20 ? XP_TABLE[newLevel] : XP_TABLE[19];
+          
+          console.log(`[ClaimVictory] Demo: +${input.experience} XP, +${input.gold} gold. Total XP: ${demoChar.experience}, Level: ${demoChar.level}, Next: ${demoChar.experienceToNextLevel}`);
+          
+          return {
+            success: true,
+            experience: input.experience,
+            gold: input.gold,
+            leveledUp,
+            newLevel: demoChar.level,
+            totalExperience: demoChar.experience,
+          };
+        }
+
+        throw new TRPCError({ code: "NOT_FOUND", message: "Personagem não encontrado" });
       }),
 
     // Roll dice (utility)
