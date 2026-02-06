@@ -7,11 +7,11 @@ import { PixelFrame, PixelBtn, PixelText, PixelTitleBar, PixelDialogBox, PixelSe
 
 const ITEM_SPRITES: Record<string, string> = {
   weapon: "/sprites/items/sword.png", armor: "/sprites/items/armor.png",
-  helmet: "/sprites/items/armor.png", boots: "/sprites/items/armor.png",
-  gloves: "/sprites/items/armor.png", ring: "/sprites/items/gold.png",
-  amulet: "/sprites/items/gold.png", potion: "/sprites/items/potion-health.png",
+  helmet: "/sprites/items/helmet.png", boots: "/sprites/items/boots.png",
+  gloves: "/sprites/items/gloves.png", ring: "/sprites/items/ring.png",
+  amulet: "/sprites/items/amulet.png", potion: "/sprites/items/potion-health.png",
   potion_health: "/sprites/items/potion-health.png", potion_mana: "/sprites/items/potion-mana.png",
-  scroll: "/sprites/items/staff.png", material: "/sprites/items/gold.png",
+  scroll: "/sprites/items/scroll.png", material: "/sprites/items/gold.png",
   quest_item: "/sprites/items/gold.png", bow: "/sprites/items/bow.png",
   staff: "/sprites/items/staff.png", shield: "/sprites/items/shield.png",
   default: "/sprites/items/gold.png",
@@ -28,11 +28,19 @@ interface ShopScreenProps {
 }
 
 function getItemSprite(itemType: string, itemName?: string): string {
-  if (itemName?.toLowerCase().includes("mana")) return ITEM_SPRITES.potion_mana;
-  if (itemName?.toLowerCase().includes("health") || itemName?.toLowerCase().includes("vida")) return ITEM_SPRITES.potion_health;
-  if (itemName?.toLowerCase().includes("arco") || itemName?.toLowerCase().includes("bow")) return ITEM_SPRITES.bow;
-  if (itemName?.toLowerCase().includes("cajado") || itemName?.toLowerCase().includes("staff")) return ITEM_SPRITES.staff;
-  if (itemName?.toLowerCase().includes("escudo") || itemName?.toLowerCase().includes("shield")) return ITEM_SPRITES.shield;
+  const name = itemName?.toLowerCase() || "";
+  if (name.includes("mana")) return ITEM_SPRITES.potion_mana;
+  if (name.includes("health") || name.includes("vida") || name.includes("poção") || name.includes("pocao")) return ITEM_SPRITES.potion_health;
+  if (name.includes("arco") || name.includes("bow")) return ITEM_SPRITES.bow;
+  if (name.includes("cajado") || name.includes("staff") || name.includes("bastão") || name.includes("cetro")) return ITEM_SPRITES.staff;
+  if (name.includes("escudo") || name.includes("shield")) return ITEM_SPRITES.shield;
+  if (name.includes("elmo") || name.includes("capuz") || name.includes("helm") || name.includes("coroa") || name.includes("tiara")) return ITEM_SPRITES.helmet;
+  if (name.includes("bota") || name.includes("boot") || name.includes("sapato") || name.includes("sandália")) return ITEM_SPRITES.boots;
+  if (name.includes("luva") || name.includes("glove") || name.includes("manopla") || name.includes("bracel")) return ITEM_SPRITES.gloves;
+  if (name.includes("anel") || name.includes("ring")) return ITEM_SPRITES.ring;
+  if (name.includes("amuleto") || name.includes("amulet") || name.includes("colar") || name.includes("medalhão")) return ITEM_SPRITES.amulet;
+  if (name.includes("pergaminho") || name.includes("scroll") || name.includes("tomo") || name.includes("livro")) return ITEM_SPRITES.scroll;
+  if (name.includes("adaga") || name.includes("dagger") || name.includes("espada") || name.includes("sword") || name.includes("machado") || name.includes("martelo")) return ITEM_SPRITES.weapon;
   return ITEM_SPRITES[itemType] || ITEM_SPRITES.default;
 }
 
