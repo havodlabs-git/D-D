@@ -1,112 +1,84 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Skull, Swords, RefreshCw } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { PixelFrame, PixelBtn, PixelText, PixelSeparator, PIXEL_FONT, COLORS } from "./ui/pixelUI";
 
 interface DeathScreenProps {
-  characterName: string;
-  characterClass: string;
-  level: number;
-  deathCause?: string;
-  onCreateNew: () => void;
+  characterName: string; characterClass: string; level: number;
+  deathCause?: string; onCreateNew: () => void;
 }
 
-export function DeathScreen({ 
-  characterName, 
-  characterClass, 
-  level, 
-  deathCause,
-  onCreateNew 
-}: DeathScreenProps) {
+export function DeathScreen({ characterName, characterClass, level, deathCause, onCreateNew }: DeathScreenProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  const deleteCharacter = trpc.character.deleteDeadCharacter.useMutation({
-    onSuccess: () => {
-      onCreateNew();
-    },
-  });
+  const deleteCharacter = trpc.character.deleteDeadCharacter.useMutation({ onSuccess: () => onCreateNew() });
 
-  const handleCreateNew = () => {
-    setIsDeleting(true);
-    deleteCharacter.mutate();
-  };
+  const handleCreateNew = () => { setIsDeleting(true); deleteCharacter.mutate(); };
 
   return (
-    <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
-      <Card className="max-w-md w-full bg-card/90 border-destructive/50 text-center">
-        <CardHeader>
-          <div className="mx-auto mb-4">
-            <Skull className="w-24 h-24 text-destructive animate-pulse" />
+    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex: 9999, background: 'rgba(5,0,0,0.95)' }}>
+      {/* Blood vignette effect */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse at center, transparent 40%, rgba(139,0,0,0.3) 100%)',
+      }} />
+
+      <PixelFrame borderColor="#8b0000" ornate glow className="w-full max-w-sm relative" bgColor="#0a0005">
+        <div className="p-4 text-center">
+          {/* Skull ASCII art */}
+          <div className="mb-3" style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: '#8b0000', lineHeight: '1.2', textShadow: '0 0 8px #8b000060' }}>
+            <div>{"  ___  "}</div>
+            <div>{" /x  x\\ "}</div>
+            <div>{" | /\\ | "}</div>
+            <div>{" |____| "}</div>
+            <div>{"  ||||  "}</div>
           </div>
-          <CardTitle className="text-3xl text-destructive font-bold">
-            VOCÊ MORREU
-          </CardTitle>
-          <CardDescription className="text-lg text-muted-foreground">
-            Permadeath - Seu personagem foi perdido para sempre
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          {/* Character Info */}
-          <div className="bg-black/50 rounded-lg p-4 border border-destructive/30">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Swords className="w-5 h-5 text-primary" />
-              <span className="text-xl font-bold text-white">{characterName}</span>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {characterClass.charAt(0).toUpperCase() + characterClass.slice(1)} - Nível {level}
-            </div>
+
+          {/* Title */}
+          <PixelText size="xl" color="#8b0000" bold glow as="div" className="mb-1">
+            MORRESTE
+          </PixelText>
+          <PixelText size="xs" color="#666" as="div" className="mb-3">
+            Permadeath - Personagem perdido para sempre
+          </PixelText>
+
+          <PixelSeparator color="#8b0000" />
+
+          {/* Character Memorial */}
+          <PixelFrame borderColor="#8b000060" className="p-3 my-3" bgColor="#0a0008">
+            <PixelText size="md" color={COLORS.textWhite} bold as="div">{characterName}</PixelText>
+            <PixelText size="xs" color={COLORS.textGray} as="div" className="mt-1">
+              {characterClass.charAt(0).toUpperCase() + characterClass.slice(1)} - Nivel {level}
+            </PixelText>
             {deathCause && (
-              <div className="mt-3 text-sm text-destructive/80 italic">
-                "{deathCause}"
-              </div>
+              <PixelText size="xxs" color="#8b0000" as="div" className="mt-2 italic">"{deathCause}"</PixelText>
             )}
+          </PixelFrame>
+
+          {/* Memorial quote */}
+          <PixelText size="xxs" color="#555" as="div" className="mb-3 italic">
+            "Os mais bravos guerreiros caem, mas as suas lendas vivem para sempre..."
+          </PixelText>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <PixelFrame borderColor="#333" className="p-2" bgColor="#080810">
+              <PixelText size="xxs" color={COLORS.textGray} as="div">Nivel</PixelText>
+              <PixelText size="lg" color={COLORS.textRed} bold as="div">{level}</PixelText>
+            </PixelFrame>
+            <PixelFrame borderColor="#333" className="p-2" bgColor="#080810">
+              <PixelText size="xxs" color={COLORS.textGray} as="div">Classe</PixelText>
+              <PixelText size="xs" color={COLORS.textRed} bold as="div" className="capitalize">{characterClass}</PixelText>
+            </PixelFrame>
           </div>
 
-          {/* Memorial Message */}
-          <div className="text-sm text-muted-foreground italic">
-            "Os mais bravos guerreiros caem, mas suas lendas vivem para sempre..."
-          </div>
+          {/* Create New */}
+          <PixelBtn variant="attack" size="md" fullWidth onClick={handleCreateNew} disabled={isDeleting}>
+            {isDeleting ? "A PREPARAR..." : "CRIAR NOVO PERSONAGEM"}
+          </PixelBtn>
 
-          {/* Stats Summary */}
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="bg-black/30 rounded p-2">
-              <div className="text-muted-foreground">Nível Alcançado</div>
-              <div className="text-xl font-bold text-primary">{level}</div>
-            </div>
-            <div className="bg-black/30 rounded p-2">
-              <div className="text-muted-foreground">Classe</div>
-              <div className="text-xl font-bold text-primary capitalize">{characterClass}</div>
-            </div>
-          </div>
-
-          {/* Create New Button */}
-          <Button
-            onClick={handleCreateNew}
-            disabled={isDeleting}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            size="lg"
-          >
-            {isDeleting ? (
-              <>
-                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                Preparando...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-5 h-5 mr-2" />
-                Criar Novo Personagem
-              </>
-            )}
-          </Button>
-
-          <p className="text-xs text-muted-foreground">
-            Seu progresso anterior foi perdido permanentemente.
-            Crie um novo herói e comece uma nova jornada!
-          </p>
-        </CardContent>
-      </Card>
+          <PixelText size="xxs" color="#444" as="div" className="mt-2">
+            O teu progresso foi perdido permanentemente.
+          </PixelText>
+        </div>
+      </PixelFrame>
     </div>
   );
 }

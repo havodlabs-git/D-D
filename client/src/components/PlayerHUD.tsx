@@ -1,11 +1,9 @@
 import { trpc } from "@/lib/trpc";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronUp } from "lucide-react";
 import { CHARACTER_CLASSES } from "../../../shared/gameConstants";
+import { PixelFrame, PixelBar, PixelBtn, PixelText, PixelSeparator, PIXEL_FONT, COLORS } from "./ui/pixelUI";
 
-// Class sprites mapping - All unique sprites
+// Class sprites mapping
 const CLASS_SPRITES: Record<string, string> = {
   warrior: "/sprites/classes/warrior.png",
   fighter: "/sprites/classes/warrior.png",
@@ -40,11 +38,6 @@ export function PlayerHUD({ onOpenInventory, onOpenQuests, onOpenCharacter, clas
   }
 
   const healthPercent = (character.currentHealth / character.maxHealth) * 100;
-  const manaPercent = (character.currentMana / character.maxMana) * 100;
-  const xpPercent = character.experienceToNextLevel > 0 
-    ? (character.experience / character.experienceToNextLevel) * 100 
-    : 100;
-
   const classData = CHARACTER_CLASSES[character.characterClass as keyof typeof CHARACTER_CLASSES];
 
   const handleRest = () => {
@@ -56,142 +49,158 @@ export function PlayerHUD({ onOpenInventory, onOpenQuests, onOpenCharacter, clas
   };
 
   return (
-    <div className={cn("bg-card/95 backdrop-blur-sm border-2 border-primary/30 rounded-lg p-3 shadow-lg", className)}>
-      {/* Character Info */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-14 h-14 rounded-lg bg-primary/20 border-2 border-primary flex items-center justify-center overflow-hidden">
-          <img 
-            src={CLASS_SPRITES[character.characterClass] || CLASS_SPRITES.warrior}
-            alt={character.characterClass}
-            className="w-12 h-12 pixelated"
-          />
+    <PixelFrame 
+      borderColor={COLORS.gold} 
+      bgColor="rgba(12,12,29,0.92)"
+      ornate
+      className={cn("p-2", className)}
+    >
+      {/* Character Portrait + Name */}
+      <div className="flex items-center gap-2 mb-2">
+        {/* Portrait frame */}
+        <div className="relative flex-shrink-0">
+          <div 
+            className="w-12 h-12 flex items-center justify-center overflow-hidden"
+            style={{
+              background: '#0a0a1a',
+              border: `2px solid ${COLORS.gold}`,
+              boxShadow: `inset 0 0 8px rgba(0,0,0,0.8), 0 0 4px ${COLORS.gold}30`,
+            }}
+          >
+            <img 
+              src={CLASS_SPRITES[character.characterClass] || CLASS_SPRITES.warrior}
+              alt={character.characterClass}
+              className="w-10 h-10"
+              style={{ imageRendering: 'pixelated' }}
+            />
+          </div>
+          {/* Level badge */}
+          <div 
+            className="absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center"
+            style={{
+              background: COLORS.panelDark,
+              border: `1px solid ${COLORS.gold}`,
+              boxShadow: `0 0 4px ${COLORS.gold}40`,
+            }}
+          >
+            <PixelText size="xxs" color={COLORS.textGold}>{character.level}</PixelText>
+          </div>
         </div>
+
+        {/* Name + Class */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold truncate pixel-text">{character.name}</h3>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary pixel-text">
-              Nv. {character.level}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">{classData?.name || character.characterClass}</p>
+          <PixelText size="sm" color={COLORS.textGold} bold className="block truncate">
+            {character.name}
+          </PixelText>
+          <PixelText size="xxs" color={COLORS.textGray} className="block">
+            {classData?.name || character.characterClass} Nv.{character.level}
+          </PixelText>
         </div>
       </div>
 
-      {/* Health Bar */}
-      <div className="space-y-1 mb-2">
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1 text-destructive">
-            <img src="/sprites/ui/heart.png" alt="HP" className="w-4 h-4 pixelated" />
-            <span className="pixel-text">HP</span>
-          </div>
-          <span className="pixel-text">{character.currentHealth}/{character.maxHealth}</span>
-        </div>
-        <Progress 
-          value={healthPercent} 
-          className={cn(
-            "h-3",
-            healthPercent < 25 && "health-low"
-          )}
-          style={{
-            background: "var(--muted)",
-          }}
-        />
-      </div>
+      {/* HP Bar */}
+      <PixelBar
+        current={character.currentHealth}
+        max={character.maxHealth}
+        color={COLORS.hpGreen}
+        label="HP"
+        labelColor={COLORS.hpRed}
+        className="mb-1"
+      />
 
-      {/* Mana Bar */}
-      <div className="space-y-1 mb-2">
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1 text-blue-400">
-            <img src="/sprites/ui/mana.png" alt="MP" className="w-4 h-4 pixelated" />
-            <span className="pixel-text">MP</span>
-          </div>
-          <span className="pixel-text">{character.currentMana}/{character.maxMana}</span>
-        </div>
-        <Progress 
-          value={manaPercent} 
-          className="h-3"
-          style={{
-            background: "var(--muted)",
-          }}
-        />
-      </div>
+      {/* MP Bar */}
+      <PixelBar
+        current={character.currentMana}
+        max={character.maxMana}
+        color={COLORS.mpBlue}
+        label="MP"
+        labelColor={COLORS.mpBlue}
+        className="mb-1"
+      />
 
       {/* XP Bar */}
-      <div className="space-y-1 mb-3">
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1 text-primary">
-            <img src="/sprites/ui/d20.png" alt="XP" className="w-4 h-4 pixelated" />
-            <span className="pixel-text">XP</span>
-          </div>
-          <span className="pixel-text">{character.experience}/{character.experienceToNextLevel}</span>
-        </div>
-        <Progress 
-          value={xpPercent} 
-          className="h-3"
-          style={{
-            background: "var(--muted)",
-          }}
-        />
-      </div>
+      <PixelBar
+        current={character.experience}
+        max={character.experienceToNextLevel || 100}
+        color={COLORS.xpGold}
+        label="XP"
+        labelColor={COLORS.xpGold}
+        className="mb-2"
+      />
 
-      {/* Gold */}
-      <div className="flex items-center justify-between mb-3 px-2 py-1.5 rounded bg-muted/50 border border-yellow-500/30">
-        <div className="flex items-center gap-1.5">
-          <img src="/sprites/items/gold.png" alt="Gold" className="w-6 h-6 pixelated" />
-          <span className="text-sm font-medium gold-text pixel-text">{character.gold}</span>
+      {/* Gold display */}
+      <div 
+        className="flex items-center justify-between px-2 py-1 mb-2"
+        style={{
+          background: '#1a1500',
+          border: `1px solid ${COLORS.goldDark}`,
+          boxShadow: `inset 0 0 6px rgba(0,0,0,0.5)`,
+        }}
+      >
+        <div className="flex items-center gap-1">
+          <img src="/sprites/items/gold.png" alt="Gold" className="w-4 h-4" style={{ imageRendering: 'pixelated' }} />
+          <PixelText size="sm" color={COLORS.textGold} glow>{character.gold}</PixelText>
         </div>
         {character.availableStatPoints > 0 && (
-          <div className="flex items-center gap-1 text-xs text-accent">
-            <ChevronUp className="w-3 h-3" />
-            <span className="pixel-text">{character.availableStatPoints} pontos</span>
-          </div>
+          <PixelText size="xxs" color={COLORS.textGreen} glow>
+            +{character.availableStatPoints} pts
+          </PixelText>
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="grid grid-cols-3 gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex flex-col items-center gap-1 h-auto py-2 hover:scale-105 transition-transform"
-          onClick={onOpenCharacter}
-        >
-          <img src={CLASS_SPRITES[character.characterClass] || CLASS_SPRITES.warrior} alt="Character" className="w-6 h-6 pixelated" />
-          <span className="text-[10px] pixel-text">Ficha</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex flex-col items-center gap-1 h-auto py-2 hover:scale-105 transition-transform"
-          onClick={onOpenInventory}
-        >
-          <img src="/sprites/items/gold.png" alt="Inventory" className="w-6 h-6 pixelated" />
-          <span className="text-[10px] pixel-text">Inventário</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex flex-col items-center gap-1 h-auto py-2 hover:scale-105 transition-transform"
-          onClick={onOpenQuests}
-        >
-          <img src="/sprites/ui/marker-npc.png" alt="Quests" className="w-6 h-6 pixelated" />
-          <span className="text-[10px] pixel-text">Missões</span>
-        </Button>
+      <PixelSeparator />
+
+      {/* Action Buttons - Pixel RPG style */}
+      <div className="grid grid-cols-3 gap-1">
+        <PixelBtn variant="gold" size="xs" onClick={onOpenCharacter}>
+          <div className="flex flex-col items-center gap-0.5">
+            <img 
+              src={CLASS_SPRITES[character.characterClass] || CLASS_SPRITES.warrior} 
+              alt="Ficha" 
+              className="w-5 h-5" 
+              style={{ imageRendering: 'pixelated' }} 
+            />
+            <span>Ficha</span>
+          </div>
+        </PixelBtn>
+        <PixelBtn variant="gold" size="xs" onClick={onOpenInventory}>
+          <div className="flex flex-col items-center gap-0.5">
+            <img 
+              src="/sprites/items/gold.png" 
+              alt="Inv" 
+              className="w-5 h-5" 
+              style={{ imageRendering: 'pixelated' }} 
+            />
+            <span>Inv.</span>
+          </div>
+        </PixelBtn>
+        <PixelBtn variant="gold" size="xs" onClick={onOpenQuests}>
+          <div className="flex flex-col items-center gap-0.5">
+            <img 
+              src="/sprites/ui/marker-npc.png" 
+              alt="Quests" 
+              className="w-5 h-5" 
+              style={{ imageRendering: 'pixelated' }} 
+            />
+            <span>Quest</span>
+          </div>
+        </PixelBtn>
       </div>
 
       {/* Rest Button */}
       {(character.currentHealth < character.maxHealth || character.currentMana < character.maxMana) && (
-        <Button
-          variant="secondary"
-          size="sm"
-          className="w-full mt-2 pixel-text"
-          onClick={handleRest}
-          disabled={restMutation.isPending}
-        >
-          <img src="/sprites/ui/heart.png" alt="Rest" className="w-4 h-4 mr-2 pixelated" />
-          {restMutation.isPending ? "Descansando..." : "Descansar (+25%)"}
-        </Button>
+        <div className="mt-1">
+          <PixelBtn 
+            variant="success" 
+            size="xs" 
+            fullWidth
+            onClick={handleRest}
+            disabled={restMutation.isPending}
+          >
+            {restMutation.isPending ? "Descansando..." : "Descansar (+25%)"}
+          </PixelBtn>
+        </div>
       )}
-    </div>
+    </PixelFrame>
   );
 }

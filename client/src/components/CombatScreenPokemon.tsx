@@ -5,12 +5,11 @@ import { toast } from "sonner";
 import { MONSTER_TIERS, SPELLS, Spell, SPELL_SLOTS_BY_LEVEL, CHARACTER_CLASSES, CLASS_ABILITIES, MONSTER_ABILITIES, MonsterAbility, getMonsterAbilities, rollDiceString } from "../../../shared/gameConstants";
 import { CombatAnimation, DamageNumber, getSpellEffectType, getAttackEffectType, CombatAnimationStyles, VictoryAnimation, DefeatAnimation } from "./CombatAnimations";
 import { audioSystem } from "@/lib/audioSystem";
+import { PixelFrame, PixelBar, PixelBtn, PixelText, PixelDialogBox, PixelSeparator, PixelScrollArea, PIXEL_FONT, COLORS } from "./ui/pixelUI";
 
 // ═══════════════════════════════════════════════════════════
-// PIXEL ART NANO BANANA STYLE - D&D GO COMBAT SYSTEM
+// PIXEL ART NANO BANANA PRO - D&D GO COMBAT SYSTEM
 // ═══════════════════════════════════════════════════════════
-
-const PIXEL_FONT = "'Press Start 2P', monospace";
 
 // Class sprites
 const CLASS_SPRITES: Record<string, string> = {
@@ -50,6 +49,15 @@ const MONSTER_SPRITES: Record<string, string> = {
   default: "/sprites/monsters/goblin.png",
 };
 
+// Tier colors for monster name plates
+const TIER_COLORS: Record<string, string> = {
+  common: "#9ca3af",
+  uncommon: "#22c55e",
+  rare: "#3b82f6",
+  epic: "#a855f7",
+  legendary: "#f59e0b",
+};
+
 interface Monster {
   id: number;
   name: string;
@@ -87,197 +95,13 @@ interface ClassAbility {
   maxUses: number;
   isActive?: boolean;
   bonusDamage?: number;
-  isBonusAction?: boolean; // D&D 5e: true = bonus action, false = action
+  isBonusAction?: boolean;
 }
 
 function getMonsterSprite(monsterType: string | undefined | null): string {
   if (!monsterType) return MONSTER_SPRITES.default;
   const type = monsterType.toLowerCase();
   return MONSTER_SPRITES[type] || MONSTER_SPRITES.default;
-}
-
-// ═══════════════════════════════════════════════════════════
-// PIXEL ART UI COMPONENTS
-// ═══════════════════════════════════════════════════════════
-
-// Pixel border box - the core nano banana style element
-function PixelBox({ children, className, borderColor = "#f59e0b", bgColor = "#1a1a2e" }: {
-  children: React.ReactNode;
-  className?: string;
-  borderColor?: string;
-  bgColor?: string;
-}) {
-  return (
-    <div
-      className={cn("relative", className)}
-      style={{
-        background: bgColor,
-        border: `4px solid ${borderColor}`,
-        boxShadow: `
-          inset 0 0 0 2px ${bgColor},
-          inset 0 0 0 4px ${borderColor}40,
-          6px 6px 0 0 rgba(0,0,0,0.4),
-          0 0 0 2px rgba(0,0,0,0.3)
-        `,
-        imageRendering: 'pixelated',
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-// Pixel HP Bar
-function PixelHPBar({ current, max, label, level, isPlayer = false }: {
-  current: number;
-  max: number;
-  label: string;
-  level: number;
-  isPlayer?: boolean;
-}) {
-  const percentage = Math.max(0, Math.min(100, (current / max) * 100));
-  const barColor = percentage > 50 ? '#22c55e' : percentage > 20 ? '#eab308' : '#ef4444';
-  const segments = 20;
-  const filledSegments = Math.ceil((percentage / 100) * segments);
-
-  return (
-    <PixelBox borderColor={isPlayer ? "#22c55e" : "#ef4444"} className="p-2">
-      <div className="flex justify-between items-center mb-1">
-        <span style={{ fontFamily: PIXEL_FONT, fontSize: '9px', color: '#fff', textTransform: 'uppercase' }}>
-          {label}
-        </span>
-        <span style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: '#f59e0b' }}>
-          Nv.{level}
-        </span>
-      </div>
-      <div className="flex items-center gap-1">
-        <span style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: '#ef4444' }}>HP</span>
-        <div className="flex-1 h-4 bg-black/80 border-2 border-gray-700 flex gap-px p-px" style={{ imageRendering: 'pixelated' }}>
-          {Array.from({ length: segments }).map((_, i) => (
-            <div
-              key={i}
-              className="flex-1 transition-all duration-300"
-              style={{
-                background: i < filledSegments ? barColor : '#1a1a1a',
-                boxShadow: i < filledSegments ? `0 0 2px ${barColor}40` : 'none',
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="text-right mt-1">
-        <span style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: '#fff' }}>
-          {current}/{max}
-        </span>
-      </div>
-    </PixelBox>
-  );
-}
-
-// Pixel Button with retro RPG style
-function PixelButton({ children, onClick, disabled, variant = 'default', small = false }: {
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  variant?: 'attack' | 'magic' | 'skill' | 'flee' | 'default' | 'close';
-  small?: boolean;
-}) {
-  const styles: Record<string, { bg: string; border: string; shadow: string; hoverBg: string }> = {
-    attack: { bg: '#dc2626', border: '#fbbf24', shadow: '#991b1b', hoverBg: '#ef4444' },
-    magic: { bg: '#7c3aed', border: '#c084fc', shadow: '#5b21b6', hoverBg: '#8b5cf6' },
-    skill: { bg: '#d97706', border: '#fbbf24', shadow: '#92400e', hoverBg: '#f59e0b' },
-    flee: { bg: '#2563eb', border: '#60a5fa', shadow: '#1e40af', hoverBg: '#3b82f6' },
-    default: { bg: '#374151', border: '#9ca3af', shadow: '#1f2937', hoverBg: '#4b5563' },
-    close: { bg: '#991b1b', border: '#ef4444', shadow: '#7f1d1d', hoverBg: '#dc2626' },
-  };
-
-  const s = styles[variant];
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "relative text-white uppercase tracking-wider transition-all duration-100",
-        "active:translate-y-1 disabled:opacity-40 disabled:cursor-not-allowed",
-        small ? "px-2 py-1" : "px-4 py-3",
-      )}
-      style={{
-        fontFamily: PIXEL_FONT,
-        fontSize: small ? '7px' : '10px',
-        background: s.bg,
-        border: `3px solid ${s.border}`,
-        boxShadow: `
-          0 4px 0 0 ${s.shadow},
-          0 6px 0 0 rgba(0,0,0,0.3),
-          inset 0 1px 0 0 rgba(255,255,255,0.2)
-        `,
-        imageRendering: 'pixelated',
-      }}
-      onMouseEnter={(e) => { if (!disabled) (e.target as HTMLElement).style.background = s.hoverBg; }}
-      onMouseLeave={(e) => { (e.target as HTMLElement).style.background = s.bg; }}
-    >
-      {children}
-    </button>
-  );
-}
-
-// Pixel Message Box with typewriter
-function PixelMessageBox({ message, isTyping }: { message: string; isTyping: boolean }) {
-  return (
-    <PixelBox borderColor="#f59e0b" className="p-3 min-h-[60px]">
-      <p style={{
-        fontFamily: PIXEL_FONT,
-        fontSize: '10px',
-        color: '#fff',
-        lineHeight: '1.8',
-        textShadow: '1px 1px 0 rgba(0,0,0,0.5)',
-      }}>
-        {message}
-        {isTyping && <span className="animate-pulse ml-1" style={{ color: '#f59e0b' }}>▼</span>}
-      </p>
-    </PixelBox>
-  );
-}
-
-// Turn indicator showing what actions remain
-function TurnIndicator({ actionUsed, bonusActionUsed, isPlayerTurn }: {
-  actionUsed: boolean;
-  bonusActionUsed: boolean;
-  isPlayerTurn: boolean;
-}) {
-  if (!isPlayerTurn) return null;
-
-  return (
-    <div className="flex items-center gap-2 justify-center mb-1">
-      <div className="flex items-center gap-1">
-        <div
-          className="w-3 h-3 border border-gray-600"
-          style={{
-            background: actionUsed ? '#374151' : '#22c55e',
-            boxShadow: actionUsed ? 'none' : '0 0 4px #22c55e80',
-            imageRendering: 'pixelated',
-          }}
-        />
-        <span style={{ fontFamily: PIXEL_FONT, fontSize: '6px', color: actionUsed ? '#6b7280' : '#22c55e' }}>
-          AÇÃO
-        </span>
-      </div>
-      <div className="flex items-center gap-1">
-        <div
-          className="w-3 h-3 border border-gray-600"
-          style={{
-            background: bonusActionUsed ? '#374151' : '#f59e0b',
-            boxShadow: bonusActionUsed ? 'none' : '0 0 4px #f59e0b80',
-            imageRendering: 'pixelated',
-          }}
-        />
-        <span style={{ fontFamily: PIXEL_FONT, fontSize: '6px', color: bonusActionUsed ? '#6b7280' : '#f59e0b' }}>
-          BÓNUS
-        </span>
-      </div>
-    </div>
-  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -398,71 +222,25 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
     const charClass = character.characterClass?.toLowerCase() || "";
 
     if (charClass === "barbarian") {
-      abilities.push({
-        id: "rage", name: "Fúria",
-        description: "+2 dano, resistência física",
-        usesRemaining: Math.max(2, Math.floor(level / 4) + 2),
-        maxUses: Math.max(2, Math.floor(level / 4) + 2),
-        bonusDamage: 2,
-        isBonusAction: true, // Rage is a bonus action in D&D 5e
-      });
+      abilities.push({ id: "rage", name: "Furia", description: "+2 dano, resistencia fisica", usesRemaining: Math.max(2, Math.floor(level / 4) + 2), maxUses: Math.max(2, Math.floor(level / 4) + 2), bonusDamage: 2, isBonusAction: true });
     }
-
     if (charClass === "rogue") {
-      abilities.push({
-        id: "sneak_attack", name: "Ataque Furtivo",
-        description: `+${Math.ceil(level / 2)}d6 dano`,
-        usesRemaining: 999, maxUses: 999,
-        bonusDamage: Math.ceil(level / 2) * 3,
-        isBonusAction: false, // Sneak Attack is part of an attack action (free)
-      });
+      abilities.push({ id: "sneak_attack", name: "Ataque Furtivo", description: `+${Math.ceil(level / 2)}d6 dano`, usesRemaining: 999, maxUses: 999, bonusDamage: Math.ceil(level / 2) * 3, isBonusAction: false });
     }
-
     if (charClass === "paladin") {
-      abilities.push({
-        id: "divine_smite", name: "Punição Divina",
-        description: "+2d8 radiante",
-        usesRemaining: 999, maxUses: 999,
-        bonusDamage: 9,
-        isBonusAction: false, // Divine Smite is part of an attack (free)
-      });
+      abilities.push({ id: "divine_smite", name: "Punicao Divina", description: "+2d8 radiante", usesRemaining: 999, maxUses: 999, bonusDamage: 9, isBonusAction: false });
       setLayOnHandsPool(level * 5);
     }
-
     if (charClass === "fighter") {
-      abilities.push({
-        id: "action_surge", name: "Surto de Ação",
-        description: "Ação extra neste turno",
-        usesRemaining: 1, maxUses: 1,
-        isBonusAction: true, // Treating as bonus action (gives extra action)
-      });
-      abilities.push({
-        id: "second_wind", name: "Retomar Fôlego",
-        description: `Recupera 1d10+${level} HP`,
-        usesRemaining: 1, maxUses: 1,
-        isBonusAction: true, // Second Wind is a bonus action in D&D 5e
-      });
+      abilities.push({ id: "action_surge", name: "Surto de Acao", description: "Acao extra neste turno", usesRemaining: 1, maxUses: 1, isBonusAction: true });
+      abilities.push({ id: "second_wind", name: "Retomar Folego", description: `Recupera 1d10+${level} HP`, usesRemaining: 1, maxUses: 1, isBonusAction: true });
     }
-
     if (charClass === "cleric") {
-      abilities.push({
-        id: "turn_undead", name: "Expulsar Mortos-Vivos",
-        description: "Afasta mortos-vivos",
-        usesRemaining: Math.max(1, Math.floor((level - 1) / 4) + 1),
-        maxUses: Math.max(1, Math.floor((level - 1) / 4) + 1),
-        isBonusAction: false, // Action
-      });
+      abilities.push({ id: "turn_undead", name: "Expulsar Mortos-Vivos", description: "Afasta mortos-vivos", usesRemaining: Math.max(1, Math.floor((level - 1) / 4) + 1), maxUses: Math.max(1, Math.floor((level - 1) / 4) + 1), isBonusAction: false });
     }
-
     if (charClass === "wizard") {
-      abilities.push({
-        id: "arcane_recovery", name: "Recuperação Arcana",
-        description: "Recupera spell slots",
-        usesRemaining: 1, maxUses: 1,
-        isBonusAction: true, // Bonus action
-      });
+      abilities.push({ id: "arcane_recovery", name: "Recuperacao Arcana", description: "Recupera spell slots", usesRemaining: 1, maxUses: 1, isBonusAction: true });
     }
-
     setClassAbilities(abilities);
   }, [character]);
 
@@ -500,22 +278,13 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
 
   // ═══════════════════════════════════════════════════════════
   // D&D 5e TURN LOGIC
-  // After using action AND bonus action (or choosing to end), monster turn starts
   // ═══════════════════════════════════════════════════════════
 
   const checkEndTurn = useCallback(() => {
-    // If action is used and no bonus actions available (or bonus also used), end turn
-    // The player can also manually end turn
     if (actionUsed) {
-      // Check if there are any bonus actions available
       const hasBonusActions = classAbilities.some(a => a.isBonusAction && (a.usesRemaining > 0 || a.maxUses === 999));
       if (bonusActionUsed || !hasBonusActions) {
-        // End player turn, start monster turn
-        setTimeout(() => {
-          setIsPlayerTurn(false);
-          setShowMenu(false);
-          handleMonsterTurn();
-        }, 1200);
+        setTimeout(() => { setIsPlayerTurn(false); setShowMenu(false); handleMonsterTurn(); }, 1200);
         return true;
       }
     }
@@ -525,21 +294,13 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
   const endTurnManually = useCallback(() => {
     if (!isPlayerTurn || combatEnded) return;
     setShowMenu(false);
-    setTimeout(() => {
-      setIsPlayerTurn(false);
-      handleMonsterTurn();
-    }, 500);
+    setTimeout(() => { setIsPlayerTurn(false); handleMonsterTurn(); }, 500);
   }, [isPlayerTurn, combatEnded]);
 
-  // Handle attack (uses ACTION)
   const handleAttack = async () => {
     if (!isPlayerTurn || combatEnded || !character || actionUsed) return;
-
-    setShowMenu(false);
-    setShowSpells(false);
-    setShowAbilities(false);
-    setIsAttacking(true);
-    setActionUsed(true);
+    setShowMenu(false); setShowSpells(false); setShowAbilities(false);
+    setIsAttacking(true); setActionUsed(true);
     audioSystem.playSFX('attack_hit');
 
     const attackRoll = Math.floor(Math.random() * 20) + 1;
@@ -553,75 +314,51 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
       audioSystem.playSFX('attack_miss');
       addLog("player", `Errou! (${totalAttack} vs AC ${monster.armor})`);
     } else if (attackRoll === 1) {
-      typeMessage(`Falha crítica! O ataque erra completamente!`);
+      typeMessage(`Falha critica! O ataque erra completamente!`);
       audioSystem.playSFX('attack_miss');
-      addLog("player", "Falha crítica!");
+      addLog("player", "Falha critica!");
     } else {
       let baseDamage = Math.floor(Math.random() * 8) + 1 + Math.floor((character.strength - 10) / 2);
       if (isRaging) baseDamage += 2;
       if (isCritical) baseDamage *= 2;
       const finalDamage = Math.max(1, baseDamage);
-
       playAnimation('slash', 'monster', finalDamage, isCritical);
       showDamage(finalDamage, 'monster', isCritical);
       setMonsterHealth((prev) => Math.max(0, prev - finalDamage));
       setIsMonsterHit(true);
       setTimeout(() => setIsMonsterHit(false), 300);
-
       if (isCritical) {
-        typeMessage(`CRÍTICO! ${finalDamage} de dano a ${monster.name}!`);
-        addLog("player", `Crítico! ${finalDamage} dano`, finalDamage, true);
+        typeMessage(`CRITICO! ${finalDamage} de dano a ${monster.name}!`);
+        addLog("player", `Critico! ${finalDamage} dano`, finalDamage, true);
       } else {
         typeMessage(`${finalDamage} de dano a ${monster.name}!`);
         addLog("player", `Ataque: ${finalDamage} dano`, finalDamage);
       }
-
-      if (monsterHealth - finalDamage <= 0) {
-        handleVictory();
-        return;
-      }
+      if (monsterHealth - finalDamage <= 0) { handleVictory(); return; }
     }
-
     setIsAttacking(false);
-
-    // After action, check if turn should end
     setTimeout(() => {
       const hasBonusActions = classAbilities.some(a => a.isBonusAction && (a.usesRemaining > 0 || a.maxUses === 999));
       if (bonusActionUsed || !hasBonusActions) {
-        setTimeout(() => {
-          setIsPlayerTurn(false);
-          setShowMenu(false);
-          handleMonsterTurn();
-        }, 800);
+        setTimeout(() => { setIsPlayerTurn(false); setShowMenu(false); handleMonsterTurn(); }, 800);
       } else {
-        // Still has bonus action available - show menu again
         setShowMenu(true);
-        typeMessage(`Ação usada! Ainda tens Ação Bónus disponível.`);
+        typeMessage(`Acao usada! Ainda tens Acao Bonus disponivel.`);
       }
     }, 800);
   };
 
-  // Handle spell cast (uses ACTION)
   const handleCastSpell = async (spell: Spell) => {
     if (!isPlayerTurn || combatEnded || !character || actionUsed) return;
-
     if (spell.level > 0) {
       const maxSlots = SPELL_SLOTS_BY_LEVEL[character.level]?.[spell.level] || 0;
       const usedSlots = usedSpellSlots[spell.level] || 0;
-      if (usedSlots >= maxSlots) {
-        toast.error("Sem spell slots!");
-        return;
-      }
+      if (usedSlots >= maxSlots) { toast.error("Sem spell slots!"); return; }
       setUsedSpellSlots(prev => ({ ...prev, [spell.level]: (prev[spell.level] || 0) + 1 }));
     }
-
-    setShowSpells(false);
-    setShowMenu(false);
-    setActionUsed(true);
+    setShowSpells(false); setShowMenu(false); setActionUsed(true);
     audioSystem.playSFX('spell_cast');
-
     const spellEffect = getSpellEffectType(spell.school);
-
     if (spell.damage) {
       const damage = rollDice(spell.damage.dice);
       playAnimation(spellEffect, 'monster', damage);
@@ -631,11 +368,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
       setTimeout(() => setIsMonsterHit(false), 300);
       typeMessage(`${spell.name}! ${damage} de dano ${spell.damage.type}!`);
       addLog("player", `${spell.name}: ${damage} dano`, damage);
-
-      if (monsterHealth - damage <= 0) {
-        handleVictory();
-        return;
-      }
+      if (monsterHealth - damage <= 0) { handleVictory(); return; }
     } else if (spell.healing) {
       const healing = rollDice(spell.healing.dice);
       playAnimation('heal', 'player', healing);
@@ -644,86 +377,44 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
       typeMessage(`${spell.name}! +${healing} HP!`);
       addLog("player", `${spell.name}: +${healing} HP`, healing);
     }
-
-    // After action, check if turn should end
     setTimeout(() => {
       const hasBonusActions = classAbilities.some(a => a.isBonusAction && (a.usesRemaining > 0 || a.maxUses === 999));
       if (bonusActionUsed || !hasBonusActions) {
-        setTimeout(() => {
-          setIsPlayerTurn(false);
-          setShowMenu(false);
-          handleMonsterTurn();
-        }, 800);
+        setTimeout(() => { setIsPlayerTurn(false); setShowMenu(false); handleMonsterTurn(); }, 800);
       } else {
         setShowMenu(true);
-        typeMessage(`Magia lançada! Ainda tens Ação Bónus.`);
+        typeMessage(`Magia lancada! Ainda tens Acao Bonus.`);
       }
     }, 800);
   };
 
-  // Handle ability use (ACTION or BONUS ACTION depending on ability)
   const handleUseAbility = async (ability: ClassAbility) => {
     if (!isPlayerTurn || combatEnded || !character) return;
+    if (ability.isBonusAction && bonusActionUsed) { toast.error("Acao Bonus ja usada neste turno!"); return; }
+    if (!ability.isBonusAction && actionUsed) { toast.error("Acao ja usada neste turno!"); return; }
+    if (ability.usesRemaining <= 0 && ability.maxUses !== 999) { toast.error("Habilidade esgotada!"); return; }
 
-    // Check if the right action type is available
-    if (ability.isBonusAction && bonusActionUsed) {
-      toast.error("Ação Bónus já usada neste turno!");
-      return;
-    }
-    if (!ability.isBonusAction && actionUsed) {
-      toast.error("Ação já usada neste turno!");
-      return;
-    }
-
-    if (ability.usesRemaining <= 0 && ability.maxUses !== 999) {
-      toast.error("Habilidade esgotada!");
-      return;
-    }
-
-    setShowAbilities(false);
-    setShowMenu(false);
-
-    // Mark the correct action type as used
-    if (ability.isBonusAction) {
-      setBonusActionUsed(true);
-    } else {
-      setActionUsed(true);
-    }
-
-    // Update ability uses
+    setShowAbilities(false); setShowMenu(false);
+    if (ability.isBonusAction) { setBonusActionUsed(true); } else { setActionUsed(true); }
     if (ability.maxUses !== 999) {
-      setClassAbilities(prev => prev.map(a =>
-        a.id === ability.id ? { ...a, usesRemaining: a.usesRemaining - 1 } : a
-      ));
+      setClassAbilities(prev => prev.map(a => a.id === ability.id ? { ...a, usesRemaining: a.usesRemaining - 1 } : a));
     }
 
     switch (ability.id) {
       case 'rage':
-        setIsRaging(true);
-        setDamageResistance(['bludgeoning', 'piercing', 'slashing']);
-        typeMessage(`FÚRIA! +2 dano e resistência física!`);
-        addLog("ability", "Fúria ativada!");
-        audioSystem.playSFX('menu_confirm');
-        break;
-
+        setIsRaging(true); setDamageResistance(['bludgeoning', 'piercing', 'slashing']);
+        typeMessage(`FURIA! +2 dano e resistencia fisica!`);
+        addLog("ability", "Furia ativada!"); audioSystem.playSFX('menu_confirm'); break;
       case 'second_wind':
         const healing = rollDice('1d10') + (character.level || 1);
         setPlayerHealth(prev => Math.min(maxPlayerHealth, prev + healing));
         playAnimation('heal', 'player', healing);
-        typeMessage(`Retomar Fôlego! +${healing} HP!`);
-        addLog("ability", `Retomar Fôlego: +${healing} HP`, healing);
-        audioSystem.playSFX('spell_heal');
-        break;
-
-      case 'action_surge': {
-        // Action Surge: grants an additional action this turn
-        setActionUsed(false); // Reset action so player can attack again!
-        typeMessage(`Surto de Ação! Ganhas uma ação extra!`);
-        addLog("ability", "Surto de Ação!");
-        audioSystem.playSFX('menu_confirm');
-        break;
-      }
-
+        typeMessage(`Retomar Folego! +${healing} HP!`);
+        addLog("ability", `Retomar Folego: +${healing} HP`, healing); audioSystem.playSFX('spell_heal'); break;
+      case 'action_surge':
+        setActionUsed(false);
+        typeMessage(`Surto de Acao! Ganhas uma acao extra!`);
+        addLog("ability", "Surto de Acao!"); audioSystem.playSFX('menu_confirm'); break;
       case 'sneak_attack':
         const sneakDamage = rollDice(`${Math.ceil((character.level || 1) / 2)}d6`);
         setMonsterHealth(prev => Math.max(0, prev - sneakDamage));
@@ -731,84 +422,53 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         showDamage(sneakDamage, 'monster', true);
         typeMessage(`Ataque Furtivo! ${sneakDamage} de dano!`);
         addLog("ability", `Furtivo: ${sneakDamage} dano`, sneakDamage, true);
-        audioSystem.playSFX('attack_critical');
-        setSneakAttackUsed(true);
-        if (monsterHealth - sneakDamage <= 0) { handleVictory(); return; }
-        break;
-
+        audioSystem.playSFX('attack_critical'); setSneakAttackUsed(true);
+        if (monsterHealth - sneakDamage <= 0) { handleVictory(); return; } break;
       case 'divine_smite':
         const smiteDamage = rollDice('2d8');
         setMonsterHealth(prev => Math.max(0, prev - smiteDamage));
         playAnimation('holy', 'monster', smiteDamage, true);
         showDamage(smiteDamage, 'monster', true);
-        typeMessage(`Punição Divina! ${smiteDamage} radiante!`);
-        addLog("ability", `Punição: ${smiteDamage} dano`, smiteDamage, true);
+        typeMessage(`Punicao Divina! ${smiteDamage} radiante!`);
+        addLog("ability", `Punicao: ${smiteDamage} dano`, smiteDamage, true);
         audioSystem.playSFX('spell_heal');
-        if (monsterHealth - smiteDamage <= 0) { handleVictory(); return; }
-        break;
-
+        if (monsterHealth - smiteDamage <= 0) { handleVictory(); return; } break;
       default:
-        typeMessage(`${ability.name} usado!`);
-        addLog("ability", `${ability.name}!`);
+        typeMessage(`${ability.name} usado!`); addLog("ability", `${ability.name}!`);
     }
 
-    // After ability, check if turn should end
     setTimeout(() => {
       const newActionUsed = ability.isBonusAction ? actionUsed : true;
       const newBonusUsed = ability.isBonusAction ? true : bonusActionUsed;
-      // Special case: Action Surge resets action
       const effectiveActionUsed = ability.id === 'action_surge' ? false : newActionUsed;
-
-      const hasBonusActions = classAbilities.some(a =>
-        a.isBonusAction && a.id !== ability.id && (a.usesRemaining > 0 || a.maxUses === 999)
-      );
-
+      const hasBonusActions = classAbilities.some(a => a.isBonusAction && a.id !== ability.id && (a.usesRemaining > 0 || a.maxUses === 999));
       if (effectiveActionUsed && (newBonusUsed || !hasBonusActions)) {
-        setTimeout(() => {
-          setIsPlayerTurn(false);
-          setShowMenu(false);
-          handleMonsterTurn();
-        }, 800);
+        setTimeout(() => { setIsPlayerTurn(false); setShowMenu(false); handleMonsterTurn(); }, 800);
       } else {
         setShowMenu(true);
-        if (ability.id === 'action_surge') {
-          typeMessage(`Surto de Ação! Podes atacar novamente!`);
-        } else if (!effectiveActionUsed) {
-          typeMessage(`${ability.name} usado! Ainda tens a tua Ação.`);
-        } else {
-          typeMessage(`${ability.name} usado! Turno a terminar...`);
-        }
+        if (ability.id === 'action_surge') { typeMessage(`Surto de Acao! Podes atacar novamente!`); }
+        else if (!effectiveActionUsed) { typeMessage(`${ability.name} usado! Ainda tens a tua Acao.`); }
+        else { typeMessage(`${ability.name} usado! Turno a terminar...`); }
       }
     }, 800);
   };
 
-  // Handle flee (uses ACTION)
   const handleFlee = async () => {
     if (!isPlayerTurn || combatEnded || actionUsed) return;
-
-    setShowMenu(false);
-    setActionUsed(true);
-
+    setShowMenu(false); setActionUsed(true);
     const fleeRoll = Math.random();
     if (fleeRoll > 0.5) {
-      typeMessage(`Conseguiste fugir!`);
-      audioSystem.playSFX('menu_cancel');
+      typeMessage(`Conseguiste fugir!`); audioSystem.playSFX('menu_cancel');
       setTimeout(() => onClose(), 1500);
     } else {
-      typeMessage(`Não conseguiste fugir!`);
-      audioSystem.playSFX('attack_miss');
-      setTimeout(() => {
-        setIsPlayerTurn(false);
-        handleMonsterTurn();
-      }, 1500);
+      typeMessage(`Nao conseguiste fugir!`); audioSystem.playSFX('attack_miss');
+      setTimeout(() => { setIsPlayerTurn(false); handleMonsterTurn(); }, 1500);
     }
   };
 
-  // Monster turn
   const handleMonsterTurn = () => {
     if (combatEnded) return;
     setTurnCount(prev => prev + 1);
-
     setTimeout(() => {
       const attackRoll = Math.floor(Math.random() * 20) + 1;
       const monsterAttackBonus = Math.floor(monster.level / 2);
@@ -823,49 +483,31 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
       } else {
         let damage = monster.damage + Math.floor(Math.random() * 4);
         if (damageResistance.length > 0) damage = Math.floor(damage / 2);
-        if (isCritical) {
-          damage *= 2;
-          audioSystem.playSFX('attack_critical');
-        } else {
-          audioSystem.playSFX('player_hit');
-        }
-
+        if (isCritical) { damage *= 2; audioSystem.playSFX('attack_critical'); } else { audioSystem.playSFX('player_hit'); }
         playAnimation('slash', 'player', damage, isCritical);
         showDamage(damage, 'player', isCritical);
         setPlayerHealth(prev => Math.max(0, prev - damage));
         setIsPlayerHit(true);
         setTimeout(() => setIsPlayerHit(false), 300);
-
         if (isCritical) {
-          typeMessage(`${monster.name} CRÍTICO! ${damage} de dano!`);
-          addLog("monster", `Crítico: ${damage} dano!`, damage, true);
+          typeMessage(`${monster.name} CRITICO! ${damage} de dano!`);
+          addLog("monster", `Critico: ${damage} dano!`, damage, true);
         } else {
           typeMessage(`${monster.name} ataca! ${damage} de dano!`);
           addLog("monster", `${damage} dano`, damage);
         }
-
-        if (playerHealth - damage <= 0) {
-          handleDefeat();
-          return;
-        }
+        if (playerHealth - damage <= 0) { handleDefeat(); return; }
       }
-
-      // New player turn - reset action economy
       setTimeout(() => {
-        setIsPlayerTurn(true);
-        setActionUsed(false);
-        setBonusActionUsed(false);
-        setSneakAttackUsed(false);
+        setIsPlayerTurn(true); setActionUsed(false); setBonusActionUsed(false); setSneakAttackUsed(false);
         setShowMenu(true);
-        typeMessage(`O que ${character?.name || 'Herói'} vai fazer?`);
+        typeMessage(`O que ${character?.name || 'Heroi'} vai fazer?`);
       }, 1500);
     }, 1000);
   };
 
-  // Victory
   const handleVictory = () => {
-    setCombatEnded(true);
-    audioSystem.playSFX('victory');
+    setCombatEnded(true); audioSystem.playSFX('victory');
     const tierMultiplier = { common: 1, uncommon: 1.5, rare: 2, epic: 3, legendary: 5 };
     const multiplier = tierMultiplier[monster.tier as keyof typeof tierMultiplier] || 1;
     const experience = Math.floor((monster.level * 10 + 20) * multiplier);
@@ -875,333 +517,270 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
     setTimeout(() => setShowVictory(true), 1500);
   };
 
-  // Defeat
   const handleDefeat = () => {
-    setCombatEnded(true);
-    audioSystem.playSFX('defeat');
+    setCombatEnded(true); audioSystem.playSFX('defeat');
     typeMessage(`Foste derrotado...`);
     setTimeout(() => setShowDefeat(true), 1500);
   };
 
   const monsterSprite = getMonsterSprite(monster.monsterType);
   const playerSprite = CLASS_SPRITES[playerClass] || CLASS_SPRITES.fighter;
+  const tierColor = TIER_COLORS[monster.tier] || TIER_COLORS.common;
 
   // ═══════════════════════════════════════════════════════════
-  // RENDER - PIXEL ART NANO BANANA STYLE
+  // RENDER - PIXEL ART NANO BANANA PRO STYLE
   // ═══════════════════════════════════════════════════════════
 
   return (
-    <div className="fixed inset-0" style={{ zIndex: 9999, background: '#0a0a1a', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div className="fixed inset-0" style={{ zIndex: 9999, background: '#0a0a0a', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <CombatAnimationStyles />
 
-      {/* ═══ BATTLE ARENA ═══ */}
+      {/* ═══ BATTLE ARENA - Medieval pixel art battlefield ═══ */}
       <div
         className="relative overflow-hidden"
         style={{
           height: '55vh',
-          background: `
-            linear-gradient(180deg,
-              #4a90c2 0%,
-              #6bb5e0 25%,
-              #87CEEB 45%,
-              #87CEEB 55%,
-              #2d8a4e 55%,
-              #228B22 65%,
-              #1a6b1a 100%
-            )
-          `,
-          imageRendering: 'pixelated',
+          minHeight: '200px',
+          imageRendering: 'pixelated' as const,
         }}
       >
-        {/* Pixel scanline overlay for retro feel */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-10"
-          style={{
-            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
-          }}
-        />
+        {/* Sky gradient with clouds */}
+        <div className="absolute inset-0" style={{
+          background: `
+            linear-gradient(180deg,
+              #1a0a2e 0%,
+              #2d1b4e 15%,
+              #4a2d6e 30%,
+              #6b4a8e 45%,
+              #4a6b2a 52%,
+              #3a5a1a 55%,
+              #2d4a12 60%,
+              #1e3a0a 75%,
+              #152e08 100%
+            )
+          `,
+        }} />
 
-        {/* Ground pattern */}
-        <div
-          className="absolute bottom-0 left-0 right-0 pointer-events-none"
-          style={{
-            height: '45%',
-            background: `
-              repeating-linear-gradient(
-                90deg,
-                transparent,
-                transparent 30px,
-                rgba(0,0,0,0.05) 30px,
-                rgba(0,0,0,0.05) 32px
-              ),
-              repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 30px,
-                rgba(0,0,0,0.05) 30px,
-                rgba(0,0,0,0.05) 32px
-              )
-            `,
-          }}
-        />
+        {/* Stars in the dark sky */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: `
+            radial-gradient(1px 1px at 10% 8%, rgba(255,255,200,0.8) 0%, transparent 100%),
+            radial-gradient(1px 1px at 30% 5%, rgba(255,255,200,0.6) 0%, transparent 100%),
+            radial-gradient(1px 1px at 50% 12%, rgba(255,255,200,0.7) 0%, transparent 100%),
+            radial-gradient(1px 1px at 70% 3%, rgba(255,255,200,0.5) 0%, transparent 100%),
+            radial-gradient(1px 1px at 85% 10%, rgba(255,255,200,0.8) 0%, transparent 100%),
+            radial-gradient(1px 1px at 15% 15%, rgba(255,255,200,0.4) 0%, transparent 100%),
+            radial-gradient(1px 1px at 60% 7%, rgba(255,255,200,0.6) 0%, transparent 100%),
+            radial-gradient(2px 2px at 90% 6%, rgba(255,200,100,0.9) 0%, transparent 100%)
+          `,
+        }} />
 
-        {/* Close button - pixel style */}
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 z-50 w-8 h-8 flex items-center justify-center"
-          style={{
-            background: '#991b1b',
-            border: '2px solid #ef4444',
-            boxShadow: '2px 2px 0 rgba(0,0,0,0.5)',
-            fontFamily: PIXEL_FONT,
-            fontSize: '10px',
-            color: '#fff',
-            imageRendering: 'pixelated',
-          }}
-        >
-          X
-        </button>
+        {/* Ground tile pattern */}
+        <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{
+          height: '50%',
+          background: `
+            repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.08) 48px, rgba(0,0,0,0.08) 50px),
+            repeating-linear-gradient(0deg, transparent, transparent 48px, rgba(0,0,0,0.08) 48px, rgba(0,0,0,0.08) 50px)
+          `,
+        }} />
+
+        {/* Pixel scanline overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.06]" style={{
+          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px)',
+        }} />
 
         {/* ═══ MONSTER (top right) ═══ */}
-        <div className="absolute top-2 right-2 w-40 z-10">
-          <PixelHPBar
-            current={monsterHealth}
-            max={monster.health}
-            label={monster.name}
-            level={monster.level}
-          />
+        <div className="absolute top-2 right-2 z-20" style={{ width: '42%', maxWidth: '200px' }}>
+          <PixelFrame borderColor={tierColor} bgColor="rgba(12,12,29,0.9)" className="p-1.5">
+            <div className="flex justify-between items-center mb-1">
+              <PixelText size="xs" color={tierColor} bold className="truncate">{monster.name}</PixelText>
+              <PixelText size="xxs" color={COLORS.textGold}>Nv.{monster.level}</PixelText>
+            </div>
+            <PixelBar current={monsterHealth} max={monster.health} color={COLORS.hpGreen} label="HP" labelColor={COLORS.hpRed} height={10} segments={12} />
+            <div className="flex justify-between mt-1">
+              <PixelText size="xxs" color={COLORS.textGray}>AC {monster.armor}</PixelText>
+              <PixelText size="xxs" color={tierColor}>{monster.tier}</PixelText>
+            </div>
+          </PixelFrame>
         </div>
 
-        {/* Monster platform */}
-        <div className="absolute top-12 right-4 w-32 z-5">
-          <div
-            className={cn(
-              "w-32 h-32 transition-all duration-200",
-              isMonsterHit && "brightness-200 translate-x-2",
-              monsterHealth <= 0 && "opacity-0 scale-0"
-            )}
-          >
-            <img
-              src={monsterSprite}
-              alt={monster.name}
-              className="w-full h-full object-contain drop-shadow-lg"
-              style={{ imageRendering: 'pixelated' }}
-            />
+        {/* Monster sprite */}
+        <div className="absolute top-14 right-6 z-10" style={{ width: '120px' }}>
+          <div className={cn(
+            "w-full transition-all duration-200",
+            isMonsterHit && "brightness-[3] translate-x-2",
+            monsterHealth <= 0 && "opacity-0 scale-0"
+          )}>
+            <img src={monsterSprite} alt={monster.name} className="w-full h-auto drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" style={{ imageRendering: 'pixelated' }} />
           </div>
-          {/* Shadow under monster */}
-          <div
-            className="mx-auto -mt-2 opacity-30"
-            style={{
-              width: '80px',
-              height: '12px',
-              background: 'radial-gradient(ellipse, rgba(0,0,0,0.6) 0%, transparent 70%)',
-            }}
-          />
+          <div className="mx-auto -mt-1 opacity-40" style={{ width: '80%', height: '10px', background: 'radial-gradient(ellipse, rgba(0,0,0,0.6) 0%, transparent 70%)' }} />
         </div>
 
         {/* ═══ PLAYER (bottom left) ═══ */}
-        <div className="absolute bottom-2 left-3 w-40 z-10">
-          <PixelHPBar
-            current={playerHealth}
-            max={maxPlayerHealth}
-            label={character?.name || "Herói"}
-            level={character?.level || 1}
-            isPlayer
-          />
+        <div className="absolute bottom-2 left-2 z-20" style={{ width: '42%', maxWidth: '200px' }}>
+          <PixelFrame borderColor={COLORS.hpGreen} bgColor="rgba(12,12,29,0.9)" className="p-1.5">
+            <div className="flex justify-between items-center mb-1">
+              <PixelText size="xs" color={COLORS.textGold} bold className="truncate">{character?.name || "Heroi"}</PixelText>
+              <PixelText size="xxs" color={COLORS.textGold}>Nv.{character?.level || 1}</PixelText>
+            </div>
+            <PixelBar current={playerHealth} max={maxPlayerHealth} color={COLORS.hpGreen} label="HP" labelColor={COLORS.hpRed} height={10} segments={12} />
+            {isRaging && <PixelText size="xxs" color="#ef4444" glow className="block mt-0.5">FURIA ATIVA</PixelText>}
+          </PixelFrame>
         </div>
 
         {/* Player sprite */}
-        <div
-          className={cn(
-            "absolute bottom-8 left-6 w-32 h-32 transition-all duration-200 z-5",
-            isPlayerHit && "brightness-200 -translate-x-2",
-            isAttacking && "translate-x-4"
-          )}
-        >
-          <img
-            src={playerSprite}
-            alt="Player"
-            className="w-full h-full object-contain transform scale-x-[-1] drop-shadow-lg"
-            style={{ imageRendering: 'pixelated' }}
-          />
-          {/* Shadow under player */}
-          <div
-            className="mx-auto -mt-2 opacity-30"
-            style={{
-              width: '100px',
-              height: '14px',
-              background: 'radial-gradient(ellipse, rgba(0,0,0,0.6) 0%, transparent 70%)',
-            }}
-          />
+        <div className={cn(
+          "absolute bottom-10 left-8 z-10 transition-all duration-200",
+          isPlayerHit && "brightness-[3] -translate-x-2",
+          isAttacking && "translate-x-6"
+        )} style={{ width: '110px' }}>
+          <img src={playerSprite} alt="Player" className="w-full h-auto transform scale-x-[-1] drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" style={{ imageRendering: 'pixelated' }} />
+          <div className="mx-auto -mt-1 opacity-40" style={{ width: '80%', height: '10px', background: 'radial-gradient(ellipse, rgba(0,0,0,0.6) 0%, transparent 70%)' }} />
         </div>
 
-        {/* Combat animations */}
-        {showAnimation && (
-          <CombatAnimation
-            type={animationType}
-            target={animationTarget}
-            damage={animationDamage}
-            isCritical={animationIsCritical}
-          />
-        )}
+        {/* Close button */}
+        <button onClick={onClose} className="absolute top-2 left-2 z-30 w-7 h-7 flex items-center justify-center transition-all hover:brightness-125" style={{
+          background: '#6b1a1a', border: '2px solid #ef4444', boxShadow: '2px 2px 0 rgba(0,0,0,0.5)',
+          fontFamily: PIXEL_FONT, fontSize: '8px', color: '#fff',
+        }}>X</button>
 
-        {/* Damage numbers */}
-        {showDamageNumber && (
-          <DamageNumber
-            value={damageNumberValue}
-            target={damageNumberTarget}
-            isCritical={damageNumberIsCritical}
-          />
-        )}
+        {/* Combat animations */}
+        {showAnimation && <CombatAnimation type={animationType} target={animationTarget} damage={animationDamage} isCritical={animationIsCritical} />}
+        {showDamageNumber && <DamageNumber value={damageNumberValue} target={damageNumberTarget} isCritical={damageNumberIsCritical} />}
       </div>
 
-      {/* ═══ BOTTOM UI PANEL ═══ */}
-      <div
-        style={{
-          height: '45vh',
-          background: 'linear-gradient(180deg, #0f0f23 0%, #1a1a2e 100%)',
-          borderTop: '4px solid #f59e0b',
-          padding: '6px 8px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
-          overflowY: 'auto',
-        }}
-      >
+      {/* ═══ BOTTOM UI PANEL - Medieval RPG style ═══ */}
+      <div style={{
+        height: '45vh',
+        background: `linear-gradient(180deg, ${COLORS.panelDark} 0%, #080818 100%)`,
+        borderTop: `3px solid ${COLORS.gold}`,
+        padding: '6px 8px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        overflow: 'hidden',
+      }}>
         {/* Turn indicator */}
-        <TurnIndicator
-          actionUsed={actionUsed}
-          bonusActionUsed={bonusActionUsed}
-          isPlayerTurn={isPlayerTurn}
-        />
-
-        {/* Message box */}
-        <PixelMessageBox message={currentMessage} isTyping={isTyping} />
-
-        {/* Action menu */}
-        {showMenu && isPlayerTurn && !combatEnded && (
-          <div className="grid grid-cols-2 gap-2">
-            <PixelButton variant="attack" onClick={handleAttack} disabled={actionUsed}>
-              ⚔️ LUTAR
-            </PixelButton>
-            <PixelButton variant="magic" onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }} disabled={actionUsed}>
-              ✨ MAGIAS
-            </PixelButton>
-            <PixelButton variant="skill" onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }}>
-              🛡️ SKILLS
-            </PixelButton>
-            <PixelButton variant="flee" onClick={handleFlee} disabled={actionUsed}>
-              🏃 FUGIR
-            </PixelButton>
+        {isPlayerTurn && !combatEnded && (
+          <div className="flex items-center justify-center gap-3 py-1" style={{ borderBottom: `1px solid ${COLORS.gold}20` }}>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3" style={{
+                background: actionUsed ? '#333' : COLORS.hpGreen,
+                border: `1px solid ${actionUsed ? '#555' : COLORS.hpGreen}`,
+                boxShadow: actionUsed ? 'none' : `0 0 6px ${COLORS.hpGreen}60`,
+              }} />
+              <PixelText size="xxs" color={actionUsed ? COLORS.textGray : COLORS.hpGreen}>ACAO</PixelText>
+            </div>
+            <div className="w-1 h-1" style={{ background: COLORS.gold, transform: 'rotate(45deg)' }} />
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3" style={{
+                background: bonusActionUsed ? '#333' : COLORS.xpGold,
+                border: `1px solid ${bonusActionUsed ? '#555' : COLORS.xpGold}`,
+                boxShadow: bonusActionUsed ? 'none' : `0 0 6px ${COLORS.xpGold}60`,
+              }} />
+              <PixelText size="xxs" color={bonusActionUsed ? COLORS.textGray : COLORS.xpGold}>BONUS</PixelText>
+            </div>
           </div>
         )}
 
-        {/* End turn button (when action used but bonus available) */}
+        {/* Message box */}
+        <PixelDialogBox message={currentMessage} isTyping={isTyping} />
+
+        {/* Action menu */}
+        {showMenu && isPlayerTurn && !combatEnded && (
+          <div className="grid grid-cols-2 gap-1.5">
+            <PixelBtn variant="attack" size="sm" onClick={handleAttack} disabled={actionUsed} fullWidth>LUTAR</PixelBtn>
+            <PixelBtn variant="magic" size="sm" onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }} disabled={actionUsed} fullWidth>MAGIAS</PixelBtn>
+            <PixelBtn variant="skill" size="sm" onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }} fullWidth>SKILLS</PixelBtn>
+            <PixelBtn variant="flee" size="sm" onClick={handleFlee} disabled={actionUsed} fullWidth>FUGIR</PixelBtn>
+          </div>
+        )}
+
+        {/* End turn button */}
         {showMenu && isPlayerTurn && !combatEnded && actionUsed && !bonusActionUsed && (
-          <PixelButton variant="default" onClick={endTurnManually} small>
-            ⏭️ TERMINAR TURNO
-          </PixelButton>
+          <PixelBtn variant="default" size="xs" onClick={endTurnManually} fullWidth>TERMINAR TURNO</PixelBtn>
         )}
 
-        {/* Spells menu */}
+        {/* Spells sub-menu */}
         {showSpells && (
-          <PixelBox borderColor="#7c3aed" className="p-3 max-h-40 overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <span style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: '#c084fc' }}>MAGIAS</span>
-              <button onClick={() => setShowSpells(false)} style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: '#ef4444' }}>X</button>
+          <PixelFrame borderColor={COLORS.textPurple} className="p-2">
+            <div className="flex justify-between items-center mb-1">
+              <PixelText size="xs" color={COLORS.textPurple}>MAGIAS</PixelText>
+              <button onClick={() => setShowSpells(false)} style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: COLORS.textRed }}>X</button>
             </div>
-            <div className="grid grid-cols-2 gap-1">
-              {availableSpells.length === 0 && (
-                <span style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: '#6b7280' }}>Sem magias disponíveis</span>
-              )}
-              {availableSpells.map((spell) => (
-                <button
-                  key={spell.id}
-                  onClick={() => handleCastSpell(spell)}
-                  disabled={actionUsed}
-                  className="p-2 text-left transition-all hover:brightness-125 disabled:opacity-40"
-                  style={{
-                    background: '#2d1b69',
-                    border: '2px solid #7c3aed',
-                    imageRendering: 'pixelated',
-                  }}
-                >
-                  <div style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: '#fff' }}>{spell.name}</div>
-                  <div style={{ fontFamily: PIXEL_FONT, fontSize: '6px', color: '#a78bfa' }}>
-                    {spell.damage?.dice || spell.healing?.dice || '—'}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </PixelBox>
+            <PixelScrollArea maxHeight="100px">
+              <div className="grid grid-cols-2 gap-1">
+                {availableSpells.length === 0 && <PixelText size="xxs" color={COLORS.textGray}>Sem magias</PixelText>}
+                {availableSpells.map((spell) => (
+                  <button key={spell.id} onClick={() => handleCastSpell(spell)} disabled={actionUsed}
+                    className="p-1.5 text-left transition-all hover:brightness-125 disabled:opacity-35"
+                    style={{ background: '#1a0e3a', border: `1px solid ${COLORS.textPurple}40`, imageRendering: 'pixelated' as const }}>
+                    <PixelText size="xxs" color="#fff" className="block truncate">{spell.name}</PixelText>
+                    <PixelText size="xxs" color={COLORS.textPurple}>{spell.damage?.dice || spell.healing?.dice || '—'}</PixelText>
+                  </button>
+                ))}
+              </div>
+            </PixelScrollArea>
+          </PixelFrame>
         )}
 
-        {/* Abilities menu */}
+        {/* Abilities sub-menu */}
         {showAbilities && (
-          <PixelBox borderColor="#d97706" className="p-3 max-h-40 overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <span style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: '#fbbf24' }}>HABILIDADES</span>
-              <button onClick={() => setShowAbilities(false)} style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: '#ef4444' }}>X</button>
+          <PixelFrame borderColor={COLORS.xpGold} className="p-2">
+            <div className="flex justify-between items-center mb-1">
+              <PixelText size="xs" color={COLORS.textGold}>HABILIDADES</PixelText>
+              <button onClick={() => setShowAbilities(false)} style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: COLORS.textRed }}>X</button>
             </div>
-            <div className="grid grid-cols-2 gap-1">
-              {classAbilities.length === 0 && (
-                <span style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: '#6b7280' }}>Sem habilidades</span>
-              )}
-              {classAbilities.map((ability) => {
-                const isDisabled = ability.isBonusAction ? bonusActionUsed : actionUsed;
-                const usesOk = ability.usesRemaining > 0 || ability.maxUses === 999;
-                return (
-                  <button
-                    key={ability.id}
-                    onClick={() => handleUseAbility(ability)}
-                    disabled={isDisabled || !usesOk}
-                    className="p-2 text-left transition-all hover:brightness-125 disabled:opacity-40"
-                    style={{
-                      background: '#4a2800',
-                      border: `2px solid ${ability.isBonusAction ? '#f59e0b' : '#22c55e'}`,
-                      imageRendering: 'pixelated',
-                    }}
-                  >
-                    <div className="flex items-center gap-1">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ background: ability.isBonusAction ? '#f59e0b' : '#22c55e' }}
-                        title={ability.isBonusAction ? 'Ação Bónus' : 'Ação'}
-                      />
-                      <span style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: '#fff' }}>{ability.name}</span>
-                    </div>
-                    <div style={{ fontFamily: PIXEL_FONT, fontSize: '6px', color: '#d4d4d4' }}>{ability.description}</div>
-                    {ability.maxUses !== 999 && (
-                      <div style={{ fontFamily: PIXEL_FONT, fontSize: '6px', color: '#fbbf24' }}>
-                        {ability.usesRemaining}/{ability.maxUses}
+            <PixelScrollArea maxHeight="100px">
+              <div className="grid grid-cols-1 gap-1">
+                {classAbilities.length === 0 && <PixelText size="xxs" color={COLORS.textGray}>Sem habilidades</PixelText>}
+                {classAbilities.map((ability) => {
+                  const isDisabled = ability.isBonusAction ? bonusActionUsed : actionUsed;
+                  const usesOk = ability.usesRemaining > 0 || ability.maxUses === 999;
+                  const abilityColor = ability.isBonusAction ? COLORS.xpGold : COLORS.hpGreen;
+                  return (
+                    <button key={ability.id} onClick={() => handleUseAbility(ability)} disabled={isDisabled || !usesOk}
+                      className="p-2 text-left transition-all hover:brightness-125 disabled:opacity-35 flex items-center gap-2"
+                      style={{ background: COLORS.panelMid, border: `1px solid ${abilityColor}40`, imageRendering: 'pixelated' as const }}>
+                      <div className="w-2 h-2 flex-shrink-0" style={{ background: abilityColor, boxShadow: `0 0 4px ${abilityColor}60` }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <PixelText size="xxs" color="#fff" className="truncate">{ability.name}</PixelText>
+                          {ability.maxUses !== 999 && (
+                            <PixelText size="xxs" color={COLORS.textGold}>{ability.usesRemaining}/{ability.maxUses}</PixelText>
+                          )}
+                        </div>
+                        <PixelText size="xxs" color={COLORS.textGray} className="block truncate">{ability.description}</PixelText>
                       </div>
-                    )}
-                    <div style={{ fontFamily: PIXEL_FONT, fontSize: '5px', color: ability.isBonusAction ? '#f59e0b' : '#22c55e' }}>
-                      {ability.isBonusAction ? '● BÓNUS' : '● AÇÃO'}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </PixelBox>
+                      <PixelText size="xxs" color={abilityColor}>{ability.isBonusAction ? 'B' : 'A'}</PixelText>
+                    </button>
+                  );
+                })}
+              </div>
+            </PixelScrollArea>
+          </PixelFrame>
+        )}
+
+        {/* Combat log (compact) */}
+        {!showSpells && !showAbilities && combatLogs.length > 0 && (
+          <div className="flex-1 overflow-hidden">
+            <PixelScrollArea maxHeight="60px">
+              {combatLogs.slice(-3).map((log, i) => (
+                <div key={i} className="flex items-center gap-1 py-0.5">
+                  <div className="w-1.5 h-1.5 flex-shrink-0" style={{
+                    background: log.type === 'player' ? COLORS.hpGreen : log.type === 'monster' ? COLORS.hpRed : COLORS.xpGold,
+                  }} />
+                  <PixelText size="xxs" color={log.isCritical ? COLORS.textGold : COLORS.textGray}>{log.message}</PixelText>
+                </div>
+              ))}
+            </PixelScrollArea>
+          </div>
         )}
       </div>
 
-      {/* Victory */}
-      {showVictory && (
-        <VictoryAnimation
-          experience={victoryRewards.experience}
-          gold={victoryRewards.gold}
-          leveledUp={victoryRewards.leveledUp}
-          newLevel={victoryRewards.newLevel}
-          onComplete={() => onVictory(victoryRewards)}
-        />
-      )}
-
-      {/* Defeat */}
-      {showDefeat && (
-        <DefeatAnimation onComplete={onDefeat} />
-      )}
+      {/* Victory overlay */}
+      {showVictory && <VictoryAnimation experience={victoryRewards.experience} gold={victoryRewards.gold} leveledUp={victoryRewards.leveledUp} newLevel={victoryRewards.newLevel} onComplete={() => onVictory(victoryRewards)} />}
+      {showDefeat && <DefeatAnimation onComplete={onDefeat} />}
     </div>
   );
 }

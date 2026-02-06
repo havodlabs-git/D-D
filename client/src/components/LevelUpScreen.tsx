@@ -1,365 +1,234 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Sparkles, Star, Wand2, Shield, Swords, Heart, Brain, Zap, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { CHARACTER_CLASSES, SPELLS, Spell, SPELL_SLOTS_BY_LEVEL } from "../../../shared/gameConstants";
+import { PixelFrame, PixelBtn, PixelText, PixelTitleBar, PixelTabs, PixelSeparator, PixelOverlay, PixelScrollArea, PixelStatRow, PIXEL_FONT, COLORS } from "./ui/pixelUI";
 
 interface Character {
-  id: number;
-  name: string;
-  characterClass: string;
-  level: number;
-  subclass?: string;
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
-  knownSpells?: string[];
+  id: number; name: string; characterClass: string; level: number; subclass?: string;
+  strength: number; dexterity: number; constitution: number;
+  intelligence: number; wisdom: number; charisma: number; knownSpells?: string[];
 }
 
 interface LevelUpScreenProps {
-  character: Character;
-  newLevel: number;
-  onComplete: (choices: {
-    attributeIncreases: { [key: string]: number };
-    newSpells: string[];
-    subclass?: string;
-  }) => void;
+  character: Character; newLevel: number;
+  onComplete: (choices: { attributeIncreases: { [key: string]: number }; newSpells: string[]; subclass?: string }) => void;
   onClose: () => void;
 }
 
-const ATTRIBUTE_ICONS: Record<string, React.ReactNode> = {
-  strength: <Swords className="w-4 h-4" />,
-  dexterity: <Zap className="w-4 h-4" />,
-  constitution: <Heart className="w-4 h-4" />,
-  intelligence: <Brain className="w-4 h-4" />,
-  wisdom: <Star className="w-4 h-4" />,
-  charisma: <Sparkles className="w-4 h-4" />,
+const ATTRIBUTE_NAMES: Record<string, string> = {
+  strength: "FOR", dexterity: "DES", constitution: "CON",
+  intelligence: "INT", wisdom: "SAB", charisma: "CAR",
 };
 
-const ATTRIBUTE_NAMES: Record<string, string> = {
-  strength: "Força",
-  dexterity: "Destreza",
-  constitution: "Constituição",
-  intelligence: "Inteligência",
-  wisdom: "Sabedoria",
-  charisma: "Carisma",
+const ATTRIBUTE_COLORS: Record<string, string> = {
+  strength: "#ef4444", dexterity: "#22c55e", constitution: "#f59e0b",
+  intelligence: "#3b82f6", wisdom: "#a855f7", charisma: "#ec4899",
+};
+
+const SPELL_SCHOOL_COLORS: Record<string, string> = {
+  evocation: "#ef4444", abjuration: "#3b82f6", conjuration: "#eab308",
+  divination: "#a855f7", enchantment: "#ec4899", illusion: "#6366f1",
+  necromancy: "#6b7280", transmutation: "#22c55e",
 };
 
 export function LevelUpScreen({ character, newLevel, onComplete, onClose }: LevelUpScreenProps) {
   const classData = CHARACTER_CLASSES[character.characterClass as keyof typeof CHARACTER_CLASSES];
-  const [attributePoints, setAttributePoints] = useState(2); // 2 points per level up
+  const [attributePoints, setAttributePoints] = useState(2);
   const [attributeIncreases, setAttributeIncreases] = useState<{ [key: string]: number }>({});
   const [selectedSpells, setSelectedSpells] = useState<string[]>([]);
   const [selectedSubclass, setSelectedSubclass] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState("attributes");
-  
+
   const needsSubclass = newLevel === 3 && !character.subclass;
   const canSelectSpells = Boolean(classData?.spellcasting);
-  
-  // Get available spells for this class
+
   const availableSpells = Object.entries(SPELLS).filter(([id, spell]) => {
     if (!classData?.spellcasting) return false;
-    const spellClasses = spell.classes || [];
-    const classMatch = spellClasses.some(c => 
-      c.toLowerCase() === character.characterClass.toLowerCase()
-    );
-    const levelMatch = spell.level <= Math.ceil(newLevel / 2);
-    const notKnown = !character.knownSpells?.includes(id);
-    return classMatch && levelMatch && notKnown;
+    const classMatch = (spell.classes || []).some(c => c.toLowerCase() === character.characterClass.toLowerCase());
+    return classMatch && spell.level <= Math.ceil(newLevel / 2) && !character.knownSpells?.includes(id);
   });
-  
-  // Calculate how many new spells can be learned
-  const spellsToLearn = newLevel % 2 === 1 ? 2 : 1; // Odd levels get 2, even get 1
-  
+
+  const spellsToLearn = newLevel % 2 === 1 ? 2 : 1;
+
   const handleAttributeIncrease = (attr: string) => {
     if (attributePoints <= 0) return;
-    
-    setAttributeIncreases(prev => ({
-      ...prev,
-      [attr]: (prev[attr] || 0) + 1,
-    }));
+    setAttributeIncreases(prev => ({ ...prev, [attr]: (prev[attr] || 0) + 1 }));
     setAttributePoints(prev => prev - 1);
   };
-  
+
   const handleAttributeDecrease = (attr: string) => {
     if (!attributeIncreases[attr] || attributeIncreases[attr] <= 0) return;
-    
-    setAttributeIncreases(prev => ({
-      ...prev,
-      [attr]: prev[attr] - 1,
-    }));
+    setAttributeIncreases(prev => ({ ...prev, [attr]: prev[attr] - 1 }));
     setAttributePoints(prev => prev + 1);
   };
-  
+
   const handleSpellToggle = (spellId: string) => {
-    if (selectedSpells.includes(spellId)) {
-      setSelectedSpells(prev => prev.filter(s => s !== spellId));
-    } else if (selectedSpells.length < spellsToLearn) {
-      setSelectedSpells(prev => [...prev, spellId]);
-    } else {
-      toast.error(`Você só pode aprender ${spellsToLearn} magia(s) neste nível!`);
-    }
+    if (selectedSpells.includes(spellId)) setSelectedSpells(prev => prev.filter(s => s !== spellId));
+    else if (selectedSpells.length < spellsToLearn) setSelectedSpells(prev => [...prev, spellId]);
+    else toast.error(`So podes aprender ${spellsToLearn} magia(s) neste nivel!`);
   };
-  
+
   const handleComplete = () => {
-    if (needsSubclass && !selectedSubclass) {
-      toast.error("Você precisa escolher uma subclasse!");
-      setCurrentTab("subclass");
-      return;
-    }
-    
-    if (attributePoints > 0) {
-      toast.warning("Você ainda tem pontos de atributo para distribuir!");
-    }
-    
-    onComplete({
-      attributeIncreases,
-      newSpells: selectedSpells,
-      subclass: selectedSubclass || undefined,
-    });
+    if (needsSubclass && !selectedSubclass) { toast.error("Precisas de escolher uma subclasse!"); setCurrentTab("subclass"); return; }
+    if (attributePoints > 0) toast.warning("Ainda tens pontos de atributo para distribuir!");
+    onComplete({ attributeIncreases, newSpells: selectedSpells, subclass: selectedSubclass || undefined });
   };
-  
-  const getSpellSchoolColor = (school: string) => {
-    const colors: Record<string, string> = {
-      evocation: "text-red-400",
-      abjuration: "text-blue-400",
-      conjuration: "text-yellow-400",
-      divination: "text-purple-400",
-      enchantment: "text-pink-400",
-      illusion: "text-indigo-400",
-      necromancy: "text-gray-400",
-      transmutation: "text-green-400",
-    };
-    return colors[school.toLowerCase()] || "text-muted-foreground";
-  };
-  
+
+  const tabs = [
+    { id: "attributes", label: "ATRIBUTOS" },
+    ...(canSelectSpells ? [{ id: "spells", label: "MAGIAS" }] : []),
+    ...(needsSubclass ? [{ id: "subclass", label: "SUBCLASSE" }] : []),
+  ];
+
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl fantasy-card overflow-hidden max-h-[90vh] overflow-y-auto">
-        <CardHeader className="pb-2 bg-gradient-to-r from-accent/30 to-primary/20 text-center">
-          <div className="flex justify-center mb-2">
-            <div className="relative">
-              <Sparkles className="w-16 h-16 text-accent animate-pulse" />
-              <span className="absolute -top-2 -right-2 bg-accent text-accent-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold pixel-text">
-                {newLevel}
-              </span>
-            </div>
+    <PixelOverlay>
+      <PixelFrame borderColor={COLORS.textGold} ornate glow className="w-full max-w-md" bgColor={COLORS.panelDark}>
+        <div className="p-3">
+          {/* Header */}
+          <div className="text-center mb-2">
+            <PixelText size="xxl" color={COLORS.textGold} bold glow as="div">{newLevel}</PixelText>
+            <PixelText size="lg" color={COLORS.textGold} bold as="div">SUBIU DE NIVEL!</PixelText>
+            <PixelText size="xs" color={COLORS.textWhite} as="div">{character.name} alcancou o nivel {newLevel}!</PixelText>
           </div>
-          <CardTitle className="text-2xl pixel-text text-accent">Subiu de Nível!</CardTitle>
-          <CardDescription>
-            {character.name} alcançou o nível {newLevel}!
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-4 pt-4">
-          <Tabs value={currentTab} onValueChange={setCurrentTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="attributes" className="pixel-text text-xs">
-                Atributos
-              </TabsTrigger>
-              {canSelectSpells && (
-                <TabsTrigger value="spells" className="pixel-text text-xs">
-                  Magias
-                </TabsTrigger>
-              )}
-              {needsSubclass && (
-                <TabsTrigger value="subclass" className="pixel-text text-xs">
-                  Subclasse
-                </TabsTrigger>
-              )}
-            </TabsList>
-            
-            {/* Attributes Tab */}
-            <TabsContent value="attributes" className="space-y-4">
-              <div className="text-center text-sm text-muted-foreground">
-                Pontos disponíveis: <span className="text-accent font-bold">{attributePoints}</span>
+
+          <PixelSeparator />
+
+          <PixelTabs tabs={tabs} activeTab={currentTab} onTabChange={setCurrentTab} />
+
+          {/* Attributes Tab */}
+          {currentTab === "attributes" && (
+            <div>
+              <div className="text-center mb-2">
+                <PixelText size="xs" color={COLORS.textGold}>Pontos: <span style={{ color: attributePoints > 0 ? COLORS.textGreen : COLORS.textGray }}>{attributePoints}</span></PixelText>
               </div>
-              
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-1.5">
                 {Object.entries(ATTRIBUTE_NAMES).map(([key, name]) => {
                   const baseValue = character[key as keyof Character] as number;
                   const increase = attributeIncreases[key] || 0;
                   const newValue = baseValue + increase;
-                  
+                  const color = ATTRIBUTE_COLORS[key];
                   return (
-                    <div
-                      key={key}
-                      className={cn(
-                        "bg-muted/20 rounded-lg p-3 border transition-all",
-                        increase > 0 ? "border-accent" : "border-border"
-                      )}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {ATTRIBUTE_ICONS[key]}
-                          <span className="text-sm font-medium">{name}</span>
-                        </div>
+                    <PixelFrame key={key} borderColor={increase > 0 ? color : '#333'} className="p-2" bgColor={increase > 0 ? `${color}08` : COLORS.panelMid}>
+                      <div className="flex items-center justify-between mb-1">
+                        <PixelText size="xs" color={color} bold>{name}</PixelText>
                         <div className="flex items-center gap-1">
-                          <span className="text-lg font-bold pixel-text">{newValue}</span>
-                          {increase > 0 && (
-                            <span className="text-xs text-accent">+{increase}</span>
-                          )}
+                          <PixelText size="md" color={COLORS.textWhite} bold>{newValue}</PixelText>
+                          {increase > 0 && <PixelText size="xxs" color={COLORS.textGreen}>+{increase}</PixelText>}
                         </div>
                       </div>
                       <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleAttributeDecrease(key)}
-                          disabled={!increase}
-                        >
-                          -
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="flex-1"
-                          onClick={() => handleAttributeIncrease(key)}
-                          disabled={attributePoints <= 0}
-                        >
-                          +
-                        </Button>
+                        <button onClick={() => handleAttributeDecrease(key)} disabled={!increase}
+                          className="flex-1 py-0.5 flex items-center justify-center disabled:opacity-25"
+                          style={{ background: COLORS.panelDark, border: '1px solid #444', fontFamily: PIXEL_FONT, fontSize: '10px', color: '#fff' }}>-</button>
+                        <button onClick={() => handleAttributeIncrease(key)} disabled={attributePoints <= 0}
+                          className="flex-1 py-0.5 flex items-center justify-center disabled:opacity-25"
+                          style={{ background: '#1a3a1a', border: '1px solid #22c55e', fontFamily: PIXEL_FONT, fontSize: '10px', color: '#22c55e' }}>+</button>
                       </div>
-                    </div>
+                    </PixelFrame>
                   );
                 })}
               </div>
-            </TabsContent>
-            
-            {/* Spells Tab */}
-            {canSelectSpells && (
-              <TabsContent value="spells" className="space-y-4">
-                <div className="text-center text-sm text-muted-foreground">
-                  Escolha {spellsToLearn} magia(s): <span className="text-accent font-bold">{selectedSpells.length}/{spellsToLearn}</span>
-                </div>
-                
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {availableSpells.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-4">
-                      Nenhuma magia nova disponível para aprender.
-                    </div>
-                  ) : (
-                    availableSpells.map(([id, spell]) => {
+            </div>
+          )}
+
+          {/* Spells Tab */}
+          {currentTab === "spells" && canSelectSpells && (
+            <div>
+              <div className="text-center mb-2">
+                <PixelText size="xs" color={COLORS.textPurple}>Escolhe {spellsToLearn}: {selectedSpells.length}/{spellsToLearn}</PixelText>
+              </div>
+              <PixelScrollArea maxHeight="220px">
+                {availableSpells.length === 0 ? (
+                  <div className="text-center py-4"><PixelText size="xs" color={COLORS.textGray}>Nenhuma magia disponivel</PixelText></div>
+                ) : (
+                  <div className="space-y-1">
+                    {availableSpells.map(([id, spell]) => {
                       const isSelected = selectedSpells.includes(id);
+                      const schoolColor = SPELL_SCHOOL_COLORS[spell.school.toLowerCase()] || COLORS.textGray;
                       return (
-                        <button
-                          key={id}
-                          onClick={() => handleSpellToggle(id)}
-                          className={cn(
-                            "w-full text-left p-3 rounded-lg border transition-all",
-                            isSelected
-                              ? "bg-accent/20 border-accent"
-                              : "bg-muted/20 border-border hover:border-primary/50"
-                          )}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <Wand2 className={cn("w-4 h-4", getSpellSchoolColor(spell.school))} />
-                                <span className="font-medium">{spell.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {spell.level === 0 ? "Cantrip" : `Nível ${spell.level}`}
-                                </Badge>
+                        <button key={id} onClick={() => handleSpellToggle(id)}
+                          className="w-full text-left p-2 transition-all hover:brightness-125"
+                          style={{
+                            background: isSelected ? `${schoolColor}15` : COLORS.panelMid,
+                            border: `2px solid ${isSelected ? schoolColor : '#333'}`,
+                            boxShadow: isSelected ? `0 0 6px ${schoolColor}30` : '2px 2px 0 rgba(0,0,0,0.3)',
+                          }}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1">
+                                <PixelText size="xs" color={schoolColor} bold>{spell.name}</PixelText>
+                                <PixelText size="xxs" color={COLORS.textGray}>{spell.level === 0 ? "Cantrip" : `Nv.${spell.level}`}</PixelText>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                {spell.description}
-                              </p>
-                              <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
-                                <span>{spell.school}</span>
-                                {spell.damage && <span>• Dano: {spell.damage.dice}</span>}
-                              </div>
+                              <PixelText size="xxs" color={COLORS.textGray} className="block truncate">{spell.description}</PixelText>
                             </div>
-                            {isSelected && (
-                              <Check className="w-5 h-5 text-accent flex-shrink-0" />
-                            )}
+                            {isSelected && <PixelText size="sm" color={COLORS.textGreen}>✓</PixelText>}
                           </div>
                         </button>
                       );
-                    })
-                  )}
-                </div>
-              </TabsContent>
-            )}
-            
-            {/* Subclass Tab */}
-            {needsSubclass && (
-              <TabsContent value="subclass" className="space-y-4">
-                <div className="text-center text-sm text-muted-foreground">
-                  No nível 3, você escolhe sua especialização!
-                </div>
-                
-                <div className="space-y-2">
-                  {classData?.subclasses && Object.entries(classData.subclasses).map(([subclassId, subclass]) => {
-                    const isSelected = selectedSubclass === subclassId;
-                    return (
-                      <button
-                        key={subclassId}
-                        onClick={() => setSelectedSubclass(subclassId)}
-                        className={cn(
-                          "w-full text-left p-4 rounded-lg border transition-all",
-                          isSelected
-                            ? "bg-accent/20 border-accent"
-                            : "bg-muted/20 border-border hover:border-primary/50"
-                        )}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <Shield className="w-5 h-5 text-primary" />
-                              <span className="font-bold pixel-text">{subclass.name}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-2">
-                              {subclass.description}
-                            </p>
-                            
-                          </div>
-                          {isSelected && (
-                            <Check className="w-6 h-6 text-accent flex-shrink-0" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </TabsContent>
-            )}
-          </Tabs>
-          
-          {/* Summary */}
-          <div className="bg-muted/20 rounded-lg p-3 border border-border">
-            <h4 className="text-sm font-semibold mb-2">Resumo das Escolhas:</h4>
-            <div className="text-xs space-y-1 text-muted-foreground">
-              {Object.entries(attributeIncreases).filter(([_, v]) => v > 0).map(([attr, val]) => (
-                <div key={attr}>+{val} {ATTRIBUTE_NAMES[attr]}</div>
-              ))}
-              {selectedSpells.length > 0 && (
-                <div>Novas magias: {selectedSpells.map(s => SPELLS[s]?.name).join(", ")}</div>
-              )}
-              {selectedSubclass && (
-                <div>Subclasse: {selectedSubclass && classData?.subclasses && (classData.subclasses as Record<string, { name: string; description: string }>)[selectedSubclass]?.name}</div>
-              )}
+                    })}
+                  </div>
+                )}
+              </PixelScrollArea>
             </div>
-          </div>
-          
+          )}
+
+          {/* Subclass Tab */}
+          {currentTab === "subclass" && needsSubclass && (
+            <div>
+              <div className="text-center mb-2">
+                <PixelText size="xs" color={COLORS.textGold}>No nivel 3, escolhe a tua especializacao!</PixelText>
+              </div>
+              <div className="space-y-1.5">
+                {classData?.subclasses && Object.entries(classData.subclasses).map(([subclassId, subclass]) => {
+                  const isSelected = selectedSubclass === subclassId;
+                  return (
+                    <button key={subclassId} onClick={() => setSelectedSubclass(subclassId)}
+                      className="w-full text-left p-2.5 transition-all hover:brightness-125"
+                      style={{
+                        background: isSelected ? `${COLORS.textGold}10` : COLORS.panelMid,
+                        border: `2px solid ${isSelected ? COLORS.textGold : '#333'}`,
+                        boxShadow: isSelected ? `0 0 8px ${COLORS.textGold}30` : '2px 2px 0 rgba(0,0,0,0.3)',
+                      }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <PixelText size="sm" color={isSelected ? COLORS.textGold : COLORS.textWhite} bold>{subclass.name}</PixelText>
+                          <PixelText size="xxs" color={COLORS.textGray} className="block mt-0.5">{subclass.description}</PixelText>
+                        </div>
+                        {isSelected && <PixelText size="sm" color={COLORS.textGold}>✓</PixelText>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Summary */}
+          <PixelSeparator />
+          <PixelFrame borderColor="#444" className="p-2 mb-2" bgColor={COLORS.panelMid}>
+            <PixelText size="xxs" color={COLORS.textGold} bold className="block mb-1">Resumo:</PixelText>
+            {Object.entries(attributeIncreases).filter(([_, v]) => v > 0).map(([attr, val]) => (
+              <PixelText key={attr} size="xxs" color={COLORS.textGreen} className="block">+{val} {ATTRIBUTE_NAMES[attr]}</PixelText>
+            ))}
+            {selectedSpells.length > 0 && (
+              <PixelText size="xxs" color={COLORS.textPurple} className="block">Magias: {selectedSpells.map(s => SPELLS[s]?.name).join(", ")}</PixelText>
+            )}
+            {selectedSubclass && classData?.subclasses && (
+              <PixelText size="xxs" color={COLORS.textGold} className="block">Subclasse: {(classData.subclasses as Record<string, { name: string }>)[selectedSubclass]?.name}</PixelText>
+            )}
+            {Object.values(attributeIncreases).every(v => v === 0) && selectedSpells.length === 0 && !selectedSubclass && (
+              <PixelText size="xxs" color={COLORS.textGray} className="block">Nenhuma escolha feita</PixelText>
+            )}
+          </PixelFrame>
+
           {/* Actions */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              <X className="w-4 h-4 mr-2" /> Cancelar
-            </Button>
-            <Button onClick={handleComplete} className="flex-1 pixel-text">
-              <Check className="w-4 h-4 mr-2" /> Confirmar
-            </Button>
+            <PixelBtn variant="close" size="sm" fullWidth onClick={onClose}>CANCELAR</PixelBtn>
+            <PixelBtn variant="gold" size="sm" fullWidth onClick={handleComplete}>CONFIRMAR</PixelBtn>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </PixelFrame>
+    </PixelOverlay>
   );
 }
