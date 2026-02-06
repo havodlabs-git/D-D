@@ -635,61 +635,7 @@ export default function PixelWorldMap({
         data: poisToGeoJSON(currentPOIs),
       });
 
-      // Background glow circle per tier
-      map.addLayer({
-        id: "pois-glow-layer",
-        type: "circle",
-        source: "pois-source",
-        paint: {
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            14, 10,
-            16, 18,
-            18, 24,
-            20, 30,
-          ],
-          "circle-color": [
-            "match", ["get", "tier"],
-            "legendary", "rgba(245, 158, 11, 0.3)",
-            "boss", "rgba(168, 85, 247, 0.3)",
-            "elite", "rgba(59, 130, 246, 0.25)",
-            "rgba(0, 0, 0, 0)"
-          ],
-          "circle-blur": 0.8,
-        },
-      });
-
-      // Dark background circle for icon visibility
-      map.addLayer({
-        id: "pois-bg-layer",
-        type: "circle",
-        source: "pois-source",
-        paint: {
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            14, 8,
-            16, 14,
-            18, 20,
-            20, 26,
-          ],
-          "circle-color": "rgba(15, 10, 25, 0.85)",
-          "circle-stroke-width": [
-            "interpolate", ["linear"], ["zoom"],
-            14, 1,
-            18, 2.5,
-          ],
-          "circle-stroke-color": [
-            "match", ["get", "tier"],
-            "legendary", "#f59e0b",
-            "boss", "#a855f7",
-            "elite", "#3b82f6",
-            "common", "#4a5568",
-            "#22c55e"
-          ],
-        },
-      });
-
-      // Sprite icon layer - uses loaded images
+      // Sprite icon layer - uses loaded images (no background, transparent sprites only)
       map.addLayer({
         id: "pois-icon-layer",
         type: "symbol",
@@ -752,7 +698,6 @@ export default function PixelWorldMap({
       };
 
       map.on("click", "pois-icon-layer", handlePOIClick);
-      map.on("click", "pois-bg-layer", handlePOIClick);
 
       // Cursor changes
       const setCursorPointer = () => { map.getCanvas().style.cursor = "pointer"; };
@@ -760,8 +705,6 @@ export default function PixelWorldMap({
       
       map.on("mouseenter", "pois-icon-layer", setCursorPointer);
       map.on("mouseleave", "pois-icon-layer", setCursorDefault);
-      map.on("mouseenter", "pois-bg-layer", setCursorPointer);
-      map.on("mouseleave", "pois-bg-layer", setCursorDefault);
 
       // Tooltip on hover
       map.on("mousemove", "pois-icon-layer", (e) => {
