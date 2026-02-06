@@ -18,6 +18,7 @@ interface POI {
   biome?: string;
   data?: any;
   tier?: "common" | "elite" | "boss" | "legendary";
+  spriteKey?: string; // key for the specific sprite to use
 }
 
 interface OnlinePlayer {
@@ -41,23 +42,114 @@ interface PixelWorldMapProps {
   onlinePlayers?: OnlinePlayer[];
 }
 
-// Grid configuration - NO LIMITS
+// Grid configuration
 const GRID_SIZE = 0.0001;
 const VISIBLE_TILES = 30;
 
-// POI Emojis as text labels for Symbol Layer (most reliable approach)
-const POI_EMOJIS: Record<string, string> = {
-  monster: "👹", npc: "👤", shop: "🏪", treasure: "💎",
-  dungeon: "🚧", quest: "❗", guild: "⚔️", castle: "🏰",
-  city: "🏙️", tavern: "🍺", temple: "⛪", blacksmith: "🔨",
-  magic_shop: "🔮",
+// ===== SPRITE ICON MAPPING =====
+// Each POI type maps to specific sprite images to load into Mapbox
+const POI_SPRITE_MAP: Record<string, string> = {
+  // Monsters - each monster type has its own sprite
+  "monster-goblin": "/sprites/monsters/goblin.png",
+  "monster-goblin_archer": "/sprites/monsters/goblin_archer.png",
+  "monster-goblin_boss": "/sprites/monsters/goblin_boss.png",
+  "monster-goblin_shaman": "/sprites/monsters/goblin_shaman.png",
+  "monster-orc": "/sprites/monsters/orc.png",
+  "monster-skeleton": "/sprites/monsters/skeleton.png",
+  "monster-skeleton_warrior": "/sprites/monsters/skeleton_warrior.png",
+  "monster-wolf": "/sprites/monsters/wolf.png",
+  "monster-wolf_dire": "/sprites/monsters/wolf_dire.png",
+  "monster-bandit": "/sprites/monsters/bandit.png",
+  "monster-kobold": "/sprites/monsters/kobold.png",
+  "monster-rat_giant": "/sprites/monsters/rat_giant.png",
+  "monster-rat_sewer": "/sprites/monsters/rat_sewer.png",
+  "monster-zombie": "/sprites/monsters/zombie.png",
+  "monster-spider_giant": "/sprites/monsters/spider_giant.png",
+  "monster-bat_giant": "/sprites/monsters/bat_giant.png",
+  "monster-slime": "/sprites/monsters/slime.png",
+  "monster-troll": "/sprites/monsters/troll.png",
+  "monster-ogre": "/sprites/monsters/ogre.png",
+  "monster-ghoul": "/sprites/monsters/ghoul.png",
+  "monster-imp": "/sprites/monsters/imp.png",
+  "monster-harpy": "/sprites/monsters/harpy.png",
+  "monster-mimic": "/sprites/monsters/mimic.png",
+  "monster-dragon": "/sprites/monsters/dragon.png",
+  "monster-gelatinous_cube": "/sprites/monsters/gelatinous_cube.png",
+  "monster-rat_king": "/sprites/monsters/rat_king.png",
+  // NPCs
+  "npc-merchant": "/sprites/npcs/merchant.png",
+  "npc-blacksmith": "/sprites/npcs/blacksmith.png",
+  "npc-alchemist": "/sprites/npcs/alchemist.png",
+  "npc-innkeeper": "/sprites/npcs/innkeeper.png",
+  // Buildings / POI types
+  "poi-shop": "/sprites/npcs/merchant.png",
+  "poi-treasure": "/sprites/ui/marker-treasure.png",
+  "poi-dungeon": "/sprites/tiles/dungeon.png",
+  "poi-guild": "/sprites/items/sword.png",
+  "poi-castle": "/sprites/buildings/castle.png",
+  "poi-city": "/sprites/buildings/tower.png",
+  "poi-tavern": "/sprites/npcs/innkeeper.png",
+  "poi-temple": "/sprites/ui/heart.png",
+  "poi-blacksmith": "/sprites/npcs/blacksmith.png",
+  "poi-magic_shop": "/sprites/ui/mana.png",
+  "poi-quest": "/sprites/ui/d20.png",
 };
 
-const POI_SIZES: Record<string, number> = {
-  monster: 1.2, npc: 1.0, shop: 1.2, treasure: 1.0, dungeon: 1.4,
-  quest: 1.0, guild: 1.3, castle: 1.6, city: 1.6, tavern: 1.2,
-  temple: 1.3, blacksmith: 1.2, magic_shop: 1.2,
-};
+// Monster names mapped to sprite keys
+const MONSTER_SPRITES: { name: string; spriteKey: string; tier?: POI["tier"] }[] = [
+  // Common monsters (Tier 1)
+  { name: "Rato de Esgoto", spriteKey: "monster-rat_sewer" },
+  { name: "Rato Gigante", spriteKey: "monster-rat_giant" },
+  { name: "Slime", spriteKey: "monster-slime" },
+  { name: "Kobold", spriteKey: "monster-kobold" },
+  { name: "Goblin", spriteKey: "monster-goblin" },
+  { name: "Goblin Arqueiro", spriteKey: "monster-goblin_archer" },
+  { name: "Morcego Gigante", spriteKey: "monster-bat_giant" },
+  { name: "Lobo Selvagem", spriteKey: "monster-wolf" },
+  { name: "Bandido", spriteKey: "monster-bandit" },
+  { name: "Esqueleto", spriteKey: "monster-skeleton" },
+  { name: "Zumbi", spriteKey: "monster-zombie" },
+  { name: "Imp", spriteKey: "monster-imp" },
+  // Elite monsters (Tier 2)
+  { name: "Orc Guerreiro", spriteKey: "monster-orc", tier: "elite" },
+  { name: "Aranha Gigante", spriteKey: "monster-spider_giant", tier: "elite" },
+  { name: "Ghoul", spriteKey: "monster-ghoul", tier: "elite" },
+  { name: "Esqueleto Guerreiro", spriteKey: "monster-skeleton_warrior", tier: "elite" },
+  { name: "Lobo Atroz", spriteKey: "monster-wolf_dire", tier: "elite" },
+  { name: "Harpia", spriteKey: "monster-harpy", tier: "elite" },
+  { name: "Cubo Gelatinoso", spriteKey: "monster-gelatinous_cube", tier: "elite" },
+  { name: "Goblin Xamã", spriteKey: "monster-goblin_shaman", tier: "elite" },
+  // Boss monsters (Tier 3)
+  { name: "Troll", spriteKey: "monster-troll", tier: "boss" },
+  { name: "Ogre", spriteKey: "monster-ogre", tier: "boss" },
+  { name: "Goblin Chefe", spriteKey: "monster-goblin_boss", tier: "boss" },
+  { name: "Rei dos Ratos", spriteKey: "monster-rat_king", tier: "boss" },
+  { name: "Mímico", spriteKey: "monster-mimic", tier: "boss" },
+  // Legendary (Tier 4)
+  { name: "Dragão Vermelho", spriteKey: "monster-dragon", tier: "legendary" },
+];
+
+const NPC_NAMES = [
+  { name: "Viajante", spriteKey: "npc-merchant" },
+  { name: "Guarda", spriteKey: "npc-blacksmith" },
+  { name: "Camponês", spriteKey: "npc-innkeeper" },
+  { name: "Aventureiro", spriteKey: "npc-merchant" },
+  { name: "Sábio", spriteKey: "npc-alchemist" },
+  { name: "Bardo Errante", spriteKey: "npc-innkeeper" },
+  { name: "Mercador Ambulante", spriteKey: "npc-merchant" },
+];
+
+const SHOP_NAMES = ["Loja do Ferreiro", "Empório Mágico", "Boticário", "Armeiro", "Joalheiro", "Loja de Armas", "Pergaminhos & Poções"];
+const TREASURE_NAMES = ["Baú Misterioso", "Tesouro Escondido", "Relíquia Antiga", "Cofre Abandonado", "Arca Dourada"];
+const DUNGEON_NAMES = ["Caverna Sombria", "Cripta Antiga", "Torre Abandonada", "Ruínas Antigas", "Mina Perdida", "Catacumbas", "Labirinto Subterrâneo"];
+const QUEST_NAMES = ["Pedido de Ajuda", "Missão Urgente", "Contrato de Caça", "Investigação", "Resgate"];
+const GUILD_NAMES = ["Guilda dos Aventureiros", "Ordem dos Cavaleiros", "Liga dos Mercenários"];
+const CASTLE_NAMES = ["Castelo do Barão", "Fortaleza Antiga", "Torre do Senhor", "Cidadela", "Castelo Assombrado"];
+const CITY_NAMES = ["Waterdeep", "Baldur's Gate", "Neverwinter", "Silverymoon", "Luskan", "Phandalin"];
+const TAVERN_NAMES = ["Taverna do Dragão Dourado", "Estalagem do Viajante", "O Porco Preguiçoso", "A Caneca Cheia"];
+const TEMPLE_NAMES = ["Templo de Pelor", "Santuário de Tyr", "Capela de Lathander", "Templo de Mystra"];
+const BLACKSMITH_NAMES = ["Forja do Mestre", "Ferreiro Anão", "Armeiro Real", "Forja das Lendas"];
+const MAGIC_SHOP_NAMES = ["Empório Arcano", "Loja do Mago", "Pergaminhos & Poções", "Artefatos Místicos"];
 
 const TIER_COLORS: Record<string, string> = {
   common: "#9ca3af", elite: "#3b82f6", boss: "#a855f7", legendary: "#f59e0b",
@@ -89,6 +181,7 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+// ===== IMPROVED POI GENERATION =====
 function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
   const pois: POI[] = [];
   const baseSeed = Math.floor(centerLat * 10000) + Math.floor(centerLng * 10000);
@@ -100,59 +193,111 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
       const tileSeed = baseSeed + i * 1000 + j;
       const rng = seededRandom(tileSeed);
       
-      if (rng() < 0.15) {
-        const typeRoll = rng();
+      // Use multiple rng calls for better distribution
+      const spawnRoll = rng();
+      const typeRoll = rng();
+      const nameRoll = rng();
+      const tierRoll = rng();
+      const offsetXRoll = rng();
+      const offsetYRoll = rng();
+      
+      // Variable spawn density: 12% base, creates natural clusters
+      const distFromCenter = Math.sqrt(i * i + j * j);
+      const densityMod = distFromCenter < 10 ? 0.18 : distFromCenter < 20 ? 0.14 : 0.10;
+      
+      if (spawnRoll < densityMod) {
         let type: POI["type"];
-        
-        if (typeRoll < 0.25) type = "monster";
-        else if (typeRoll < 0.35) type = "treasure";
-        else if (typeRoll < 0.42) type = "shop";
-        else if (typeRoll < 0.50) type = "npc";
-        else if (typeRoll < 0.57) type = "dungeon";
-        else if (typeRoll < 0.62) type = "guild";
-        else if (typeRoll < 0.68) type = "castle";
-        else if (typeRoll < 0.73) type = "city";
-        else if (typeRoll < 0.80) type = "tavern";
-        else if (typeRoll < 0.85) type = "temple";
-        else if (typeRoll < 0.90) type = "blacksmith";
-        else if (typeRoll < 0.95) type = "magic_shop";
-        else type = "quest";
-        
-        const names: Record<string, string[]> = {
-          monster: ["Goblin", "Orc", "Esqueleto", "Lobo Selvagem", "Bandido", "Kobold", "Rato Gigante", "Zumbi", "Aranha Gigante"],
-          npc: ["Viajante", "Guarda", "Camponês", "Aventureiro", "Sábio", "Bardo Errante", "Mercador Ambulante"],
-          shop: ["Loja do Ferreiro", "Empório Mágico", "Boticário", "Armeiro", "Joalheiro"],
-          treasure: ["Baú Misterioso", "Tesouro Escondido", "Relíquia Antiga", "Cofre Abandonado"],
-          dungeon: ["Caverna Sombria", "Cripta Antiga", "Torre Abandonada", "Ruínas Antigas", "Mina Perdida"],
-          quest: ["Pedido de Ajuda", "Missão Urgente", "Contrato de Caça", "Investigação"],
-          guild: ["Guilda dos Aventureiros", "Ordem dos Cavaleiros", "Liga dos Mercenários"],
-          castle: ["Castelo do Barão", "Fortaleza Antiga", "Torre do Senhor", "Cidadela", "Castelo Assombrado"],
-          city: ["Waterdeep", "Baldur's Gate", "Neverwinter", "Silverymoon", "Luskan"],
-          tavern: ["Taverna do Dragão Dourado", "Estalagem do Viajante", "O Porco Preguicoso", "A Caneca Cheia"],
-          temple: ["Templo de Pelor", "Santuário de Tyr", "Capela de Lathander", "Templo de Mystra"],
-          blacksmith: ["Forja do Mestre", "Ferreiro Anão", "Armeiro Real", "Forja das Lendas"],
-          magic_shop: ["Empório Arcano", "Loja do Mago", "Pergaminhos & Poções", "Artefatos Místicos"],
-        };
-        
-        const nameList = names[type] || ["Desconhecido"];
-        const name = nameList[Math.floor(rng() * nameList.length)];
-        
+        let name: string;
         let tier: POI["tier"] = undefined;
-        if (type === "castle" || type === "dungeon" || type === "monster") {
-          const tierRoll = rng();
-          if (tierRoll > 0.95) tier = "legendary";
-          else if (tierRoll > 0.85) tier = "boss";
-          else if (tierRoll > 0.65) tier = "elite";
-          else tier = "common";
+        let spriteKey: string;
+        
+        // Better type distribution - monsters are most common
+        if (typeRoll < 0.35) {
+          type = "monster";
+          // Pick monster based on tier probability
+          let monsterPool: typeof MONSTER_SPRITES;
+          if (tierRoll > 0.97) {
+            monsterPool = MONSTER_SPRITES.filter(m => m.tier === "legendary");
+            tier = "legendary";
+          } else if (tierRoll > 0.88) {
+            monsterPool = MONSTER_SPRITES.filter(m => m.tier === "boss");
+            tier = "boss";
+          } else if (tierRoll > 0.65) {
+            monsterPool = MONSTER_SPRITES.filter(m => m.tier === "elite");
+            tier = "elite";
+          } else {
+            monsterPool = MONSTER_SPRITES.filter(m => !m.tier);
+            tier = "common";
+          }
+          const monster = monsterPool[Math.floor(nameRoll * monsterPool.length)];
+          name = monster.name;
+          spriteKey = monster.spriteKey;
+          if (monster.tier) tier = monster.tier;
+        } else if (typeRoll < 0.45) {
+          type = "treasure";
+          name = TREASURE_NAMES[Math.floor(nameRoll * TREASURE_NAMES.length)];
+          spriteKey = "poi-treasure";
+        } else if (typeRoll < 0.53) {
+          type = "shop";
+          name = SHOP_NAMES[Math.floor(nameRoll * SHOP_NAMES.length)];
+          spriteKey = "poi-shop";
+        } else if (typeRoll < 0.60) {
+          type = "npc";
+          const npc = NPC_NAMES[Math.floor(nameRoll * NPC_NAMES.length)];
+          name = npc.name;
+          spriteKey = npc.spriteKey;
+        } else if (typeRoll < 0.67) {
+          type = "dungeon";
+          name = DUNGEON_NAMES[Math.floor(nameRoll * DUNGEON_NAMES.length)];
+          spriteKey = "poi-dungeon";
+          tier = tierRoll > 0.85 ? "boss" : tierRoll > 0.6 ? "elite" : "common";
+        } else if (typeRoll < 0.72) {
+          type = "guild";
+          name = GUILD_NAMES[Math.floor(nameRoll * GUILD_NAMES.length)];
+          spriteKey = "poi-guild";
+        } else if (typeRoll < 0.77) {
+          type = "castle";
+          name = CASTLE_NAMES[Math.floor(nameRoll * CASTLE_NAMES.length)];
+          spriteKey = "poi-castle";
+          tier = tierRoll > 0.8 ? "boss" : tierRoll > 0.5 ? "elite" : "common";
+        } else if (typeRoll < 0.82) {
+          type = "tavern";
+          name = TAVERN_NAMES[Math.floor(nameRoll * TAVERN_NAMES.length)];
+          spriteKey = "poi-tavern";
+        } else if (typeRoll < 0.86) {
+          type = "temple";
+          name = TEMPLE_NAMES[Math.floor(nameRoll * TEMPLE_NAMES.length)];
+          spriteKey = "poi-temple";
+        } else if (typeRoll < 0.90) {
+          type = "blacksmith";
+          name = BLACKSMITH_NAMES[Math.floor(nameRoll * BLACKSMITH_NAMES.length)];
+          spriteKey = "poi-blacksmith";
+        } else if (typeRoll < 0.94) {
+          type = "magic_shop";
+          name = MAGIC_SHOP_NAMES[Math.floor(nameRoll * MAGIC_SHOP_NAMES.length)];
+          spriteKey = "poi-magic_shop";
+        } else if (typeRoll < 0.97) {
+          type = "city";
+          name = CITY_NAMES[Math.floor(nameRoll * CITY_NAMES.length)];
+          spriteKey = "poi-city";
+        } else {
+          type = "quest";
+          name = QUEST_NAMES[Math.floor(nameRoll * QUEST_NAMES.length)];
+          spriteKey = "poi-quest";
         }
+        
+        // Add slight random offset within the tile for more natural placement
+        const offsetLat = (offsetXRoll - 0.5) * GRID_SIZE * 0.6;
+        const offsetLng = (offsetYRoll - 0.5) * GRID_SIZE * 0.6;
         
         pois.push({
           id: `poi-${tileLat.toFixed(6)}-${tileLng.toFixed(6)}`,
           type,
           name,
-          latitude: tileLat + GRID_SIZE / 2,
-          longitude: tileLng + GRID_SIZE / 2,
+          latitude: tileLat + GRID_SIZE / 2 + offsetLat,
+          longitude: tileLng + GRID_SIZE / 2 + offsetLng,
           tier,
+          spriteKey,
         });
       }
     }
@@ -176,8 +321,7 @@ function poisToGeoJSON(pois: POI[]): GeoJSON.FeatureCollection {
         type: poi.type,
         name: poi.name,
         tier: poi.tier || "common",
-        emoji: POI_EMOJIS[poi.type] || "❓",
-        size: POI_SIZES[poi.type] || 1.0,
+        spriteKey: poi.spriteKey || "poi-quest",
         tierColor: poi.tier ? TIER_COLORS[poi.tier] : "#00ff00",
       },
     })),
@@ -187,6 +331,47 @@ function poisToGeoJSON(pois: POI[]): GeoJSON.FeatureCollection {
 // Stable empty defaults to avoid re-render loops
 const EMPTY_SET = new Set<string>();
 const EMPTY_PLAYERS: OnlinePlayer[] = [];
+
+// Load all sprite images into Mapbox map
+async function loadAllSprites(map: mapboxgl.Map): Promise<void> {
+  const entries = Object.entries(POI_SPRITE_MAP);
+  const ICON_SIZE = 64; // Size for map icons
+  
+  // Create a canvas for resizing
+  const canvas = document.createElement("canvas");
+  canvas.width = ICON_SIZE;
+  canvas.height = ICON_SIZE;
+  const ctx = canvas.getContext("2d")!;
+  
+  const loadPromises = entries.map(([key, url]) => {
+    return new Promise<void>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        // Draw resized image to canvas
+        ctx.clearRect(0, 0, ICON_SIZE, ICON_SIZE);
+        ctx.drawImage(img, 0, 0, ICON_SIZE, ICON_SIZE);
+        
+        // Get image data from canvas
+        const imageData = ctx.getImageData(0, 0, ICON_SIZE, ICON_SIZE);
+        
+        // Add to map
+        if (!map.hasImage(key)) {
+          map.addImage(key, imageData, { pixelRatio: 2 });
+        }
+        resolve();
+      };
+      img.onerror = () => {
+        console.warn(`[Map] Failed to load sprite: ${key} from ${url}`);
+        resolve(); // Don't block on failed images
+      };
+      img.src = url;
+    });
+  });
+  
+  await Promise.all(loadPromises);
+  console.log(`[Map] Loaded ${entries.length} sprite icons`);
+}
 
 export default function PixelWorldMap({ 
   onPOIClick, 
@@ -235,7 +420,6 @@ export default function PixelWorldMap({
       return;
     }
 
-    // Fast fallback timer - if geolocation takes more than 3s, use default
     const fallbackTimer = setTimeout(() => {
       console.log("Geolocation timeout, using default location (Santarém)");
       setLocationError("Usando localização padrão (Santarém)");
@@ -269,12 +453,10 @@ export default function PixelWorldMap({
         setUserLocation(defaultLoc);
         setPlayerGridPosition({ lat: snapToGrid(defaultLoc.lat), lng: snapToGrid(defaultLoc.lng) });
       },
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
     );
   }, []);
 
   // Generate POIs when player position changes
-  // Use a ref to track visitedPOIs to avoid re-render loops
   const visitedPOIsRef = useRef(stableVisitedPOIs);
   visitedPOIsRef.current = stableVisitedPOIs;
   
@@ -397,7 +579,7 @@ export default function PixelWorldMap({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [playerGridPosition, isMoving, movePlayerTo]);
 
-  // Initialize Mapbox map with Symbol Layers for POIs
+  // Initialize Mapbox map with sprite-based POI icons
   useEffect(() => {
     if (initialized.current || !mapContainer.current || !userLocation) return;
     initialized.current = true;
@@ -429,10 +611,13 @@ export default function PixelWorldMap({
 
     map.addControl(new mapboxgl.ScaleControl(), "bottom-right");
 
-    map.on("load", () => {
-      console.log("[Map] Map loaded, setting up layers...");
+    map.on("load", async () => {
+      console.log("[Map] Map loaded, loading sprite icons...");
       
-      // Create player marker (DOM marker - only one, so no performance issue)
+      // Load all sprite images into Mapbox
+      await loadAllSprites(map);
+      
+      // Create player marker
       if (playerGridPosition) {
         playerMarkerRef.current = new mapboxgl.Marker({
           element: createPlayerMarkerElement(),
@@ -450,7 +635,31 @@ export default function PixelWorldMap({
         data: poisToGeoJSON(currentPOIs),
       });
 
-      // Add a circle layer as background for POI icons
+      // Background glow circle per tier
+      map.addLayer({
+        id: "pois-glow-layer",
+        type: "circle",
+        source: "pois-source",
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            14, 10,
+            16, 18,
+            18, 24,
+            20, 30,
+          ],
+          "circle-color": [
+            "match", ["get", "tier"],
+            "legendary", "rgba(245, 158, 11, 0.3)",
+            "boss", "rgba(168, 85, 247, 0.3)",
+            "elite", "rgba(59, 130, 246, 0.25)",
+            "rgba(0, 0, 0, 0)"
+          ],
+          "circle-blur": 0.8,
+        },
+      });
+
+      // Dark background circle for icon visibility
       map.addLayer({
         id: "pois-bg-layer",
         type: "circle",
@@ -463,44 +672,44 @@ export default function PixelWorldMap({
             18, 20,
             20, 26,
           ],
-          "circle-color": "rgba(0, 0, 0, 0.75)",
-          "circle-stroke-width": 2,
+          "circle-color": "rgba(15, 10, 25, 0.85)",
+          "circle-stroke-width": [
+            "interpolate", ["linear"], ["zoom"],
+            14, 1,
+            18, 2.5,
+          ],
           "circle-stroke-color": [
             "match", ["get", "tier"],
             "legendary", "#f59e0b",
             "boss", "#a855f7",
             "elite", "#3b82f6",
-            "common", "#9ca3af",
-            "#00ff00"
+            "common", "#4a5568",
+            "#22c55e"
           ],
         },
       });
 
-      // Add symbol layer for POI emoji icons
+      // Sprite icon layer - uses loaded images
       map.addLayer({
-        id: "pois-symbol-layer",
+        id: "pois-icon-layer",
         type: "symbol",
         source: "pois-source",
         layout: {
-          "text-field": ["get", "emoji"],
-          "text-size": [
+          "icon-image": ["get", "spriteKey"],
+          "icon-size": [
             "interpolate", ["linear"], ["zoom"],
-            14, 12,
-            16, 20,
-            18, 28,
-            20, 36,
+            14, 0.25,
+            16, 0.45,
+            18, 0.65,
+            20, 0.85,
           ],
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-anchor": "center",
-          "text-offset": [0, 0],
-        },
-        paint: {
-          "text-color": "#ffffff",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-anchor": "center",
         },
       });
 
-      // Add symbol layer for POI name labels
+      // Name labels
       map.addLayer({
         id: "pois-label-layer",
         type: "symbol",
@@ -527,32 +736,12 @@ export default function PixelWorldMap({
         minzoom: 16,
       });
 
-      console.log("[Map] Symbol layers created with", currentPOIs.length, "POIs");
+      console.log("[Map] Sprite layers created with", currentPOIs.length, "POIs");
 
-      // Handle click on POI symbols
-      map.on("click", "pois-symbol-layer", (e) => {
+      // Click handlers for POI icons and background
+      const handlePOIClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapGeoJSONFeature[] }) => {
         if (!e.features || e.features.length === 0) return;
-        
-        const feature = e.features[0];
-        const props = feature.properties;
-        
-        if (props) {
-          // Find the matching POI from our state
-          const clickedPOI = poisRef.current.find(p => p.id === props.id);
-          if (clickedPOI) {
-            e.originalEvent.stopPropagation();
-            onPOIClick(clickedPOI);
-          }
-        }
-      });
-
-      // Also handle click on background circles
-      map.on("click", "pois-bg-layer", (e) => {
-        if (!e.features || e.features.length === 0) return;
-        
-        const feature = e.features[0];
-        const props = feature.properties;
-        
+        const props = e.features[0].properties;
         if (props) {
           const clickedPOI = poisRef.current.find(p => p.id === props.id);
           if (clickedPOI) {
@@ -560,32 +749,32 @@ export default function PixelWorldMap({
             onPOIClick(clickedPOI);
           }
         }
-      });
+      };
 
-      // Change cursor on hover
-      map.on("mouseenter", "pois-symbol-layer", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "pois-symbol-layer", () => {
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseenter", "pois-bg-layer", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "pois-bg-layer", () => {
-        map.getCanvas().style.cursor = "";
-      });
+      map.on("click", "pois-icon-layer", handlePOIClick);
+      map.on("click", "pois-bg-layer", handlePOIClick);
 
-      // Show tooltip on hover
-      map.on("mousemove", "pois-symbol-layer", (e) => {
+      // Cursor changes
+      const setCursorPointer = () => { map.getCanvas().style.cursor = "pointer"; };
+      const setCursorDefault = () => { map.getCanvas().style.cursor = ""; };
+      
+      map.on("mouseenter", "pois-icon-layer", setCursorPointer);
+      map.on("mouseleave", "pois-icon-layer", setCursorDefault);
+      map.on("mouseenter", "pois-bg-layer", setCursorPointer);
+      map.on("mouseleave", "pois-bg-layer", setCursorDefault);
+
+      // Tooltip on hover
+      map.on("mousemove", "pois-icon-layer", (e) => {
         if (!e.features || e.features.length === 0) return;
         const props = e.features[0].properties;
         if (props) {
           const coords = (e.features[0].geometry as any).coordinates.slice();
           
-          if (popupRef.current) {
-            popupRef.current.remove();
-          }
+          if (popupRef.current) popupRef.current.remove();
+          
+          const tierBadge = props.tier && props.tier !== "common" 
+            ? `<span style="color:${props.tierColor};font-weight:bold;text-transform:uppercase;font-size:10px;display:block;margin-top:2px;">${props.tier}</span>` 
+            : "";
           
           popupRef.current = new mapboxgl.Popup({
             closeButton: false,
@@ -594,12 +783,12 @@ export default function PixelWorldMap({
             offset: 25,
           })
             .setLngLat(coords)
-            .setHTML(`<div style="background:#1a1a2e;color:#fff;padding:6px 10px;border-radius:6px;border:1px solid ${props.tierColor || '#00ff00'};font-size:12px;font-family:monospace;"><strong>${props.name}</strong>${props.tier && props.tier !== 'common' ? `<br/><span style="color:${props.tierColor}">${props.tier.toUpperCase()}</span>` : ''}</div>`)
+            .setHTML(`<div style="background:#0f0a19;color:#fff;padding:8px 12px;border-radius:4px;border:2px solid ${props.tierColor || '#22c55e'};font-size:12px;font-family:'Press Start 2P',monospace;image-rendering:pixelated;box-shadow:0 0 10px ${props.tierColor || '#22c55e'}40;"><strong>${props.name}</strong>${tierBadge}</div>`)
             .addTo(map);
         }
       });
 
-      map.on("mouseleave", "pois-symbol-layer", () => {
+      map.on("mouseleave", "pois-icon-layer", () => {
         if (popupRef.current) {
           popupRef.current.remove();
           popupRef.current = null;
@@ -607,9 +796,8 @@ export default function PixelWorldMap({
       });
     });
 
-    // Handle click events on map (not on POIs) - move player to clicked position
+    // Map click to move player
     map.on("click", (e) => {
-      // Only move if no POI was clicked (the POI click handlers call stopPropagation)
       movePlayerTo(e.lngLat.lat, e.lngLat.lng);
     });
 
@@ -649,9 +837,9 @@ export default function PixelWorldMap({
     }
   }, [pois]);
 
-  // Render online players (DOM markers - few players so no issue)
+  // Render online players
   useEffect(() => {
-    // We'll skip online players for now as they're not critical
+    // Skip for now
   }, [onlinePlayers]);
 
   if (isLoadingLocation) {
@@ -669,33 +857,62 @@ export default function PixelWorldMap({
     <div className={cn("relative", className)}>
       <div ref={mapContainer} className="w-full h-full" style={{ minHeight: "400px" }} />
       
-      {/* POI counter */}
-      <div className="absolute top-4 left-4 bg-black/80 text-white px-3 py-2 rounded-lg border-2 border-primary font-mono text-sm z-10">
+      {/* POI counter - pixel art style */}
+      <div className="absolute top-4 left-4 z-10" style={{
+        background: "linear-gradient(180deg, #1a1a2e 0%, #0f0a19 100%)",
+        border: "2px solid #c8a84e",
+        borderRadius: "2px",
+        padding: "6px 10px",
+        fontFamily: "'Press Start 2P', monospace",
+        fontSize: "9px",
+        color: "#e2c87e",
+        boxShadow: "0 0 8px rgba(200, 168, 78, 0.3), inset 0 0 4px rgba(0,0,0,0.5)",
+        imageRendering: "pixelated" as any,
+      }}>
         <div className="flex items-center gap-2">
-          <span>📍</span>
+          <span style={{ fontSize: "12px" }}>⚔</span>
           <span>{poiCount} POIs</span>
         </div>
       </div>
       
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-black/80 text-white px-3 py-2 rounded-lg border-2 border-primary text-xs z-10">
-        <div className="font-bold mb-1">Legenda:</div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-          <span>👹 Monstro</span>
-          <span>🏪 Loja</span>
-          <span>💎 Tesouro</span>
-          <span>🚧 Dungeon</span>
-          <span>⚔️ Guilda</span>
-          <span>🏰 Castelo</span>
+      {/* Legend - pixel art style */}
+      <div className="absolute bottom-4 left-4 z-10" style={{
+        background: "linear-gradient(180deg, #1a1a2e 0%, #0f0a19 100%)",
+        border: "2px solid #c8a84e",
+        borderRadius: "2px",
+        padding: "8px 10px",
+        fontFamily: "'Press Start 2P', monospace",
+        fontSize: "7px",
+        color: "#d4c4a0",
+        boxShadow: "0 0 8px rgba(200, 168, 78, 0.3), inset 0 0 4px rgba(0,0,0,0.5)",
+        imageRendering: "pixelated" as any,
+        lineHeight: "1.8",
+      }}>
+        <div style={{ color: "#e2c87e", marginBottom: "4px", fontSize: "8px" }}>Legenda:</div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          <span><span style={{ color: "#ef4444" }}>●</span> Monstro</span>
+          <span><span style={{ color: "#22c55e" }}>●</span> Loja</span>
+          <span><span style={{ color: "#eab308" }}>●</span> Tesouro</span>
+          <span><span style={{ color: "#8b5cf6" }}>●</span> Dungeon</span>
+          <span><span style={{ color: "#f97316" }}>●</span> Guilda</span>
+          <span><span style={{ color: "#06b6d4" }}>●</span> Castelo</span>
         </div>
-        <div className="mt-2 text-yellow-400 text-[10px]">
-          Clique no mapa para mover | WASD para andar
+        <div style={{ marginTop: "6px", color: "#e2c87e", fontSize: "6px" }}>
+          Clique para mover | WASD para andar
         </div>
       </div>
       
       {/* Location error */}
       {locationError && (
-        <div className="absolute top-4 right-20 bg-yellow-900/80 text-white px-3 py-2 rounded-lg text-sm z-10">
+        <div className="absolute top-4 right-20 z-10" style={{
+          background: "rgba(120, 80, 0, 0.9)",
+          border: "2px solid #c8a84e",
+          borderRadius: "2px",
+          padding: "6px 10px",
+          fontFamily: "'Press Start 2P', monospace",
+          fontSize: "8px",
+          color: "#e2c87e",
+        }}>
           {locationError}
         </div>
       )}
@@ -708,7 +925,7 @@ export default function PixelWorldMap({
           box-shadow: none !important;
         }
         .poi-popup .mapboxgl-popup-tip {
-          border-top-color: #1a1a2e !important;
+          border-top-color: #0f0a19 !important;
         }
       `}</style>
     </div>
