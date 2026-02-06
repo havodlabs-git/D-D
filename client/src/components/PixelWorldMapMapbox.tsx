@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { trpc } from "@/lib/trpc";
@@ -184,15 +184,22 @@ function poisToGeoJSON(pois: POI[]): GeoJSON.FeatureCollection {
   };
 }
 
+// Stable empty defaults to avoid re-render loops
+const EMPTY_SET = new Set<string>();
+const EMPTY_PLAYERS: OnlinePlayer[] = [];
+
 export default function PixelWorldMap({ 
   onPOIClick, 
   onPlayerMove,
   onRandomEncounter,
-  visitedPOIs = new Set(),
+  visitedPOIs,
   className, 
   characterClass = "fighter",
-  onlinePlayers = []
+  onlinePlayers
 }: PixelWorldMapProps) {
+  // Use stable defaults to prevent re-render loops
+  const stableVisitedPOIs = visitedPOIs || EMPTY_SET;
+  const stableOnlinePlayers = onlinePlayers || EMPTY_PLAYERS;
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const playerMarkerRef = useRef<mapboxgl.Marker | null>(null);
@@ -267,13 +274,17 @@ export default function PixelWorldMap({
   }, []);
 
   // Generate POIs when player position changes
+  // Use a ref to track visitedPOIs to avoid re-render loops
+  const visitedPOIsRef = useRef(stableVisitedPOIs);
+  visitedPOIsRef.current = stableVisitedPOIs;
+  
   useEffect(() => {
     if (playerGridPosition) {
       const newPOIs = generatePOIsForGrid(playerGridPosition.lat, playerGridPosition.lng)
-        .filter(poi => !visitedPOIs.has(poi.id));
+        .filter(poi => !visitedPOIsRef.current.has(poi.id));
       setPOIs(newPOIs);
     }
-  }, [playerGridPosition, visitedPOIs]);
+  }, [playerGridPosition]);
 
   // Create player marker element
   const createPlayerMarkerElement = useCallback((): HTMLElement => {

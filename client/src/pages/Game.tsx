@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
@@ -81,6 +81,11 @@ export default function Game() {
       refetchInterval: 10000, // Refresh every 10 seconds
     }
   );
+
+  // Memoize stable references to avoid re-renders that cause map flickering
+  const stableOnlinePlayers = useMemo(() => onlinePlayers || [], [onlinePlayers]);
+  const handleRandomEncounter = useCallback((encounter: any) => setRandomEncounter(encounter), []);
+  const handlePlayerMove = useCallback((lat: number, lng: number) => setPlayerPosition({ lat, lng }), []);
 
   const seedMutation = trpc.gameData.seed.useMutation();
   const utils = trpc.useUtils();
@@ -381,11 +386,11 @@ export default function Game() {
         <PixelWorldMap
           className="absolute inset-0"
           onPOIClick={handlePOIClick}
-          onRandomEncounter={(encounter) => setRandomEncounter(encounter)}
+          onRandomEncounter={handleRandomEncounter}
           characterClass={character.characterClass}
           visitedPOIs={visitedPOIs}
-          onlinePlayers={onlinePlayers || []}
-          onPlayerMove={(lat, lng) => setPlayerPosition({ lat, lng })}
+          onlinePlayers={stableOnlinePlayers}
+          onPlayerMove={handlePlayerMove}
         />
       )}
       
