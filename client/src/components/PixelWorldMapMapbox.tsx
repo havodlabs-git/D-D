@@ -181,31 +181,26 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-// ===== IMPROVED POI GENERATION =====
-function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
-  const pois: POI[] = [];
-  const baseSeed = Math.floor(centerLat * 10000) + Math.floor(centerLng * 10000);
+// ===== DETERMINISTIC POI GENERATION =====
+// Each tile has a fixed seed based on its absolute coordinates, so POIs never move
+function generatePOIForTile(tileLat: number, tileLng: number): POI | null {
+  // Absolute seed from tile coordinates - always the same for the same tile
+  const tileRow = Math.round(tileLat / GRID_SIZE);
+  const tileCol = Math.round(tileLng / GRID_SIZE);
+  const tileSeed = tileRow * 73856093 ^ tileCol * 19349663; // hash-like seed
+  const rng = seededRandom(Math.abs(tileSeed));
   
-  for (let i = -VISIBLE_TILES; i <= VISIBLE_TILES; i++) {
-    for (let j = -VISIBLE_TILES; j <= VISIBLE_TILES; j++) {
-      const tileLat = snapToGrid(centerLat) + i * GRID_SIZE;
-      const tileLng = snapToGrid(centerLng) + j * GRID_SIZE;
-      const tileSeed = baseSeed + i * 1000 + j;
-      const rng = seededRandom(tileSeed);
-      
-      // Use multiple rng calls for better distribution
-      const spawnRoll = rng();
-      const typeRoll = rng();
-      const nameRoll = rng();
-      const tierRoll = rng();
-      const offsetXRoll = rng();
-      const offsetYRoll = rng();
-      
-      // Variable spawn density: 12% base, creates natural clusters
-      const distFromCenter = Math.sqrt(i * i + j * j);
-      const densityMod = distFromCenter < 10 ? 0.18 : distFromCenter < 20 ? 0.14 : 0.10;
-      
-      if (spawnRoll < densityMod) {
+  const spawnRoll = rng();
+  const typeRoll = rng();
+  const nameRoll = rng();
+  const tierRoll = rng();
+  const offsetXRoll = rng();
+  const offsetYRoll = rng();
+  
+  // Fixed 15% spawn density
+  if (spawnRoll >= 0.15) return null;
+  
+  {
         let type: POI["type"];
         let name: string;
         let tier: POI["tier"] = undefined;
@@ -286,45 +281,85 @@ function generatePOIsForGrid(centerLat: number, centerLng: number): POI[] {
           spriteKey = "poi-quest";
         }
         
-        // Add slight random offset within the tile for more natural placement
-        const offsetLat = (offsetXRoll - 0.5) * GRID_SIZE * 0.6;
-        const offsetLng = (offsetYRoll - 0.5) * GRID_SIZE * 0.6;
-        
-        pois.push({
-          id: `poi-${tileLat.toFixed(6)}-${tileLng.toFixed(6)}`,
-          type,
-          name,
-          latitude: tileLat + GRID_SIZE / 2 + offsetLat,
-          longitude: tileLng + GRID_SIZE / 2 + offsetLng,
-          tier,
-          spriteKey,
-        });
+    // Add slight random offset within the tile for more natural placement
+    const offsetLat = (offsetXRoll - 0.5) * GRID_SIZE * 0.6;
+    const offsetLng = (offsetYRoll - 0.5) * GRID_SIZE * 0.6;
+    
+    return {
+      id: `poi-${tileRow}-${tileCol}`,
+      type,
+      name,
+      latitude: tileLat + GRID_SIZE / 2 + offsetLat,
+      longitude: tileLng + GRID_SIZE / 2 + offsetLng,
+      tier,
+      spriteKey,
+    };
+  }
+  return null;
+}
+
+// Generate all POIs for the visible area around a center point
+// Uses a Map to accumulate POIs so they never disappear
+function generatePOIsForArea(centerLat: number, centerLng: number, existingPOIs: Map<string, POI>, visitedSet: Set<string>): Map<string, POI> {
+  const result = new Map(existingPOIs);
+  const snappedLat = snapToGrid(centerLat);
+  const snappedLng = snapToGrid(centerLng);
+  
+  for (let i = -VISIBLE_TILES; i <= VISIBLE_TILES; i++) {
+    for (let j = -VISIBLE_TILES; j <= VISIBLE_TILES; j++) {
+      const tileLat = snappedLat + i * GRID_SIZE;
+      const tileLng = snappedLng + j * GRID_SIZE;
+      const tileRow = Math.round(tileLat / GRID_SIZE);
+      const tileCol = Math.round(tileLng / GRID_SIZE);
+      const tileKey = `poi-${tileRow}-${tileCol}`;
+      
+      // Skip if already generated or visited
+      if (result.has(tileKey) || visitedSet.has(tileKey)) continue;
+      
+      const poi = generatePOIForTile(tileLat, tileLng);
+      if (poi) {
+        result.set(tileKey, poi);
       }
     }
   }
   
-  return pois;
+  return result;
 }
 
-// Convert POIs to GeoJSON FeatureCollection
-function poisToGeoJSON(pois: POI[]): GeoJSON.FeatureCollection {
+// Convert POIs to GeoJSON with optional animation offsets for monsters
+function poisToGeoJSON(
+  pois: POI[], 
+  monsterOffsets?: Map<string, { dx: number; dy: number }>
+): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: pois.map(poi => ({
-      type: "Feature" as const,
-      geometry: {
-        type: "Point" as const,
-        coordinates: [poi.longitude, poi.latitude],
-      },
-      properties: {
-        id: poi.id,
-        type: poi.type,
-        name: poi.name,
-        tier: poi.tier || "common",
-        spriteKey: poi.spriteKey || "poi-quest",
-        tierColor: poi.tier ? TIER_COLORS[poi.tier] : "#00ff00",
-      },
-    })),
+    features: pois.map(poi => {
+      let lng = poi.longitude;
+      let lat = poi.latitude;
+      
+      // Apply monster movement offset
+      if (poi.type === "monster" && monsterOffsets?.has(poi.id)) {
+        const offset = monsterOffsets.get(poi.id)!;
+        lng += offset.dx;
+        lat += offset.dy;
+      }
+      
+      return {
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [lng, lat],
+        },
+        properties: {
+          id: poi.id,
+          type: poi.type,
+          name: poi.name,
+          tier: poi.tier || "common",
+          spriteKey: poi.spriteKey || "poi-quest",
+          tierColor: poi.tier ? TIER_COLORS[poi.tier] : "#00ff00",
+        },
+      };
+    }),
   };
 }
 
@@ -456,15 +491,32 @@ export default function PixelWorldMap({
     );
   }, []);
 
-  // Generate POIs when player position changes
+  // Accumulated POIs map - persists across moves
+  const allPOIsMapRef = useRef<Map<string, POI>>(new Map());
   const visitedPOIsRef = useRef(stableVisitedPOIs);
   visitedPOIsRef.current = stableVisitedPOIs;
   
+  // Monster animation state
+  const monsterAnimRef = useRef<number | null>(null);
+  const monsterOffsetsRef = useRef<Map<string, { dx: number; dy: number; speed: number; angle: number; baseCoords: [number, number] }>>(new Map());
+  
+  // Generate POIs when player position changes - ACCUMULATE, don't replace
   useEffect(() => {
     if (playerGridPosition) {
-      const newPOIs = generatePOIsForGrid(playerGridPosition.lat, playerGridPosition.lng)
-        .filter(poi => !visitedPOIsRef.current.has(poi.id));
-      setPOIs(newPOIs);
+      const updated = generatePOIsForArea(
+        playerGridPosition.lat,
+        playerGridPosition.lng,
+        allPOIsMapRef.current,
+        visitedPOIsRef.current
+      );
+      allPOIsMapRef.current = updated;
+      
+      // Remove visited POIs
+      for (const id of visitedPOIsRef.current) {
+        updated.delete(id);
+      }
+      
+      setPOIs(Array.from(updated.values()));
     }
   }, [playerGridPosition]);
 
@@ -745,6 +797,10 @@ export default function PixelWorldMap({
     });
 
     return () => {
+      if (monsterAnimRef.current) {
+        cancelAnimationFrame(monsterAnimRef.current);
+        monsterAnimRef.current = null;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -769,7 +825,7 @@ export default function PixelWorldMap({
     }
   }, [playerGridPosition, createPlayerMarkerElement]);
 
-  // Update POI GeoJSON source when pois change
+  // Update POI GeoJSON source when pois change + start monster animation
   useEffect(() => {
     if (!mapRef.current || !mapRef.current.loaded()) return;
 
@@ -778,7 +834,94 @@ export default function PixelWorldMap({
       source.setData(poisToGeoJSON(pois));
       console.log("[Map] Updated POI source with", pois.length, "POIs");
     }
+    
+    // Initialize monster movement offsets for new monsters
+    const offsets = monsterOffsetsRef.current;
+    pois.forEach(poi => {
+      if (poi.type === "monster" && !offsets.has(poi.id)) {
+        // Each monster gets a unique random walk pattern
+        const rng = seededRandom(Math.abs(poi.id.split('-').reduce((a, b) => a + parseInt(b) || 0, 0) * 31337));
+        offsets.set(poi.id, {
+          dx: 0,
+          dy: 0,
+          speed: 0.000001 + rng() * 0.000003, // Very slow movement
+          angle: rng() * Math.PI * 2, // Random initial direction
+          baseCoords: [poi.longitude, poi.latitude],
+        });
+      }
+    });
   }, [pois]);
+  
+  // Monster roaming animation loop
+  useEffect(() => {
+    if (!mapRef.current) return;
+    
+    const WANDER_RADIUS = GRID_SIZE * 0.4; // Max distance from base position
+    const TURN_SPEED = 0.02; // How fast they change direction
+    let lastTime = performance.now();
+    
+    const animate = (time: number) => {
+      const delta = (time - lastTime) / 16.67; // Normalize to ~60fps
+      lastTime = time;
+      
+      const map = mapRef.current;
+      if (!map || !map.loaded()) {
+        monsterAnimRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      
+      const source = map.getSource("pois-source") as mapboxgl.GeoJSONSource;
+      if (!source) {
+        monsterAnimRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      
+      const offsets = monsterOffsetsRef.current;
+      let hasMonsters = false;
+      
+      offsets.forEach((state) => {
+        hasMonsters = true;
+        
+        // Slowly change direction (random walk)
+        state.angle += (Math.random() - 0.5) * TURN_SPEED * delta;
+        
+        // Move in current direction
+        state.dx += Math.cos(state.angle) * state.speed * delta;
+        state.dy += Math.sin(state.angle) * state.speed * delta;
+        
+        // Keep within wander radius (soft boundary)
+        const dist = Math.sqrt(state.dx * state.dx + state.dy * state.dy);
+        if (dist > WANDER_RADIUS) {
+          // Turn back toward base
+          const returnAngle = Math.atan2(-state.dy, -state.dx);
+          state.angle = returnAngle + (Math.random() - 0.5) * 0.5;
+          state.dx *= 0.98;
+          state.dy *= 0.98;
+        }
+      });
+      
+      // Update GeoJSON source with animated positions (throttled to every 3 frames)
+      if (hasMonsters && Math.round(time / 50) % 1 === 0) {
+        const currentPOIs = poisRef.current;
+        source.setData(poisToGeoJSON(currentPOIs, offsets));
+      }
+      
+      monsterAnimRef.current = requestAnimationFrame(animate);
+    };
+    
+    // Start animation after a short delay to let map settle
+    const startTimer = setTimeout(() => {
+      monsterAnimRef.current = requestAnimationFrame(animate);
+    }, 2000);
+    
+    return () => {
+      clearTimeout(startTimer);
+      if (monsterAnimRef.current) {
+        cancelAnimationFrame(monsterAnimRef.current);
+        monsterAnimRef.current = null;
+      }
+    };
+  }, []);
 
   // Render online players
   useEffect(() => {
