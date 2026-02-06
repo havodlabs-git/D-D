@@ -844,8 +844,13 @@ export default function PixelWorldMap({
         offsets.set(poi.id, {
           dx: 0,
           dy: 0,
-          speed: 0.000001 + rng() * 0.000003, // Very slow movement
+          speed: 0.000008 + rng() * 0.000015, // Visible slow movement
           angle: rng() * Math.PI * 2, // Random initial direction
+          targetAngle: rng() * Math.PI * 2, // Target direction for smooth turning
+          turnTimer: 0, // Timer for direction changes
+          turnInterval: 120 + rng() * 300, // Frames between direction changes
+          pauseTimer: 0, // Timer for idle pauses
+          isPaused: false, // Whether monster is currently paused
           baseCoords: [poi.longitude, poi.latitude],
         });
       }
@@ -856,13 +861,15 @@ export default function PixelWorldMap({
   useEffect(() => {
     if (!mapRef.current) return;
     
-    const WANDER_RADIUS = GRID_SIZE * 0.4; // Max distance from base position
-    const TURN_SPEED = 0.02; // How fast they change direction
+    const WANDER_RADIUS = GRID_SIZE * 3.0; // Generous wander radius for visible movement
+    const SMOOTH_TURN = 0.04; // Smooth turning interpolation
     let lastTime = performance.now();
+    let frameCount = 0;
     
     const animate = (time: number) => {
       const delta = (time - lastTime) / 16.67; // Normalize to ~60fps
       lastTime = time;
+      frameCount++;
       
       const map = mapRef.current;
       if (!map || !map.loaded()) {
@@ -879,29 +886,58 @@ export default function PixelWorldMap({
       const offsets = monsterOffsetsRef.current;
       let hasMonsters = false;
       
-      offsets.forEach((state) => {
+      offsets.forEach((state: any) => {
         hasMonsters = true;
         
-        // Slowly change direction (random walk)
-        state.angle += (Math.random() - 0.5) * TURN_SPEED * delta;
+        // Handle pause behavior (monsters stop occasionally)
+        if (state.isPaused) {
+          state.pauseTimer -= delta;
+          if (state.pauseTimer <= 0) {
+            state.isPaused = false;
+            state.targetAngle = Math.random() * Math.PI * 2;
+          }
+          return; // Don't move while paused
+        }
+        
+        // Periodically pick a new target direction
+        state.turnTimer += delta;
+        if (state.turnTimer >= state.turnInterval) {
+          state.turnTimer = 0;
+          state.turnInterval = 120 + Math.random() * 300;
+          state.targetAngle = Math.random() * Math.PI * 2;
+          
+          // Occasionally pause (20% chance)
+          if (Math.random() < 0.2) {
+            state.isPaused = true;
+            state.pauseTimer = 60 + Math.random() * 180; // Pause 1-4 seconds
+            return;
+          }
+        }
+        
+        // Smoothly interpolate angle toward target (smooth turning)
+        let angleDiff = state.targetAngle - state.angle;
+        // Normalize angle difference to [-PI, PI]
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        state.angle += angleDiff * SMOOTH_TURN * delta;
         
         // Move in current direction
         state.dx += Math.cos(state.angle) * state.speed * delta;
         state.dy += Math.sin(state.angle) * state.speed * delta;
         
-        // Keep within wander radius (soft boundary)
+        // Keep within wander radius (soft boundary with smooth return)
         const dist = Math.sqrt(state.dx * state.dx + state.dy * state.dy);
         if (dist > WANDER_RADIUS) {
-          // Turn back toward base
+          // Smoothly steer back toward base
           const returnAngle = Math.atan2(-state.dy, -state.dx);
-          state.angle = returnAngle + (Math.random() - 0.5) * 0.5;
-          state.dx *= 0.98;
-          state.dy *= 0.98;
+          state.targetAngle = returnAngle + (Math.random() - 0.5) * 0.8;
+          state.dx *= 0.995;
+          state.dy *= 0.995;
         }
       });
       
-      // Update GeoJSON source with animated positions (throttled to every 3 frames)
-      if (hasMonsters && Math.round(time / 50) % 1 === 0) {
+      // Update GeoJSON source every 2 frames for smooth but performant animation
+      if (hasMonsters && frameCount % 2 === 0) {
         const currentPOIs = poisRef.current;
         source.setData(poisToGeoJSON(currentPOIs, offsets));
       }
