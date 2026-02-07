@@ -86,9 +86,10 @@ export function RandomEncounter({
             <div className="space-y-4">
               <div className="bg-black/50 rounded-lg p-4 text-center">
                 <img
-                  src="/sprites/monsters/goblin.png"
+                  src={encounter.data.monster.sprite || `/sprites/monsters/${encounter.data.monster.monsterType}.png`}
                   alt={encounter.data.monster.name}
                   className="w-16 h-16 mx-auto mb-2 pixelated"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/sprites/monsters/goblin.png'; }}
                 />
                 <div className="text-xl font-bold text-white">
                   {encounter.data.monster.name}

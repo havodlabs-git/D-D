@@ -65,11 +65,25 @@ function generateEncounterData(type: string, playerLevel: number) {
       else if (tierRoll > 0.6) tier = "uncommon";
       
       const monsterName = monsterNames[Math.floor(Math.random() * monsterNames.length)];
+      const monsterType = monsterName.toLowerCase().replace(/ /g, "_");
+      // Map monster names to available sprite files
+      const spriteMap: Record<string, string> = {
+        "goblin": "goblin.png",
+        "orc": "orc.png",
+        "esqueleto": "skeleton.png",
+        "lobo": "wolf.png",
+        "slime": "slime.png",
+        "bandido": "bandit.png",
+        "aranha_gigante": "spider_giant.png",
+        "kobold": "kobold.png",
+      };
+      const spriteFile = spriteMap[monsterType] || "goblin.png";
       return {
         monster: {
           id: Date.now(),
           name: monsterName,
-          monsterType: monsterName.toLowerCase().replace(/ /g, "_"),
+          monsterType,
+          sprite: `/sprites/monsters/${spriteFile}`,
           level: monsterLevel,
           tier,
           health: 20 + monsterLevel * 10 * (tier === "legendary" ? 2 : tier === "rare" ? 1.5 : tier === "uncommon" ? 1.2 : 1),
@@ -541,11 +555,11 @@ export const appRouter = router({
           }
         }
 
-        // Check for random encounter (15% chance per move)
+        // Check for random encounter (5% chance per move - more occasional)
         const encounterRoll = Math.random();
         let encounter = null;
         
-        if (encounterRoll < 0.15) {
+        if (encounterRoll < 0.05) {
           const encounterTypes = [
             { type: "battle", weight: 50 },
             { type: "treasure", weight: 20 },
