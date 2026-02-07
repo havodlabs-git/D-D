@@ -591,11 +591,11 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
   // ═══════════════════════════════════════════════════════════
 
   return (
-    <div className="relative w-full flex items-center justify-center" style={{ zIndex: 50, background: '#0a0a0a', minHeight: '100dvh' }}>
+    <div className="relative w-full" style={{ zIndex: 50, background: '#0a0a0a', minHeight: '100dvh' }}>
       <CombatAnimationStyles />
 
-      {/* Max-width container - keeps mobile proportions on desktop */}
-      <div className="relative flex flex-col w-full" style={{ maxWidth: '480px', height: '100dvh', maxHeight: '100dvh' }}>
+      {/* Full-screen container */}
+      <div className="relative flex flex-col w-full" style={{ height: '100dvh', maxHeight: '100dvh' }}>
 
       {/* ═══ BATTLE ARENA - Top half ═══ */}
       <div
@@ -616,7 +616,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         }} />
 
         {/* ═══ MONSTER (top-right area) ═══ */}
-        <div className="absolute z-10" style={{ top: '5%', right: '5%', width: '35%', maxWidth: '180px' }}>
+        <div className="absolute z-10" style={{ top: '5%', right: '5%', width: '30%', maxWidth: '320px' }}>
           {/* Monster HP bar */}
           <div className="mb-1" style={{
             background: 'rgba(10,10,25,0.9)',
@@ -649,20 +649,20 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
                 src={monsterSprite} 
                 alt={monster.name} 
                 className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]" 
-                style={{ imageRendering: 'pixelated', width: '80px', height: '80px', objectFit: 'contain' }} 
+                style={{ imageRendering: 'pixelated', width: 'clamp(80px, 12vw, 180px)', height: 'clamp(80px, 12vw, 180px)', objectFit: 'contain' }} 
               />
             </div>
             <img 
               src="/sprites/combat/platform-enemy.png" 
               alt="" 
               className="relative z-0" 
-              style={{ imageRendering: 'pixelated', width: '110px', height: 'auto', opacity: 0.85 }} 
+              style={{ imageRendering: 'pixelated', width: 'clamp(110px, 15vw, 220px)', height: 'auto', opacity: 0.85 }} 
             />
           </div>
         </div>
 
         {/* ═══ PLAYER (bottom-left area) ═══ */}
-        <div className="absolute z-10" style={{ bottom: '2%', left: '4%', width: '35%', maxWidth: '180px' }}>
+        <div className="absolute z-10" style={{ bottom: '2%', left: '4%', width: '30%', maxWidth: '320px' }}>
           {/* Player sprite on platform */}
           <div className={cn(
             "relative flex flex-col items-center transition-all duration-200",
@@ -674,14 +674,14 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
                 src={playerSprite} 
                 alt="Player" 
                 className="transform scale-x-[-1] drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]" 
-                style={{ imageRendering: 'pixelated', width: '80px', height: '80px', objectFit: 'contain' }} 
+                style={{ imageRendering: 'pixelated', width: 'clamp(80px, 12vw, 180px)', height: 'clamp(80px, 12vw, 180px)', objectFit: 'contain' }} 
               />
             </div>
             <img 
               src="/sprites/combat/platform-player.png" 
               alt="" 
               className="relative z-0" 
-              style={{ imageRendering: 'pixelated', width: '120px', height: 'auto', opacity: 0.85 }} 
+              style={{ imageRendering: 'pixelated', width: 'clamp(120px, 16vw, 240px)', height: 'auto', opacity: 0.85 }} 
             />
           </div>
 
@@ -756,8 +756,11 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         )}
 
         {/* Dialog box with clean Nano Banana frame */}
-        <div className="flex-shrink-0 mx-1 mt-1 relative" style={{
-          minHeight: '75px',
+        <div className="flex-shrink-0 mx-2 mt-1 relative" style={{
+          minHeight: 'clamp(75px, 12vh, 120px)',
+          maxWidth: '700px',
+          alignSelf: 'center',
+          width: '100%',
           imageRendering: 'pixelated' as const,
         }}>
           {/* Dialog box background image - clean dark interior */}
@@ -781,12 +784,12 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
 
         {/* Action buttons with Nano Banana assets */}
         {showMenu && isPlayerTurn && !combatEnded && !showSpells && !showAbilities && (
-          <div className="grid grid-cols-2 gap-1.5 px-2 py-1.5 flex-shrink-0">
+          <div className="grid grid-cols-2 gap-2 px-3 py-2 flex-shrink-0" style={{ maxWidth: '600px', margin: '0 auto', width: '100%' }}>
             <button
               onClick={handleAttack}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '48px' }}
+              style={{ height: 'clamp(48px, 8vh, 80px)' }}
             >
               <img src="/sprites/ui/button-fight.png" alt="FIGHT" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -794,14 +797,14 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '48px' }}
+              style={{ height: 'clamp(48px, 8vh, 80px)' }}
             >
               <img src="/sprites/ui/button-magic.png" alt="MAGIC" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
             <button
               onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95"
-              style={{ height: '48px' }}
+              style={{ height: 'clamp(48px, 8vh, 80px)' }}
             >
               <img src="/sprites/ui/button-items.png" alt="ITEMS" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -809,7 +812,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               onClick={handleFlee}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '48px' }}
+              style={{ height: 'clamp(48px, 8vh, 80px)' }}
             >
               <img src="/sprites/ui/button-run.png" alt="RUN" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
