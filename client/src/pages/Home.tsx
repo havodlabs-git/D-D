@@ -1,14 +1,21 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
 import { 
   LogIn, 
-  ChevronRight
+  ChevronRight,
+  UserPlus,
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  Loader2,
 } from "lucide-react";
 
-// Class sprites for display - All 12 D&D 5e classes with unique sprites
+// Class sprites for display
 const CLASS_SPRITES: Record<string, string> = {
   warrior: "/sprites/classes/warrior.png",
   fighter: "/sprites/classes/warrior.png",
@@ -41,9 +48,300 @@ const CLASSES = [
   { id: "warlock", name: "Bruxo", color: "bg-indigo-500/20" },
 ];
 
+// ============================================
+// AUTH FORM COMPONENT
+// ============================================
+function AuthForm({ onSuccess }: { onSuccess: () => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
+      const body: any = { email, password };
+      if (mode === "register" && name.trim()) {
+        body.name = name.trim();
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Erro desconhecido");
+        setLoading(false);
+        return;
+      }
+
+      // Success - redirect to game
+      onSuccess();
+      window.location.href = data.redirect || "/game";
+    } catch (err) {
+      setError("Erro de conexão. Tente novamente.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div 
+      className="w-full max-w-md mx-auto"
+      style={{
+        background: "linear-gradient(180deg, rgba(15,10,25,0.95) 0%, rgba(25,15,40,0.98) 100%)",
+        border: "2px solid #8B6914",
+        borderRadius: "12px",
+        boxShadow: "0 0 20px rgba(139,105,20,0.3), inset 0 0 30px rgba(0,0,0,0.5)",
+        padding: "24px",
+      }}
+    >
+      {/* Header with dragon icon */}
+      <div className="text-center mb-6">
+        <img 
+          src="/sprites/monsters/dragon.png" 
+          alt="Dragon" 
+          className="w-16 h-16 mx-auto mb-3 pixelated" 
+          style={{ filter: "drop-shadow(0 0 8px rgba(255,180,0,0.5))" }}
+        />
+        <h2 
+          className="text-2xl font-bold pixel-text"
+          style={{ 
+            color: "#FFD700",
+            textShadow: "0 0 10px rgba(255,215,0,0.5), 2px 2px 0 #000",
+          }}
+        >
+          {mode === "login" ? "Entrar" : "Criar Conta"}
+        </h2>
+        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+          {mode === "login" 
+            ? "Entre com sua conta para continuar a aventura" 
+            : "Crie uma conta para começar sua jornada"}
+        </p>
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <div 
+          className="mb-4 p-3 rounded-lg text-sm text-center"
+          style={{ 
+            background: "rgba(220,38,38,0.15)", 
+            border: "1px solid rgba(220,38,38,0.4)",
+            color: "#FCA5A5",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Name field (register only) */}
+        {mode === "register" && (
+          <div>
+            <label className="block text-xs font-semibold mb-1 pixel-text" style={{ color: "#D4A843" }}>
+              Nome do Aventureiro
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#6B7280" }} />
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Sir Roland"
+                className="w-full pl-10 pr-4 py-3 rounded-lg text-sm pixel-text"
+                style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: "1px solid rgba(139,105,20,0.4)",
+                  color: "#E5E7EB",
+                  outline: "none",
+                }}
+                onFocus={(e) => e.target.style.borderColor = "#FFD700"}
+                onBlur={(e) => e.target.style.borderColor = "rgba(139,105,20,0.4)"}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Email field */}
+        <div>
+          <label className="block text-xs font-semibold mb-1 pixel-text" style={{ color: "#D4A843" }}>
+            Email
+          </label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#6B7280" }} />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="aventureiro@dndgo.com"
+              required
+              className="w-full pl-10 pr-4 py-3 rounded-lg text-sm pixel-text"
+              style={{
+                background: "rgba(0,0,0,0.4)",
+                border: "1px solid rgba(139,105,20,0.4)",
+                color: "#E5E7EB",
+                outline: "none",
+              }}
+              onFocus={(e) => e.target.style.borderColor = "#FFD700"}
+              onBlur={(e) => e.target.style.borderColor = "rgba(139,105,20,0.4)"}
+            />
+          </div>
+        </div>
+
+        {/* Password field */}
+        <div>
+          <label className="block text-xs font-semibold mb-1 pixel-text" style={{ color: "#D4A843" }}>
+            Password
+          </label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#6B7280" }} />
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={6}
+              className="w-full pl-10 pr-12 py-3 rounded-lg text-sm pixel-text"
+              style={{
+                background: "rgba(0,0,0,0.4)",
+                border: "1px solid rgba(139,105,20,0.4)",
+                color: "#E5E7EB",
+                outline: "none",
+              }}
+              onFocus={(e) => e.target.style.borderColor = "#FFD700"}
+              onBlur={(e) => e.target.style.borderColor = "rgba(139,105,20,0.4)"}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+              style={{ color: "#6B7280" }}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {mode === "register" && (
+            <p className="text-xs mt-1" style={{ color: "#6B7280" }}>Mínimo 6 caracteres</p>
+          )}
+        </div>
+
+        {/* Submit button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 rounded-lg font-bold pixel-text text-sm transition-all"
+          style={{
+            background: loading 
+              ? "rgba(139,105,20,0.3)" 
+              : "linear-gradient(180deg, #D4A843 0%, #8B6914 100%)",
+            color: loading ? "#6B7280" : "#1A0F00",
+            border: "2px solid #FFD700",
+            cursor: loading ? "not-allowed" : "pointer",
+            textShadow: loading ? "none" : "0 1px 0 rgba(255,255,255,0.3)",
+            boxShadow: loading ? "none" : "0 4px 12px rgba(139,105,20,0.4)",
+          }}
+          onMouseEnter={(e) => {
+            if (!loading) {
+              (e.target as HTMLElement).style.transform = "translateY(-1px)";
+              (e.target as HTMLElement).style.boxShadow = "0 6px 16px rgba(139,105,20,0.6)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            (e.target as HTMLElement).style.transform = "translateY(0)";
+            (e.target as HTMLElement).style.boxShadow = "0 4px 12px rgba(139,105,20,0.4)";
+          }}
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              {mode === "login" ? "Entrando..." : "Criando conta..."}
+            </span>
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              {mode === "login" ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+              {mode === "login" ? "Entrar" : "Criar Conta"}
+            </span>
+          )}
+        </button>
+      </form>
+
+      {/* Toggle login/register */}
+      <div className="mt-4 text-center">
+        <button
+          type="button"
+          onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}
+          className="text-sm pixel-text transition-colors"
+          style={{ color: "#D4A843" }}
+          onMouseEnter={(e) => (e.target as HTMLElement).style.color = "#FFD700"}
+          onMouseLeave={(e) => (e.target as HTMLElement).style.color = "#D4A843"}
+        >
+          {mode === "login" 
+            ? "Não tem conta? Criar conta" 
+            : "Já tem conta? Entrar"}
+        </button>
+      </div>
+
+      {/* Decorative separator */}
+      <div className="flex items-center gap-3 my-4">
+        <div className="flex-1 h-px" style={{ background: "rgba(139,105,20,0.3)" }} />
+        <span className="text-xs" style={{ color: "#6B7280" }}>ou</span>
+        <div className="flex-1 h-px" style={{ background: "rgba(139,105,20,0.3)" }} />
+      </div>
+
+      {/* Quick play (dev login for testing) */}
+      <button
+        type="button"
+        onClick={() => {
+          window.location.href = `/api/auth/dev-login?name=Aventureiro&id=player-${Date.now()}`;
+        }}
+        className="w-full py-2 rounded-lg text-xs pixel-text transition-all"
+        style={{
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          color: "#9CA3AF",
+        }}
+        onMouseEnter={(e) => {
+          (e.target as HTMLElement).style.background = "rgba(255,255,255,0.1)";
+          (e.target as HTMLElement).style.color = "#D1D5DB";
+        }}
+        onMouseLeave={(e) => {
+          (e.target as HTMLElement).style.background = "rgba(255,255,255,0.05)";
+          (e.target as HTMLElement).style.color = "#9CA3AF";
+        }}
+      >
+        Jogar como Convidado (sem salvar progresso)
+      </button>
+    </div>
+  );
+}
+
+// ============================================
+// MAIN HOME PAGE
+// ============================================
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [showAuth, setShowAuth] = useState(false);
+
+  // Check URL params for login redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("login") === "true") {
+      setShowAuth(true);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -70,6 +368,55 @@ export default function Home() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // Show auth modal overlay
+  if (showAuth) {
+    return (
+      <div 
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: "radial-gradient(ellipse at center, rgba(25,15,40,0.98) 0%, rgba(5,2,15,1) 100%)",
+        }}
+      >
+        {/* Background decorations */}
+        <div className="absolute top-10 left-10 animate-bounce opacity-20" style={{ animationDelay: "0s" }}>
+          <img src="/sprites/monsters/goblin.png" alt="" className="w-12 h-12 pixelated" />
+        </div>
+        <div className="absolute top-20 right-16 animate-bounce opacity-20" style={{ animationDelay: "0.7s" }}>
+          <img src="/sprites/monsters/skeleton.png" alt="" className="w-14 h-14 pixelated" />
+        </div>
+        <div className="absolute bottom-20 left-16 animate-bounce opacity-20" style={{ animationDelay: "1.2s" }}>
+          <img src="/sprites/items/gold.png" alt="" className="w-10 h-10 pixelated" />
+        </div>
+        <div className="absolute bottom-10 right-10 animate-bounce opacity-20" style={{ animationDelay: "0.3s" }}>
+          <img src="/sprites/monsters/wolf.png" alt="" className="w-12 h-12 pixelated" />
+        </div>
+
+        <div className="relative z-10 w-full">
+          {/* Logo */}
+          <div className="text-center mb-6">
+            <h1 className="text-5xl font-bold pixel-text">
+              <span className="gold-text">D&D</span>{" "}
+              <span className="text-primary">GO</span>
+            </h1>
+          </div>
+
+          <AuthForm onSuccess={() => {}} />
+
+          {/* Back link */}
+          <div className="text-center mt-4">
+            <button
+              onClick={() => setShowAuth(false)}
+              className="text-sm pixel-text"
+              style={{ color: "#6B7280" }}
+            >
+              ← Voltar à página inicial
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -118,11 +465,9 @@ export default function Home() {
 
           {/* CTA */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-lg h-14 px-8 pixel-text" asChild>
-              <a href={getLoginUrl()}>
-                <LogIn className="w-5 h-5 mr-2" />
-                Começar Aventura
-              </a>
+            <Button size="lg" className="text-lg h-14 px-8 pixel-text" onClick={() => setShowAuth(true)}>
+              <LogIn className="w-5 h-5 mr-2" />
+              Começar Aventura
             </Button>
             <Button size="lg" variant="outline" className="text-lg h-14 px-8 pixel-text" asChild>
               <a href="#features">
@@ -136,7 +481,7 @@ export default function Home() {
           <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto mt-16">
             <div className="flex flex-col items-center">
               <img src="/sprites/classes/warrior.png" alt="Classes" className="w-12 h-12 pixelated mb-2" />
-              <div className="text-3xl font-bold text-primary pixel-text">8</div>
+              <div className="text-3xl font-bold text-primary pixel-text">12</div>
               <div className="text-sm text-muted-foreground">Classes</div>
             </div>
             <div className="flex flex-col items-center">
@@ -164,7 +509,6 @@ export default function Home() {
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Feature 1 */}
             <Card className="fantasy-card hover:scale-105 transition-transform">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 rounded-lg bg-primary/20 flex items-center justify-center mb-4">
@@ -178,7 +522,6 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Feature 2 */}
             <Card className="fantasy-card hover:scale-105 transition-transform">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 rounded-lg bg-destructive/20 flex items-center justify-center mb-4">
@@ -192,7 +535,6 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Feature 3 */}
             <Card className="fantasy-card hover:scale-105 transition-transform">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
@@ -206,7 +548,6 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Feature 4 */}
             <Card className="fantasy-card hover:scale-105 transition-transform">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 rounded-lg bg-yellow-500/20 flex items-center justify-center mb-4">
@@ -220,24 +561,22 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Feature 5 */}
             <Card className="fantasy-card hover:scale-105 transition-transform">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 rounded-lg bg-secondary/20 flex items-center justify-center mb-4">
                   <img src="/sprites/classes/mage.png" alt="Classes" className="w-12 h-12 pixelated" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2 pixel-text">8 Classes Jogáveis</h3>
+                <h3 className="text-xl font-semibold mb-2 pixel-text">12 Classes Jogáveis</h3>
                 <p className="text-muted-foreground">
                   Guerreiro, Mago, Ladino, Clérigo, Patrulheiro, Paladino, 
-                  Bárbaro ou Bardo. Escolha seu caminho!
+                  Bárbaro, Bardo, Druida, Monge, Feiticeiro ou Bruxo.
                 </p>
               </CardContent>
             </Card>
 
-            {/* Feature 6 */}
             <Card className="fantasy-card hover:scale-105 transition-transform">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 rounded-lg bg-purple-500/20 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-lg bg-green-500/20 flex items-center justify-center mb-4">
                   <img src="/sprites/items/armor.png" alt="Items" className="w-12 h-12 pixelated" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2 pixel-text">Itens com Raridade</h3>
@@ -321,11 +660,9 @@ export default function Home() {
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
             Crie seu personagem, explore o mundo e torne-se uma lenda!
           </p>
-          <Button size="lg" className="text-lg h-14 px-8 pixel-text" asChild>
-            <a href={getLoginUrl()}>
-              <LogIn className="w-5 h-5 mr-2" />
-              Jogar Agora
-            </a>
+          <Button size="lg" className="text-lg h-14 px-8 pixel-text" onClick={() => setShowAuth(true)}>
+            <LogIn className="w-5 h-5 mr-2" />
+            Jogar Agora
           </Button>
         </div>
       </section>

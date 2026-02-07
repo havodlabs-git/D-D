@@ -499,6 +499,7 @@ export default function PixelWorldMap({
   // Monster animation state
   const monsterAnimRef = useRef<number | null>(null);
   const monsterOffsetsRef = useRef<Map<string, { dx: number; dy: number; speed: number; angle: number; baseCoords: [number, number] }>>(new Map());
+  const onlinePlayerMarkersRef = useRef<Map<number, mapboxgl.Marker>>(new Map());
   
   // Generate POIs when player position changes - ACCUMULATE, don't replace
   useEffect(() => {
@@ -959,10 +960,131 @@ export default function PixelWorldMap({
     };
   }, []);
 
-  // Render online players
+  // Render online players as markers on the map
   useEffect(() => {
-    // Skip for now
-  }, [onlinePlayers]);
+    const map = mapRef.current;
+    if (!map) return;
+
+    const currentMarkers = onlinePlayerMarkersRef.current;
+    const currentPlayerIds = new Set<number>();
+
+    // Add or update markers for each online player
+    (stableOnlinePlayers || []).forEach((player) => {
+      if (!player.latitude || !player.longitude) return;
+      currentPlayerIds.add(player.id);
+
+      if (currentMarkers.has(player.id)) {
+        // Update existing marker position
+        currentMarkers.get(player.id)!.setLngLat([player.longitude, player.latitude]);
+      } else {
+        // Create new marker element
+        const container = document.createElement("div");
+        container.style.cssText = `
+          width: 52px;
+          height: 64px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          z-index: 500;
+          pointer-events: auto;
+          cursor: pointer;
+        `;
+
+        const sprite = document.createElement("img");
+        sprite.src = CLASS_SPRITES[player.characterClass] || CLASS_SPRITES.fighter;
+        sprite.style.cssText = `
+          width: 40px;
+          height: 40px;
+          image-rendering: pixelated;
+          image-rendering: crisp-edges;
+          border: 2px solid #4488ff;
+          border-radius: 50%;
+          background: rgba(0,0,40,0.7);
+          padding: 2px;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+        `;
+        sprite.alt = player.characterName;
+        sprite.onerror = () => {
+          sprite.style.display = "none";
+          const fallback = document.createElement("div");
+          fallback.textContent = "\u2694";
+          fallback.style.cssText = "font-size: 24px; text-align: center;";
+          container.insertBefore(fallback, nameTag);
+        };
+
+        const nameTag = document.createElement("div");
+        nameTag.textContent = `${player.characterName} Lv${player.characterLevel}`;
+        nameTag.style.cssText = `
+          font-family: 'Press Start 2P', monospace;
+          font-size: 6px;
+          color: #ffffff;
+          background: rgba(0,0,40,0.85);
+          border: 1px solid #4488ff;
+          border-radius: 2px;
+          padding: 1px 4px;
+          white-space: nowrap;
+          text-shadow: 1px 1px 0 #000;
+          margin-top: 2px;
+        `;
+
+        // Status indicator dot
+        const statusDot = document.createElement("div");
+        const statusColor = player.status === "combat" ? "#ff4444" : player.status === "shop" ? "#ffaa00" : "#44ff44";
+        statusDot.style.cssText = `
+          position: absolute;
+          top: 0;
+          right: 4px;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: ${statusColor};
+          border: 1px solid #000;
+          box-shadow: 0 0 4px ${statusColor};
+        `;
+
+        container.appendChild(sprite);
+        container.appendChild(nameTag);
+        container.appendChild(statusDot);
+
+        // Tooltip on click
+        container.addEventListener("click", () => {
+          const classNames: Record<string, string> = {
+            fighter: "Guerreiro", wizard: "Mago", rogue: "Ladino", cleric: "Cl\u00e9rigo",
+            ranger: "Patrulheiro", paladin: "Paladino", barbarian: "B\u00e1rbaro", bard: "Bardo",
+            druid: "Druida", monk: "Monge", sorcerer: "Feiticeiro", warlock: "Bruxo",
+          };
+          const statusNames: Record<string, string> = {
+            exploring: "Explorando", combat: "Em Combate", dungeon: "Na Dungeon",
+            shop: "Na Loja", idle: "Parado",
+          };
+          new mapboxgl.Popup({ closeOnClick: true, maxWidth: "200px" })
+            .setLngLat([player.longitude!, player.latitude!])
+            .setHTML(`
+              <div style="font-family:'Press Start 2P',monospace;font-size:8px;padding:4px;background:#1a1a2e;color:#e2c87e;border:1px solid #c8a84e;">
+                <div style="font-size:10px;color:#FFD700;margin-bottom:4px;">${player.characterName}</div>
+                <div>Nv. ${player.characterLevel} ${classNames[player.characterClass] || player.characterClass}</div>
+                <div style="color:#9CA3AF;margin-top:2px;">${statusNames[player.status] || player.status}</div>
+              </div>
+            `)
+            .addTo(map);
+        });
+
+        const marker = new mapboxgl.Marker({ element: container })
+          .setLngLat([player.longitude, player.latitude])
+          .addTo(map);
+
+        currentMarkers.set(player.id, marker);
+      }
+    });
+
+    // Remove markers for players that are no longer online
+    currentMarkers.forEach((marker, id) => {
+      if (!currentPlayerIds.has(id)) {
+        marker.remove();
+        currentMarkers.delete(id);
+      }
+    });
+  }, [stableOnlinePlayers]);
 
   if (isLoadingLocation) {
     return (
