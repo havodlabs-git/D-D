@@ -755,34 +755,27 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         )}
 
-        {/* Dialog box with Nano Banana asset as background */}
+        {/* Dialog box with clean Nano Banana frame */}
         <div className="flex-shrink-0 mx-1 mt-1 relative" style={{
-          minHeight: '70px',
+          minHeight: '75px',
           imageRendering: 'pixelated' as const,
         }}>
-          {/* Dialog box background image */}
+          {/* Dialog box background image - clean dark interior */}
           <img 
             src="/sprites/ui/dialog-box.png" 
             alt="" 
             className="absolute inset-0 w-full h-full"
             style={{ imageRendering: 'pixelated', objectFit: 'fill' }}
           />
-          {/* Text overlay with dark semi-transparent background for readability */}
+          {/* Text centered in the clean dark area */}
           <div className="relative z-10 flex items-center justify-center" style={{
-            padding: '18px 36px',
-            minHeight: '70px',
+            padding: '22px 44px',
+            minHeight: '75px',
           }}>
-            <div style={{
-              background: 'rgba(5, 5, 15, 0.75)',
-              borderRadius: '2px',
-              padding: '6px 12px',
-              maxWidth: '100%',
-            }}>
-              <PixelText size="sm" color="#f0e8d0" className="leading-relaxed text-center" glow>
-                {currentMessage}
-                {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
-              </PixelText>
-            </div>
+            <PixelText size="md" color="#f0e8d0" className="leading-relaxed text-center" glow>
+              {currentMessage}
+              {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
+            </PixelText>
           </div>
         </div>
 
