@@ -571,121 +571,136 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
   const playerSprite = CLASS_SPRITES[playerClass] || CLASS_SPRITES.fighter;
   const tierColor = TIER_COLORS[monster.tier] || TIER_COLORS.common;
 
+  // Choose background based on monster type
+  const getBackgroundImage = () => {
+    const type = monster.monsterType?.toLowerCase() || '';
+    if (['skeleton', 'skeleton_warrior', 'zombie', 'ghoul', 'imp', 'mimic', 'gelatinous_cube'].includes(type)) {
+      return '/sprites/combat/battle-background-dungeon.png';
+    }
+    if (['wolf', 'wolf_dire', 'spider', 'spider_giant', 'troll', 'ogre', 'harpy'].includes(type)) {
+      return '/sprites/combat/battle-background-forest.png';
+    }
+    return '/sprites/combat/battle-background-grass.png';
+  };
+
   // ═══════════════════════════════════════════════════════════
-  // RENDER - PIXEL ART NANO BANANA PRO STYLE
+  // RENDER - PIXEL ART WITH FULL ASSET INTEGRATION
   // ═══════════════════════════════════════════════════════════
 
   return (
     <div className="fixed inset-0" style={{ zIndex: 9999, background: '#0a0a0a', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <CombatAnimationStyles />
 
-      {/* ═══ BATTLE ARENA - Medieval pixel art battlefield ═══ */}
+      {/* ═══ BATTLE ARENA - Full background image ═══ */}
       <div
         className="relative overflow-hidden"
         style={{
-          height: '55vh',
+          height: '52vh',
           minHeight: '200px',
           imageRendering: 'pixelated' as const,
         }}
       >
-        {/* Sky gradient with clouds */}
-        <div className="absolute inset-0" style={{
-          background: `
-            linear-gradient(180deg,
-              #1a0a2e 0%,
-              #2d1b4e 15%,
-              #4a2d6e 30%,
-              #6b4a8e 45%,
-              #4a6b2a 52%,
-              #3a5a1a 55%,
-              #2d4a12 60%,
-              #1e3a0a 75%,
-              #152e08 100%
-            )
-          `,
-        }} />
+        {/* Battle background image */}
+        <img
+          src={getBackgroundImage()}
+          alt="Battle background"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ imageRendering: 'pixelated' }}
+        />
 
-        {/* Stars in the dark sky */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: `
-            radial-gradient(1px 1px at 10% 8%, rgba(255,255,200,0.8) 0%, transparent 100%),
-            radial-gradient(1px 1px at 30% 5%, rgba(255,255,200,0.6) 0%, transparent 100%),
-            radial-gradient(1px 1px at 50% 12%, rgba(255,255,200,0.7) 0%, transparent 100%),
-            radial-gradient(1px 1px at 70% 3%, rgba(255,255,200,0.5) 0%, transparent 100%),
-            radial-gradient(1px 1px at 85% 10%, rgba(255,255,200,0.8) 0%, transparent 100%),
-            radial-gradient(1px 1px at 15% 15%, rgba(255,255,200,0.4) 0%, transparent 100%),
-            radial-gradient(1px 1px at 60% 7%, rgba(255,255,200,0.6) 0%, transparent 100%),
-            radial-gradient(2px 2px at 90% 6%, rgba(255,200,100,0.9) 0%, transparent 100%)
-          `,
-        }} />
-
-        {/* Ground tile pattern */}
-        <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{
-          height: '50%',
-          background: `
-            repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.08) 48px, rgba(0,0,0,0.08) 50px),
-            repeating-linear-gradient(0deg, transparent, transparent 48px, rgba(0,0,0,0.08) 48px, rgba(0,0,0,0.08) 50px)
-          `,
-        }} />
+        {/* Subtle darkening overlay for readability */}
+        <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.15)' }} />
 
         {/* Pixel scanline overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.06]" style={{
+        <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{
           background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px)',
         }} />
 
-        {/* ═══ MONSTER (top right) ═══ */}
-        <div className="absolute top-2 right-2 z-20" style={{ width: '42%', maxWidth: '200px' }}>
-          <PixelFrame borderColor={tierColor} bgColor="rgba(12,12,29,0.9)" className="p-1.5">
+        {/* ═══ MONSTER INFO (top right) ═══ */}
+        <div className="absolute top-2 right-2 z-20" style={{ width: '44%', maxWidth: '210px' }}>
+          <div style={{
+            background: 'rgba(10,10,25,0.88)',
+            border: `2px solid ${tierColor}`,
+            boxShadow: `0 0 8px ${tierColor}40, inset 0 0 12px rgba(0,0,0,0.5)`,
+            borderRadius: '2px',
+            padding: '6px 8px',
+          }}>
             <div className="flex justify-between items-center mb-1">
               <PixelText size="xs" color={tierColor} bold className="truncate">{monster.name}</PixelText>
               <PixelText size="xxs" color={COLORS.textGold}>Nv.{monster.level}</PixelText>
             </div>
-            <PixelBar current={monsterHealth} max={monster.health} color={COLORS.hpGreen} label="HP" labelColor={COLORS.hpRed} height={10} segments={12} />
+            <div className="flex items-center gap-1 mb-0.5">
+              <img src="/sprites/ui/heart.png" alt="HP" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
+              <div className="flex-1">
+                <PixelBar current={monsterHealth} max={monster.health} color={COLORS.hpGreen} label="" labelColor={COLORS.hpRed} height={10} segments={12} />
+              </div>
+              <PixelText size="xxs" color={COLORS.textGray}>{monsterHealth}/{monster.health}</PixelText>
+            </div>
             <div className="flex justify-between mt-1">
               <PixelText size="xxs" color={COLORS.textGray}>AC {monster.armor}</PixelText>
               <PixelText size="xxs" color={tierColor}>{monster.tier}</PixelText>
             </div>
-          </PixelFrame>
+          </div>
         </div>
 
-        {/* Monster sprite */}
-        <div className="absolute top-14 right-6 z-10" style={{ width: '120px' }}>
+        {/* ═══ MONSTER on platform (top right area) ═══ */}
+        <div className="absolute z-10" style={{ top: '20%', right: '8%', width: '140px' }}>
+          {/* Monster sprite */}
           <div className={cn(
-            "w-full transition-all duration-200",
+            "w-full transition-all duration-200 relative",
             isMonsterHit && "brightness-[3] translate-x-2",
             monsterHealth <= 0 && "opacity-0 scale-0"
-          )}>
-            <img src={monsterSprite} alt={monster.name} className="w-full h-auto drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" style={{ imageRendering: 'pixelated' }} />
+          )} style={{ marginBottom: '-20px', zIndex: 2 }}>
+            <img src={monsterSprite} alt={monster.name} className="w-full h-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]" style={{ imageRendering: 'pixelated' }} />
           </div>
-          <div className="mx-auto -mt-1 opacity-40" style={{ width: '80%', height: '10px', background: 'radial-gradient(ellipse, rgba(0,0,0,0.6) 0%, transparent 70%)' }} />
+          {/* Enemy platform */}
+          <img src="/sprites/combat/platform-enemy.png" alt="" className="w-full h-auto relative" style={{ imageRendering: 'pixelated', zIndex: 1, opacity: 0.9 }} />
         </div>
 
-        {/* ═══ PLAYER (bottom left) ═══ */}
-        <div className="absolute bottom-2 left-2 z-20" style={{ width: '42%', maxWidth: '200px' }}>
-          <PixelFrame borderColor={COLORS.hpGreen} bgColor="rgba(12,12,29,0.9)" className="p-1.5">
+        {/* ═══ PLAYER INFO (bottom left) ═══ */}
+        <div className="absolute bottom-2 left-2 z-20" style={{ width: '44%', maxWidth: '210px' }}>
+          <div style={{
+            background: 'rgba(10,10,25,0.88)',
+            border: `2px solid ${COLORS.hpGreen}`,
+            boxShadow: `0 0 8px ${COLORS.hpGreen}40, inset 0 0 12px rgba(0,0,0,0.5)`,
+            borderRadius: '2px',
+            padding: '6px 8px',
+          }}>
             <div className="flex justify-between items-center mb-1">
               <PixelText size="xs" color={COLORS.textGold} bold className="truncate">{character?.name || "Heroi"}</PixelText>
               <PixelText size="xxs" color={COLORS.textGold}>Nv.{character?.level || 1}</PixelText>
             </div>
-            <PixelBar current={playerHealth} max={maxPlayerHealth} color={COLORS.hpGreen} label="HP" labelColor={COLORS.hpRed} height={10} segments={12} />
+            <div className="flex items-center gap-1 mb-0.5">
+              <img src="/sprites/ui/heart.png" alt="HP" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
+              <div className="flex-1">
+                <PixelBar current={playerHealth} max={maxPlayerHealth} color={COLORS.hpGreen} label="" labelColor={COLORS.hpRed} height={10} segments={12} />
+              </div>
+              <PixelText size="xxs" color={COLORS.textGray}>{playerHealth}/{maxPlayerHealth}</PixelText>
+            </div>
             {isRaging && <PixelText size="xxs" color="#ef4444" glow className="block mt-0.5">FURIA ATIVA</PixelText>}
-          </PixelFrame>
+          </div>
         </div>
 
-        {/* Player sprite */}
+        {/* ═══ PLAYER on platform (bottom left area) ═══ */}
         <div className={cn(
-          "absolute bottom-10 left-8 z-10 transition-all duration-200",
+          "absolute z-10 transition-all duration-200",
           isPlayerHit && "brightness-[3] -translate-x-2",
           isAttacking && "translate-x-6"
-        )} style={{ width: '110px' }}>
-          <img src={playerSprite} alt="Player" className="w-full h-auto transform scale-x-[-1] drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" style={{ imageRendering: 'pixelated' }} />
-          <div className="mx-auto -mt-1 opacity-40" style={{ width: '80%', height: '10px', background: 'radial-gradient(ellipse, rgba(0,0,0,0.6) 0%, transparent 70%)' }} />
+        )} style={{ bottom: '12%', left: '5%', width: '130px' }}>
+          {/* Player sprite */}
+          <div style={{ marginBottom: '-20px', zIndex: 2, position: 'relative' }}>
+            <img src={playerSprite} alt="Player" className="w-full h-auto transform scale-x-[-1] drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]" style={{ imageRendering: 'pixelated' }} />
+          </div>
+          {/* Player platform */}
+          <img src="/sprites/combat/platform-player.png" alt="" className="w-full h-auto relative" style={{ imageRendering: 'pixelated', zIndex: 1, opacity: 0.9 }} />
         </div>
 
         {/* Close button */}
-        <button onClick={onClose} className="absolute top-2 left-2 z-30 w-7 h-7 flex items-center justify-center transition-all hover:brightness-125" style={{
-          background: '#6b1a1a', border: '2px solid #ef4444', boxShadow: '2px 2px 0 rgba(0,0,0,0.5)',
-          fontFamily: PIXEL_FONT, fontSize: '8px', color: '#fff',
+        <button onClick={onClose} className="absolute top-2 left-2 z-30 w-8 h-8 flex items-center justify-center transition-all hover:brightness-125 active:scale-95" style={{
+          background: 'linear-gradient(180deg, #8b2020 0%, #5a1010 100%)',
+          border: '2px solid #ef4444',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
+          fontFamily: PIXEL_FONT, fontSize: '9px', color: '#fff',
         }}>X</button>
 
         {/* Combat animations */}
@@ -693,20 +708,21 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         {showDamageNumber && <DamageNumber value={damageNumberValue} target={damageNumberTarget} isCritical={damageNumberIsCritical} />}
       </div>
 
-      {/* ═══ BOTTOM UI PANEL - Medieval RPG style ═══ */}
+      {/* ═══ BOTTOM UI PANEL - Dialog box with asset buttons ═══ */}
       <div style={{
-        height: '45vh',
-        background: `linear-gradient(180deg, ${COLORS.panelDark} 0%, #080818 100%)`,
+        height: '48vh',
+        background: `linear-gradient(180deg, #0c0c1d 0%, #080814 100%)`,
         borderTop: `3px solid ${COLORS.gold}`,
-        padding: '6px 8px',
+        padding: '4px 6px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '4px',
+        gap: '3px',
         overflow: 'hidden',
       }}>
-        {/* Turn indicator */}
+        {/* Turn indicator with d20 icon */}
         {isPlayerTurn && !combatEnded && (
-          <div className="flex items-center justify-center gap-3 py-1" style={{ borderBottom: `1px solid ${COLORS.gold}20` }}>
+          <div className="flex items-center justify-center gap-3 py-1" style={{ borderBottom: `1px solid ${COLORS.gold}30` }}>
+            <img src="/sprites/ui/d20.png" alt="d20" style={{ width: '14px', height: '14px', imageRendering: 'pixelated' }} />
             <div className="flex items-center gap-1">
               <div className="w-3 h-3" style={{
                 background: actionUsed ? '#333' : COLORS.hpGreen,
@@ -724,33 +740,100 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               }} />
               <PixelText size="xxs" color={bonusActionUsed ? COLORS.textGray : COLORS.xpGold}>BONUS</PixelText>
             </div>
+            <img src="/sprites/ui/d20.png" alt="d20" style={{ width: '14px', height: '14px', imageRendering: 'pixelated', transform: 'scaleX(-1)' }} />
           </div>
         )}
 
-        {/* Message box */}
-        <PixelDialogBox message={currentMessage} isTyping={isTyping} />
+        {/* Message box using dialog-box asset */}
+        <div className="relative" style={{ minHeight: '52px' }}>
+          <img
+            src="/sprites/ui/dialog-box.png"
+            alt=""
+            className="absolute inset-0 w-full h-full"
+            style={{ imageRendering: 'pixelated', objectFit: 'fill' }}
+          />
+          <div className="relative z-10 flex items-center px-8 py-3" style={{ minHeight: '52px' }}>
+            <PixelText size="xs" color="#e8e0d0" className="leading-relaxed">
+              {currentMessage}
+              {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
+            </PixelText>
+          </div>
+        </div>
 
-        {/* Action menu */}
+        {/* Action menu with asset buttons */}
         {showMenu && isPlayerTurn && !combatEnded && (
-          <div className="grid grid-cols-2 gap-1.5">
-            <PixelBtn variant="attack" size="sm" onClick={handleAttack} disabled={actionUsed} fullWidth>LUTAR</PixelBtn>
-            <PixelBtn variant="magic" size="sm" onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }} disabled={actionUsed} fullWidth>MAGIAS</PixelBtn>
-            <PixelBtn variant="skill" size="sm" onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }} fullWidth>SKILLS</PixelBtn>
-            <PixelBtn variant="flee" size="sm" onClick={handleFlee} disabled={actionUsed} fullWidth>FUGIR</PixelBtn>
+          <div className="grid grid-cols-2 gap-2 px-1">
+            {/* FIGHT button */}
+            <button
+              onClick={handleAttack}
+              disabled={actionUsed}
+              className="relative transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              style={{ height: '48px' }}
+            >
+              <img src="/sprites/ui/button-fight.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+            </button>
+            {/* MAGIC button */}
+            <button
+              onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }}
+              disabled={actionUsed}
+              className="relative transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              style={{ height: '48px' }}
+            >
+              <img src="/sprites/ui/button-magic.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+            </button>
+            {/* ITEMS/SKILLS button */}
+            <button
+              onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }}
+              className="relative transition-all hover:brightness-125 active:scale-95"
+              style={{ height: '48px' }}
+            >
+              <img src="/sprites/ui/button-items.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+            </button>
+            {/* RUN button */}
+            <button
+              onClick={handleFlee}
+              disabled={actionUsed}
+              className="relative transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              style={{ height: '48px' }}
+            >
+              <img src="/sprites/ui/button-run.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+            </button>
           </div>
         )}
 
         {/* End turn button */}
-        {showMenu && isPlayerTurn && !combatEnded && actionUsed && !bonusActionUsed && (
-          <PixelBtn variant="default" size="xs" onClick={endTurnManually} fullWidth>TERMINAR TURNO</PixelBtn>
+        {isPlayerTurn && !combatEnded && actionUsed && (
+          <button
+            onClick={endTurnManually}
+            className="w-full py-2 transition-all hover:brightness-125 active:scale-[0.98]"
+            style={{
+              background: 'linear-gradient(180deg, #3a3a5c 0%, #1e1e3a 100%)',
+              border: `2px solid ${COLORS.gold}`,
+              boxShadow: `0 2px 6px rgba(0,0,0,0.5), 0 0 8px ${COLORS.gold}20`,
+              fontFamily: PIXEL_FONT,
+              fontSize: '9px',
+              color: COLORS.gold,
+              letterSpacing: '2px',
+            }}
+          >
+            TERMINAR TURNO
+          </button>
         )}
 
         {/* Spells sub-menu */}
         {showSpells && (
-          <PixelFrame borderColor={COLORS.textPurple} className="p-2">
-            <div className="flex justify-between items-center mb-1">
-              <PixelText size="xs" color={COLORS.textPurple}>MAGIAS</PixelText>
-              <button onClick={() => setShowSpells(false)} style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: COLORS.textRed }}>X</button>
+          <div style={{
+            background: 'rgba(20,10,50,0.95)',
+            border: `2px solid ${COLORS.textPurple}`,
+            boxShadow: `0 0 12px ${COLORS.textPurple}30`,
+            padding: '8px',
+          }}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-1">
+                <img src="/sprites/ui/mana.png" alt="" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
+                <PixelText size="xs" color={COLORS.textPurple}>MAGIAS</PixelText>
+              </div>
+              <button onClick={() => setShowSpells(false)} className="hover:brightness-150" style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: COLORS.textRed }}>X</button>
             </div>
             <PixelScrollArea maxHeight="100px">
               <div className="grid grid-cols-2 gap-1">
@@ -765,15 +848,23 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
                 ))}
               </div>
             </PixelScrollArea>
-          </PixelFrame>
+          </div>
         )}
 
         {/* Abilities sub-menu */}
         {showAbilities && (
-          <PixelFrame borderColor={COLORS.xpGold} className="p-2">
-            <div className="flex justify-between items-center mb-1">
-              <PixelText size="xs" color={COLORS.textGold}>HABILIDADES</PixelText>
-              <button onClick={() => setShowAbilities(false)} style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: COLORS.textRed }}>X</button>
+          <div style={{
+            background: 'rgba(20,15,5,0.95)',
+            border: `2px solid ${COLORS.xpGold}`,
+            boxShadow: `0 0 12px ${COLORS.xpGold}30`,
+            padding: '8px',
+          }}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-1">
+                <img src="/sprites/ui/d20.png" alt="" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
+                <PixelText size="xs" color={COLORS.textGold}>HABILIDADES</PixelText>
+              </div>
+              <button onClick={() => setShowAbilities(false)} className="hover:brightness-150" style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: COLORS.textRed }}>X</button>
             </div>
             <PixelScrollArea maxHeight="100px">
               <div className="grid grid-cols-1 gap-1">
@@ -785,7 +876,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
                   return (
                     <button key={ability.id} onClick={() => handleUseAbility(ability)} disabled={isDisabled || !usesOk}
                       className="p-2 text-left transition-all hover:brightness-125 disabled:opacity-35 flex items-center gap-2"
-                      style={{ background: COLORS.panelMid, border: `1px solid ${abilityColor}40`, imageRendering: 'pixelated' as const }}>
+                      style={{ background: 'rgba(30,25,15,0.8)', border: `1px solid ${abilityColor}40`, imageRendering: 'pixelated' as const }}>
                       <div className="w-2 h-2 flex-shrink-0" style={{ background: abilityColor, boxShadow: `0 0 4px ${abilityColor}60` }} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -802,13 +893,13 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
                 })}
               </div>
             </PixelScrollArea>
-          </PixelFrame>
+          </div>
         )}
 
         {/* Combat log (compact) */}
         {!showSpells && !showAbilities && combatLogs.length > 0 && (
           <div className="flex-1 overflow-hidden">
-            <PixelScrollArea maxHeight="60px">
+            <PixelScrollArea maxHeight="55px">
               {combatLogs.slice(-3).map((log, i) => (
                 <div key={i} className="flex items-center gap-1 py-0.5">
                   <div className="w-1.5 h-1.5 flex-shrink-0" style={{
