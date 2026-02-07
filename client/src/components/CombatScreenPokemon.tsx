@@ -597,10 +597,10 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
       {/* Max-width container - keeps mobile proportions on desktop */}
       <div className="relative flex flex-col h-full w-full" style={{ maxWidth: '480px', maxHeight: '100vh' }}>
 
-      {/* ═══ BATTLE ARENA - Top 55% ═══ */}
+      {/* ═══ BATTLE ARENA - Top half ═══ */}
       <div
         className="relative flex-shrink-0 overflow-hidden"
-        style={{ height: '55%', imageRendering: 'pixelated' as const }}
+        style={{ height: '50%', imageRendering: 'pixelated' as const }}
       >
         {/* Battle background */}
         <img
@@ -615,13 +615,8 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.3) 100%)',
         }} />
 
-        {/* Scanline overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
-          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px)',
-        }} />
-
         {/* ═══ MONSTER (top-right area) ═══ */}
-        <div className="absolute z-10" style={{ top: '8%', right: '6%', width: '35%', maxWidth: '160px' }}>
+        <div className="absolute z-10" style={{ top: '5%', right: '5%', width: '35%', maxWidth: '180px' }}>
           {/* Monster HP bar */}
           <div className="mb-1" style={{
             background: 'rgba(10,10,25,0.9)',
@@ -649,7 +644,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               "relative z-10 transition-all duration-200",
               isMonsterHit && "brightness-[3] translate-x-2",
               monsterHealth <= 0 && "opacity-0 scale-0"
-            )} style={{ marginBottom: '-12px' }}>
+            )} style={{ marginBottom: '-35px' }}>
               <img 
                 src={monsterSprite} 
                 alt={monster.name} 
@@ -667,19 +662,19 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         </div>
 
         {/* ═══ PLAYER (bottom-left area) ═══ */}
-        <div className="absolute z-10" style={{ bottom: '4%', left: '4%', width: '35%', maxWidth: '160px' }}>
+        <div className="absolute z-10" style={{ bottom: '2%', left: '4%', width: '35%', maxWidth: '180px' }}>
           {/* Player sprite on platform */}
           <div className={cn(
             "relative flex flex-col items-center transition-all duration-200",
             isPlayerHit && "brightness-[3] -translate-x-2",
             isAttacking && "translate-x-4"
           )}>
-            <div className="relative z-10" style={{ marginBottom: '-12px' }}>
+            <div className="relative z-10" style={{ marginBottom: '-35px' }}>
               <img 
                 src={playerSprite} 
                 alt="Player" 
                 className="transform scale-x-[-1] drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]" 
-                style={{ imageRendering: 'pixelated', width: '75px', height: '75px', objectFit: 'contain' }} 
+                style={{ imageRendering: 'pixelated', width: '80px', height: '80px', objectFit: 'contain' }} 
               />
             </div>
             <img 
@@ -727,7 +722,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
       </div>
 
       {/* ═══ BOTTOM PANEL - Dialog + Actions (50%) ═══ */}
-      <div className="flex-1 flex flex-col overflow-hidden" style={{
+      <div className="flex-1 flex flex-col overflow-y-auto" style={{
         background: '#0c0c1d',
         borderTop: `3px solid ${COLORS.gold}`,
       }}>
@@ -760,30 +755,31 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         )}
 
-        {/* Dialog box with Nano Banana asset - preserve aspect ratio */}
-        <div className="relative flex-shrink-0 mx-1 mt-1" style={{ aspectRatio: '800 / 300', maxHeight: '90px' }}>
-          <img
-            src="/sprites/ui/dialog-box.png"
-            alt=""
-            className="absolute inset-0 w-full h-full"
-            style={{ imageRendering: 'pixelated', objectFit: 'contain' }}
-          />
-          <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ padding: '8% 12%' }}>
-            <PixelText size="xs" color="#e8e0d0" className="leading-relaxed text-center">
-              {currentMessage}
-              {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
-            </PixelText>
-          </div>
+        {/* Dialog box with Nano Banana asset - uses border-image for proper 9-slice scaling */}
+        <div className="flex-shrink-0 mx-1 mt-1 flex items-center justify-center" style={{
+          borderStyle: 'solid',
+          borderImageSource: 'url(/sprites/ui/dialog-box.png)',
+          borderImageSlice: '75 100 80 100 fill',
+          borderImageWidth: '20px 28px 22px 28px',
+          borderImageRepeat: 'stretch',
+          imageRendering: 'pixelated' as const,
+          minHeight: '60px',
+          padding: '4px 8px',
+        }}>
+          <PixelText size="xs" color="#e8e0d0" className="leading-relaxed text-center">
+            {currentMessage}
+            {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
+          </PixelText>
         </div>
 
         {/* Action buttons with Nano Banana assets */}
         {showMenu && isPlayerTurn && !combatEnded && !showSpells && !showAbilities && (
-          <div className="grid grid-cols-2 gap-2 px-3 py-2 flex-shrink-0">
+          <div className="grid grid-cols-2 gap-1.5 px-2 py-1.5 flex-shrink-0">
             <button
               onClick={handleAttack}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ aspectRatio: '400 / 160' }}
+              style={{ height: '48px' }}
             >
               <img src="/sprites/ui/button-fight.png" alt="FIGHT" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -791,14 +787,14 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ aspectRatio: '400 / 160' }}
+              style={{ height: '48px' }}
             >
               <img src="/sprites/ui/button-magic.png" alt="MAGIC" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
             <button
               onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95"
-              style={{ aspectRatio: '400 / 160' }}
+              style={{ height: '48px' }}
             >
               <img src="/sprites/ui/button-items.png" alt="ITEMS" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -806,7 +802,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               onClick={handleFlee}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ aspectRatio: '400 / 160' }}
+              style={{ height: '48px' }}
             >
               <img src="/sprites/ui/button-run.png" alt="RUN" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -818,7 +814,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           <div className="px-2 py-1 flex-shrink-0">
             <button
               onClick={endTurnManually}
-              className="w-full py-2.5 transition-all hover:brightness-125 active:scale-[0.98]"
+              className="w-full py-2 transition-all hover:brightness-125 active:scale-[0.98]"
               style={{
                 background: 'linear-gradient(180deg, #3a3a5c 0%, #1e1e3a 100%)',
                 border: `2px solid ${COLORS.gold}`,
@@ -910,19 +906,17 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         )}
 
-        {/* Combat log */}
+        {/* Combat log - single line per entry, no overlap */}
         {!showSpells && !showAbilities && combatLogs.length > 0 && (
-          <div className="flex-1 overflow-hidden px-2 py-1">
-            <PixelScrollArea maxHeight="50px">
-              {combatLogs.slice(-3).map((log, i) => (
-                <div key={i} className="flex items-center gap-1 py-0.5">
-                  <div className="w-1.5 h-1.5 flex-shrink-0" style={{
-                    background: log.type === 'player' ? COLORS.hpGreen : log.type === 'monster' ? COLORS.hpRed : COLORS.xpGold,
-                  }} />
-                  <PixelText size="xxs" color={log.isCritical ? COLORS.textGold : COLORS.textGray}>{log.message}</PixelText>
-                </div>
-              ))}
-            </PixelScrollArea>
+          <div className="flex-shrink-0 px-2 py-1">
+            {combatLogs.slice(-3).map((log, i) => (
+              <div key={i} className="flex items-center gap-1 leading-none" style={{ marginBottom: '2px' }}>
+                <div className="w-1.5 h-1.5 flex-shrink-0" style={{
+                  background: log.type === 'player' ? COLORS.hpGreen : log.type === 'monster' ? COLORS.hpRed : COLORS.xpGold,
+                }} />
+                <span className="truncate block" style={{ fontFamily: PIXEL_FONT, fontSize: '7px', color: log.isCritical ? COLORS.textGold : COLORS.textGray, lineHeight: '1.2' }}>{log.message}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
