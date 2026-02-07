@@ -823,7 +823,7 @@ export default function Game() {
 
       {/* Online Players - Multiplayer */}
       {isAuthenticated && character && !character.isDead && (
-        <OnlinePlayers />
+        <OnlinePlayers currentLat={playerPosition?.lat} currentLng={playerPosition?.lng} />
       )}
     </div>
   );
