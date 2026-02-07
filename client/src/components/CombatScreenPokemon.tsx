@@ -591,11 +591,11 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
   // ═══════════════════════════════════════════════════════════
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, background: '#0a0a0a', overflow: 'hidden' }}>
+    <div className="relative w-full flex items-center justify-center" style={{ zIndex: 50, background: '#0a0a0a', minHeight: '100dvh' }}>
       <CombatAnimationStyles />
 
       {/* Max-width container - keeps mobile proportions on desktop */}
-      <div className="relative flex flex-col h-full w-full" style={{ maxWidth: '480px', maxHeight: '100vh' }}>
+      <div className="relative flex flex-col w-full" style={{ maxWidth: '480px', height: '100dvh', maxHeight: '100dvh' }}>
 
       {/* ═══ BATTLE ARENA - Top half ═══ */}
       <div
@@ -755,21 +755,35 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         )}
 
-        {/* Dialog box with Nano Banana asset - uses border-image for proper 9-slice scaling */}
-        <div className="flex-shrink-0 mx-1 mt-1 flex items-center justify-center" style={{
-          borderStyle: 'solid',
-          borderImageSource: 'url(/sprites/ui/dialog-box.png)',
-          borderImageSlice: '75 100 80 100 fill',
-          borderImageWidth: '20px 28px 22px 28px',
-          borderImageRepeat: 'stretch',
+        {/* Dialog box with Nano Banana asset as background */}
+        <div className="flex-shrink-0 mx-1 mt-1 relative" style={{
+          minHeight: '70px',
           imageRendering: 'pixelated' as const,
-          minHeight: '60px',
-          padding: '4px 8px',
         }}>
-          <PixelText size="xs" color="#e8e0d0" className="leading-relaxed text-center">
-            {currentMessage}
-            {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
-          </PixelText>
+          {/* Dialog box background image */}
+          <img 
+            src="/sprites/ui/dialog-box.png" 
+            alt="" 
+            className="absolute inset-0 w-full h-full"
+            style={{ imageRendering: 'pixelated', objectFit: 'fill' }}
+          />
+          {/* Text overlay with dark semi-transparent background for readability */}
+          <div className="relative z-10 flex items-center justify-center" style={{
+            padding: '18px 36px',
+            minHeight: '70px',
+          }}>
+            <div style={{
+              background: 'rgba(5, 5, 15, 0.75)',
+              borderRadius: '2px',
+              padding: '6px 12px',
+              maxWidth: '100%',
+            }}>
+              <PixelText size="sm" color="#f0e8d0" className="leading-relaxed text-center" glow>
+                {currentMessage}
+                {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
+              </PixelText>
+            </div>
+          </div>
         </div>
 
         {/* Action buttons with Nano Banana assets */}
