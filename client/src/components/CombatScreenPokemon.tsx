@@ -8,7 +8,7 @@ import { audioSystem } from "@/lib/audioSystem";
 import { PixelFrame, PixelBar, PixelBtn, PixelText, PixelDialogBox, PixelSeparator, PixelScrollArea, PIXEL_FONT, COLORS } from "./ui/pixelUI";
 
 // ═══════════════════════════════════════════════════════════
-// PIXEL ART NANO BANANA PRO - D&D GO COMBAT SYSTEM
+// NANO BANANA PRO - D&D GO COMBAT SYSTEM
 // ═══════════════════════════════════════════════════════════
 
 // Class sprites
@@ -247,6 +247,12 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
     if (charClass === "fighter") {
       abilities.push({ id: "action_surge", name: "Surto de Acao", description: "Acao extra neste turno", usesRemaining: 1, maxUses: 1, isBonusAction: true });
       abilities.push({ id: "second_wind", name: "Retomar Folego", description: `Recupera 1d10+${level} HP`, usesRemaining: 1, maxUses: 1, isBonusAction: true });
+    }
+    if (charClass === "ranger") {
+      abilities.push({ id: "hunters_mark", name: "Marca do Cacador", description: "+1d6 dano ao alvo", usesRemaining: 999, maxUses: 999, bonusDamage: 3, isBonusAction: true });
+    }
+    if (charClass === "monk") {
+      abilities.push({ id: "flurry_of_blows", name: "Rajada de Golpes", description: "2 ataques extra", usesRemaining: Math.max(2, level), maxUses: Math.max(2, level), isBonusAction: true });
     }
     if (charClass === "cleric") {
       abilities.push({ id: "turn_undead", name: "Expulsar Mortos-Vivos", description: "Afasta mortos-vivos", usesRemaining: Math.max(1, Math.floor((level - 1) / 4) + 1), maxUses: Math.max(1, Math.floor((level - 1) / 4) + 1), isBonusAction: false });
@@ -495,7 +501,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         addLog("monster", `${monster.name} errou!`);
       } else {
         let damage = monster.damage + Math.floor(Math.random() * 4);
-        if (damageResistance.length > 0) damage = Math.floor(damage / 2);
+        if (isRaging && damageResistance.length > 0) { damage = Math.floor(damage / 2); }
         if (isCritical) { damage *= 2; audioSystem.playSFX('attack_critical'); } else { audioSystem.playSFX('player_hit'); }
         playAnimation('slash', 'player', damage, isCritical);
         showDamage(damage, 'player', isCritical);
@@ -534,13 +540,11 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
 
   const handleVictory = () => {
     setCombatEnded(true); audioSystem.playSFX('victory');
-    // D&D 5e XP rewards by tier
     const XP_BY_TIER: Record<string, number[]> = {
-      // [base per level, bonus]
-      common:    [25, 10],   // ~25-60 XP
-      elite:     [50, 30],   // ~80-180 XP  
-      boss:      [100, 75],  // ~175-500 XP
-      legendary: [200, 150], // ~350-1000 XP
+      common:    [25, 10],
+      elite:     [50, 30],
+      boss:      [100, 75],
+      legendary: [200, 150],
     };
     const tierData = XP_BY_TIER[monster.tier] || XP_BY_TIER.common;
     const experience = Math.floor(tierData[0] * monster.level + tierData[1]);
@@ -548,7 +552,6 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
     
     setVictoryRewards({ experience, gold, leveledUp: false, newLevel: character?.level || 1 });
     
-    // Persist XP and gold to server
     claimVictoryMutation.mutate({
       experience,
       gold,
@@ -584,23 +587,19 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
   };
 
   // ═══════════════════════════════════════════════════════════
-  // RENDER - PIXEL ART WITH FULL ASSET INTEGRATION
+  // RENDER - NANO BANANA PIXEL ART COMBAT UI
   // ═══════════════════════════════════════════════════════════
 
   return (
-    <div className="fixed inset-0" style={{ zIndex: 9999, background: '#0a0a0a', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, background: '#0a0a0a', overflow: 'hidden' }}>
       <CombatAnimationStyles />
 
-      {/* ═══ BATTLE ARENA - Full background image ═══ */}
+      {/* ═══ BATTLE ARENA - Top 50% ═══ */}
       <div
-        className="relative overflow-hidden"
-        style={{
-          height: '52vh',
-          minHeight: '200px',
-          imageRendering: 'pixelated' as const,
-        }}
+        className="relative flex-shrink-0 overflow-hidden"
+        style={{ height: '50%', imageRendering: 'pixelated' as const }}
       >
-        {/* Battle background image */}
+        {/* Battle background */}
         <img
           src={getBackgroundImage()}
           alt="Battle background"
@@ -608,99 +607,115 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           style={{ imageRendering: 'pixelated' }}
         />
 
-        {/* Subtle darkening overlay for readability */}
-        <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.15)' }} />
+        {/* Subtle vignette */}
+        <div className="absolute inset-0" style={{ 
+          background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.3) 100%)',
+        }} />
 
-        {/* Pixel scanline overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{
+        {/* Scanline overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
           background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 4px)',
         }} />
 
-        {/* ═══ MONSTER INFO (top right) ═══ */}
-        <div className="absolute top-2 right-2 z-20" style={{ width: '44%', maxWidth: '210px' }}>
-          <div style={{
-            background: 'rgba(10,10,25,0.88)',
+        {/* ═══ MONSTER (top-right area) ═══ */}
+        <div className="absolute z-10" style={{ top: '8%', right: '6%', width: '35%', maxWidth: '160px' }}>
+          {/* Monster HP bar */}
+          <div className="mb-1" style={{
+            background: 'rgba(10,10,25,0.9)',
             border: `2px solid ${tierColor}`,
-            boxShadow: `0 0 8px ${tierColor}40, inset 0 0 12px rgba(0,0,0,0.5)`,
             borderRadius: '2px',
-            padding: '6px 8px',
+            padding: '4px 6px',
+            boxShadow: `0 0 8px ${tierColor}30`,
           }}>
-            <div className="flex justify-between items-center mb-1">
-              <PixelText size="xs" color={tierColor} bold className="truncate">{monster.name}</PixelText>
+            <div className="flex justify-between items-center mb-0.5">
+              <PixelText size="xxs" color={tierColor} bold className="truncate">{monster.name}</PixelText>
               <PixelText size="xxs" color={COLORS.textGold}>Nv.{monster.level}</PixelText>
             </div>
-            <div className="flex items-center gap-1 mb-0.5">
-              <img src="/sprites/ui/heart.png" alt="HP" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
+            <div className="flex items-center gap-1">
+              <img src="/sprites/ui/heart.png" alt="HP" style={{ width: '10px', height: '10px', imageRendering: 'pixelated' }} />
               <div className="flex-1">
-                <PixelBar current={monsterHealth} max={monster.health} color={COLORS.hpGreen} label="" labelColor={COLORS.hpRed} height={10} segments={12} />
+                <PixelBar current={monsterHealth} max={monster.health} color={COLORS.hpGreen} showValue={false} height={8} segments={10} />
               </div>
               <PixelText size="xxs" color={COLORS.textGray}>{monsterHealth}/{monster.health}</PixelText>
             </div>
-            <div className="flex justify-between mt-1">
-              <PixelText size="xxs" color={COLORS.textGray}>AC {monster.armor}</PixelText>
-              <PixelText size="xxs" color={tierColor}>{monster.tier}</PixelText>
+          </div>
+
+          {/* Monster sprite on platform */}
+          <div className="relative flex flex-col items-center">
+            <div className={cn(
+              "relative z-10 transition-all duration-200",
+              isMonsterHit && "brightness-[3] translate-x-2",
+              monsterHealth <= 0 && "opacity-0 scale-0"
+            )} style={{ marginBottom: '-12px' }}>
+              <img 
+                src={monsterSprite} 
+                alt={monster.name} 
+                className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]" 
+                style={{ imageRendering: 'pixelated', width: '80px', height: '80px', objectFit: 'contain' }} 
+              />
             </div>
+            <img 
+              src="/sprites/combat/platform-enemy.png" 
+              alt="" 
+              className="relative z-0" 
+              style={{ imageRendering: 'pixelated', width: '110px', height: 'auto', opacity: 0.85 }} 
+            />
           </div>
         </div>
 
-        {/* ═══ MONSTER on platform (top right area) ═══ */}
-        <div className="absolute z-10" style={{ top: '20%', right: '8%', width: '140px' }}>
-          {/* Monster sprite */}
+        {/* ═══ PLAYER (bottom-left area) ═══ */}
+        <div className="absolute z-10" style={{ bottom: '4%', left: '4%', width: '35%', maxWidth: '160px' }}>
+          {/* Player sprite on platform */}
           <div className={cn(
-            "w-full transition-all duration-200 relative",
-            isMonsterHit && "brightness-[3] translate-x-2",
-            monsterHealth <= 0 && "opacity-0 scale-0"
-          )} style={{ marginBottom: '-20px', zIndex: 2 }}>
-            <img src={monsterSprite} alt={monster.name} className="w-full h-auto drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]" style={{ imageRendering: 'pixelated' }} />
+            "relative flex flex-col items-center transition-all duration-200",
+            isPlayerHit && "brightness-[3] -translate-x-2",
+            isAttacking && "translate-x-4"
+          )}>
+            <div className="relative z-10" style={{ marginBottom: '-12px' }}>
+              <img 
+                src={playerSprite} 
+                alt="Player" 
+                className="transform scale-x-[-1] drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]" 
+                style={{ imageRendering: 'pixelated', width: '75px', height: '75px', objectFit: 'contain' }} 
+              />
+            </div>
+            <img 
+              src="/sprites/combat/platform-player.png" 
+              alt="" 
+              className="relative z-0" 
+              style={{ imageRendering: 'pixelated', width: '120px', height: 'auto', opacity: 0.85 }} 
+            />
           </div>
-          {/* Enemy platform */}
-          <img src="/sprites/combat/platform-enemy.png" alt="" className="w-full h-auto relative" style={{ imageRendering: 'pixelated', zIndex: 1, opacity: 0.9 }} />
-        </div>
 
-        {/* ═══ PLAYER INFO (bottom left) ═══ */}
-        <div className="absolute bottom-2 left-2 z-20" style={{ width: '44%', maxWidth: '210px' }}>
-          <div style={{
-            background: 'rgba(10,10,25,0.88)',
+          {/* Player HP bar */}
+          <div className="mt-1" style={{
+            background: 'rgba(10,10,25,0.9)',
             border: `2px solid ${COLORS.hpGreen}`,
-            boxShadow: `0 0 8px ${COLORS.hpGreen}40, inset 0 0 12px rgba(0,0,0,0.5)`,
             borderRadius: '2px',
-            padding: '6px 8px',
+            padding: '4px 6px',
+            boxShadow: `0 0 8px ${COLORS.hpGreen}30`,
           }}>
-            <div className="flex justify-between items-center mb-1">
-              <PixelText size="xs" color={COLORS.textGold} bold className="truncate">{character?.name || "Heroi"}</PixelText>
+            <div className="flex justify-between items-center mb-0.5">
+              <PixelText size="xxs" color={COLORS.textGold} bold className="truncate">{character?.name || "Heroi"}</PixelText>
               <PixelText size="xxs" color={COLORS.textGold}>Nv.{character?.level || 1}</PixelText>
             </div>
-            <div className="flex items-center gap-1 mb-0.5">
-              <img src="/sprites/ui/heart.png" alt="HP" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
+            <div className="flex items-center gap-1">
+              <img src="/sprites/ui/heart.png" alt="HP" style={{ width: '10px', height: '10px', imageRendering: 'pixelated' }} />
               <div className="flex-1">
-                <PixelBar current={playerHealth} max={maxPlayerHealth} color={COLORS.hpGreen} label="" labelColor={COLORS.hpRed} height={10} segments={12} />
+                <PixelBar current={playerHealth} max={maxPlayerHealth} color={COLORS.hpGreen} showValue={false} height={8} segments={10} />
               </div>
               <PixelText size="xxs" color={COLORS.textGray}>{playerHealth}/{maxPlayerHealth}</PixelText>
             </div>
-            {isRaging && <PixelText size="xxs" color="#ef4444" glow className="block mt-0.5">FURIA ATIVA</PixelText>}
+            {isRaging && <PixelText size="xxs" color="#ef4444" glow className="block mt-0.5 text-center">FURIA ATIVA</PixelText>}
           </div>
-        </div>
-
-        {/* ═══ PLAYER on platform (bottom left area) ═══ */}
-        <div className={cn(
-          "absolute z-10 transition-all duration-200",
-          isPlayerHit && "brightness-[3] -translate-x-2",
-          isAttacking && "translate-x-6"
-        )} style={{ bottom: '12%', left: '5%', width: '130px' }}>
-          {/* Player sprite */}
-          <div style={{ marginBottom: '-20px', zIndex: 2, position: 'relative' }}>
-            <img src={playerSprite} alt="Player" className="w-full h-auto transform scale-x-[-1] drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]" style={{ imageRendering: 'pixelated' }} />
-          </div>
-          {/* Player platform */}
-          <img src="/sprites/combat/platform-player.png" alt="" className="w-full h-auto relative" style={{ imageRendering: 'pixelated', zIndex: 1, opacity: 0.9 }} />
         </div>
 
         {/* Close button */}
-        <button onClick={onClose} className="absolute top-2 left-2 z-30 w-8 h-8 flex items-center justify-center transition-all hover:brightness-125 active:scale-95" style={{
+        <button onClick={onClose} className="absolute top-2 left-2 z-30 w-7 h-7 flex items-center justify-center transition-all hover:brightness-125 active:scale-95" style={{
           background: 'linear-gradient(180deg, #8b2020 0%, #5a1010 100%)',
           border: '2px solid #ef4444',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)',
-          fontFamily: PIXEL_FONT, fontSize: '9px', color: '#fff',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.6)',
+          fontFamily: PIXEL_FONT, fontSize: '8px', color: '#fff',
         }}>X</button>
 
         {/* Combat animations */}
@@ -708,51 +723,49 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         {showDamageNumber && <DamageNumber value={damageNumberValue} target={damageNumberTarget} isCritical={damageNumberIsCritical} />}
       </div>
 
-      {/* ═══ BOTTOM UI PANEL - Dialog box with asset buttons ═══ */}
-      <div style={{
-        height: '48vh',
-        background: `linear-gradient(180deg, #0c0c1d 0%, #080814 100%)`,
+      {/* ═══ BOTTOM PANEL - Dialog + Actions (50%) ═══ */}
+      <div className="flex-1 flex flex-col overflow-hidden" style={{
+        background: '#0c0c1d',
         borderTop: `3px solid ${COLORS.gold}`,
-        padding: '4px 6px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '3px',
-        overflow: 'hidden',
       }}>
-        {/* Turn indicator with d20 icon */}
+
+        {/* Turn indicator */}
         {isPlayerTurn && !combatEnded && (
-          <div className="flex items-center justify-center gap-3 py-1" style={{ borderBottom: `1px solid ${COLORS.gold}30` }}>
-            <img src="/sprites/ui/d20.png" alt="d20" style={{ width: '14px', height: '14px', imageRendering: 'pixelated' }} />
+          <div className="flex items-center justify-center gap-3 py-1 flex-shrink-0" style={{ 
+            background: 'rgba(20,20,40,0.8)',
+            borderBottom: `1px solid ${COLORS.gold}30`,
+          }}>
+            <img src="/sprites/ui/d20.png" alt="d20" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3" style={{
+              <div className="w-2.5 h-2.5" style={{
                 background: actionUsed ? '#333' : COLORS.hpGreen,
                 border: `1px solid ${actionUsed ? '#555' : COLORS.hpGreen}`,
-                boxShadow: actionUsed ? 'none' : `0 0 6px ${COLORS.hpGreen}60`,
+                boxShadow: actionUsed ? 'none' : `0 0 4px ${COLORS.hpGreen}60`,
               }} />
               <PixelText size="xxs" color={actionUsed ? COLORS.textGray : COLORS.hpGreen}>ACAO</PixelText>
             </div>
             <div className="w-1 h-1" style={{ background: COLORS.gold, transform: 'rotate(45deg)' }} />
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3" style={{
+              <div className="w-2.5 h-2.5" style={{
                 background: bonusActionUsed ? '#333' : COLORS.xpGold,
                 border: `1px solid ${bonusActionUsed ? '#555' : COLORS.xpGold}`,
-                boxShadow: bonusActionUsed ? 'none' : `0 0 6px ${COLORS.xpGold}60`,
+                boxShadow: bonusActionUsed ? 'none' : `0 0 4px ${COLORS.xpGold}60`,
               }} />
               <PixelText size="xxs" color={bonusActionUsed ? COLORS.textGray : COLORS.xpGold}>BONUS</PixelText>
             </div>
-            <img src="/sprites/ui/d20.png" alt="d20" style={{ width: '14px', height: '14px', imageRendering: 'pixelated', transform: 'scaleX(-1)' }} />
+            <img src="/sprites/ui/d20.png" alt="d20" style={{ width: '12px', height: '12px', imageRendering: 'pixelated', transform: 'scaleX(-1)' }} />
           </div>
         )}
 
-        {/* Message box using dialog-box asset */}
-        <div className="relative" style={{ minHeight: '52px' }}>
+        {/* Dialog box with Nano Banana asset */}
+        <div className="relative flex-shrink-0 mx-1 mt-1" style={{ height: '70px' }}>
           <img
             src="/sprites/ui/dialog-box.png"
             alt=""
             className="absolute inset-0 w-full h-full"
-            style={{ imageRendering: 'pixelated', objectFit: 'fill' }}
+            style={{ imageRendering: 'pixelated', objectFit: 'fill', borderRadius: '2px' }}
           />
-          <div className="relative z-10 flex items-center px-8 py-3" style={{ minHeight: '52px' }}>
+          <div className="relative z-10 flex items-center h-full" style={{ padding: '12px 50px 12px 60px' }}>
             <PixelText size="xs" color="#e8e0d0" className="leading-relaxed">
               {currentMessage}
               {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
@@ -760,88 +773,86 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         </div>
 
-        {/* Action menu with asset buttons */}
-        {showMenu && isPlayerTurn && !combatEnded && (
-          <div className="grid grid-cols-2 gap-2 px-1">
-            {/* FIGHT button */}
+        {/* Action buttons with Nano Banana assets */}
+        {showMenu && isPlayerTurn && !combatEnded && !showSpells && !showAbilities && (
+          <div className="grid grid-cols-2 gap-1.5 px-2 py-1.5 flex-shrink-0">
             <button
               onClick={handleAttack}
               disabled={actionUsed}
-              className="relative transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '48px' }}
+              className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              style={{ height: '44px' }}
             >
-              <img src="/sprites/ui/button-fight.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+              <img src="/sprites/ui/button-fight.png" alt="FIGHT" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
-            {/* MAGIC button */}
             <button
               onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }}
               disabled={actionUsed}
-              className="relative transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '48px' }}
+              className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              style={{ height: '44px' }}
             >
-              <img src="/sprites/ui/button-magic.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+              <img src="/sprites/ui/button-magic.png" alt="MAGIC" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
-            {/* ITEMS/SKILLS button */}
             <button
               onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }}
-              className="relative transition-all hover:brightness-125 active:scale-95"
-              style={{ height: '48px' }}
+              className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95"
+              style={{ height: '44px' }}
             >
-              <img src="/sprites/ui/button-items.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+              <img src="/sprites/ui/button-items.png" alt="ITEMS" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
-            {/* RUN button */}
             <button
               onClick={handleFlee}
               disabled={actionUsed}
-              className="relative transition-all hover:brightness-125 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '48px' }}
+              className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              style={{ height: '44px' }}
             >
-              <img src="/sprites/ui/button-run.png" alt="" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
+              <img src="/sprites/ui/button-run.png" alt="RUN" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
           </div>
         )}
 
         {/* End turn button */}
-        {isPlayerTurn && !combatEnded && actionUsed && (
-          <button
-            onClick={endTurnManually}
-            className="w-full py-2 transition-all hover:brightness-125 active:scale-[0.98]"
-            style={{
-              background: 'linear-gradient(180deg, #3a3a5c 0%, #1e1e3a 100%)',
-              border: `2px solid ${COLORS.gold}`,
-              boxShadow: `0 2px 6px rgba(0,0,0,0.5), 0 0 8px ${COLORS.gold}20`,
-              fontFamily: PIXEL_FONT,
-              fontSize: '9px',
-              color: COLORS.gold,
-              letterSpacing: '2px',
-            }}
-          >
-            TERMINAR TURNO
-          </button>
+        {isPlayerTurn && !combatEnded && actionUsed && !showSpells && !showAbilities && (
+          <div className="px-2 py-1 flex-shrink-0">
+            <button
+              onClick={endTurnManually}
+              className="w-full py-2.5 transition-all hover:brightness-125 active:scale-[0.98]"
+              style={{
+                background: 'linear-gradient(180deg, #3a3a5c 0%, #1e1e3a 100%)',
+                border: `2px solid ${COLORS.gold}`,
+                boxShadow: `0 3px 0 0 #151530, 0 4px 0 0 rgba(0,0,0,0.3), 0 0 8px ${COLORS.gold}20`,
+                fontFamily: PIXEL_FONT,
+                fontSize: '8px',
+                color: COLORS.gold,
+                letterSpacing: '2px',
+              }}
+            >
+              TERMINAR TURNO
+            </button>
+          </div>
         )}
 
         {/* Spells sub-menu */}
         {showSpells && (
-          <div style={{
+          <div className="mx-2 mt-1 flex-shrink-0" style={{
             background: 'rgba(20,10,50,0.95)',
             border: `2px solid ${COLORS.textPurple}`,
             boxShadow: `0 0 12px ${COLORS.textPurple}30`,
-            padding: '8px',
+            padding: '6px',
           }}>
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-1.5">
               <div className="flex items-center gap-1">
                 <img src="/sprites/ui/mana.png" alt="" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
                 <PixelText size="xs" color={COLORS.textPurple}>MAGIAS</PixelText>
               </div>
-              <button onClick={() => setShowSpells(false)} className="hover:brightness-150" style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: COLORS.textRed }}>X</button>
+              <button onClick={() => setShowSpells(false)} className="hover:brightness-150 px-1" style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: COLORS.textRed }}>X</button>
             </div>
-            <PixelScrollArea maxHeight="100px">
+            <PixelScrollArea maxHeight="90px">
               <div className="grid grid-cols-2 gap-1">
                 {availableSpells.length === 0 && <PixelText size="xxs" color={COLORS.textGray}>Sem magias</PixelText>}
                 {availableSpells.map((spell) => (
                   <button key={spell.id} onClick={() => handleCastSpell(spell)} disabled={actionUsed}
                     className="p-1.5 text-left transition-all hover:brightness-125 disabled:opacity-35"
-                    style={{ background: '#1a0e3a', border: `1px solid ${COLORS.textPurple}40`, imageRendering: 'pixelated' as const }}>
+                    style={{ background: '#1a0e3a', border: `1px solid ${COLORS.textPurple}40` }}>
                     <PixelText size="xxs" color="#fff" className="block truncate">{spell.name}</PixelText>
                     <PixelText size="xxs" color={COLORS.textPurple}>{spell.damage?.dice || spell.healing?.dice || '—'}</PixelText>
                   </button>
@@ -853,20 +864,20 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
 
         {/* Abilities sub-menu */}
         {showAbilities && (
-          <div style={{
+          <div className="mx-2 mt-1 flex-shrink-0" style={{
             background: 'rgba(20,15,5,0.95)',
             border: `2px solid ${COLORS.xpGold}`,
             boxShadow: `0 0 12px ${COLORS.xpGold}30`,
-            padding: '8px',
+            padding: '6px',
           }}>
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-1.5">
               <div className="flex items-center gap-1">
                 <img src="/sprites/ui/d20.png" alt="" style={{ width: '12px', height: '12px', imageRendering: 'pixelated' }} />
                 <PixelText size="xs" color={COLORS.textGold}>HABILIDADES</PixelText>
               </div>
-              <button onClick={() => setShowAbilities(false)} className="hover:brightness-150" style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: COLORS.textRed }}>X</button>
+              <button onClick={() => setShowAbilities(false)} className="hover:brightness-150 px-1" style={{ fontFamily: PIXEL_FONT, fontSize: '8px', color: COLORS.textRed }}>X</button>
             </div>
-            <PixelScrollArea maxHeight="100px">
+            <PixelScrollArea maxHeight="90px">
               <div className="grid grid-cols-1 gap-1">
                 {classAbilities.length === 0 && <PixelText size="xxs" color={COLORS.textGray}>Sem habilidades</PixelText>}
                 {classAbilities.map((ability) => {
@@ -875,8 +886,8 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
                   const abilityColor = ability.isBonusAction ? COLORS.xpGold : COLORS.hpGreen;
                   return (
                     <button key={ability.id} onClick={() => handleUseAbility(ability)} disabled={isDisabled || !usesOk}
-                      className="p-2 text-left transition-all hover:brightness-125 disabled:opacity-35 flex items-center gap-2"
-                      style={{ background: 'rgba(30,25,15,0.8)', border: `1px solid ${abilityColor}40`, imageRendering: 'pixelated' as const }}>
+                      className="p-1.5 text-left transition-all hover:brightness-125 disabled:opacity-35 flex items-center gap-2"
+                      style={{ background: 'rgba(30,25,15,0.8)', border: `1px solid ${abilityColor}40` }}>
                       <div className="w-2 h-2 flex-shrink-0" style={{ background: abilityColor, boxShadow: `0 0 4px ${abilityColor}60` }} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -896,10 +907,10 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         )}
 
-        {/* Combat log (compact) */}
+        {/* Combat log */}
         {!showSpells && !showAbilities && combatLogs.length > 0 && (
-          <div className="flex-1 overflow-hidden">
-            <PixelScrollArea maxHeight="55px">
+          <div className="flex-1 overflow-hidden px-2 py-1">
+            <PixelScrollArea maxHeight="50px">
               {combatLogs.slice(-3).map((log, i) => (
                 <div key={i} className="flex items-center gap-1 py-0.5">
                   <div className="w-1.5 h-1.5 flex-shrink-0" style={{
@@ -913,7 +924,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
         )}
       </div>
 
-      {/* Victory overlay */}
+      {/* Victory/Defeat overlays */}
       {showVictory && <VictoryAnimation experience={victoryRewards.experience} gold={victoryRewards.gold} leveledUp={victoryRewards.leveledUp} newLevel={victoryRewards.newLevel} onComplete={() => onVictory(victoryRewardsRef.current)} />}
       {showDefeat && <DefeatAnimation onComplete={onDefeat} />}
     </div>
