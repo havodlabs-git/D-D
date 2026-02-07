@@ -591,13 +591,16 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
   // ═══════════════════════════════════════════════════════════
 
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, background: '#0a0a0a', overflow: 'hidden' }}>
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, background: '#0a0a0a', overflow: 'hidden' }}>
       <CombatAnimationStyles />
 
-      {/* ═══ BATTLE ARENA - Top 50% ═══ */}
+      {/* Max-width container - keeps mobile proportions on desktop */}
+      <div className="relative flex flex-col h-full w-full" style={{ maxWidth: '480px', maxHeight: '100vh' }}>
+
+      {/* ═══ BATTLE ARENA - Top 55% ═══ */}
       <div
         className="relative flex-shrink-0 overflow-hidden"
-        style={{ height: '50%', imageRendering: 'pixelated' as const }}
+        style={{ height: '55%', imageRendering: 'pixelated' as const }}
       >
         {/* Battle background */}
         <img
@@ -757,16 +760,16 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         )}
 
-        {/* Dialog box with Nano Banana asset */}
-        <div className="relative flex-shrink-0 mx-1 mt-1" style={{ height: '70px' }}>
+        {/* Dialog box with Nano Banana asset - preserve aspect ratio */}
+        <div className="relative flex-shrink-0 mx-1 mt-1" style={{ aspectRatio: '800 / 300', maxHeight: '90px' }}>
           <img
             src="/sprites/ui/dialog-box.png"
             alt=""
             className="absolute inset-0 w-full h-full"
-            style={{ imageRendering: 'pixelated', objectFit: 'fill', borderRadius: '2px' }}
+            style={{ imageRendering: 'pixelated', objectFit: 'contain' }}
           />
-          <div className="relative z-10 flex items-center h-full" style={{ padding: '12px 50px 12px 60px' }}>
-            <PixelText size="xs" color="#e8e0d0" className="leading-relaxed">
+          <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ padding: '8% 12%' }}>
+            <PixelText size="xs" color="#e8e0d0" className="leading-relaxed text-center">
               {currentMessage}
               {isTyping && <span className="animate-pulse" style={{ color: COLORS.gold }}> _</span>}
             </PixelText>
@@ -775,12 +778,12 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
 
         {/* Action buttons with Nano Banana assets */}
         {showMenu && isPlayerTurn && !combatEnded && !showSpells && !showAbilities && (
-          <div className="grid grid-cols-2 gap-1.5 px-2 py-1.5 flex-shrink-0">
+          <div className="grid grid-cols-2 gap-2 px-3 py-2 flex-shrink-0">
             <button
               onClick={handleAttack}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '44px' }}
+              style={{ aspectRatio: '400 / 160' }}
             >
               <img src="/sprites/ui/button-fight.png" alt="FIGHT" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -788,14 +791,14 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               onClick={() => { setShowSpells(!showSpells); setShowAbilities(false); }}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '44px' }}
+              style={{ aspectRatio: '400 / 160' }}
             >
               <img src="/sprites/ui/button-magic.png" alt="MAGIC" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
             <button
               onClick={() => { setShowAbilities(!showAbilities); setShowSpells(false); }}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95"
-              style={{ height: '44px' }}
+              style={{ aspectRatio: '400 / 160' }}
             >
               <img src="/sprites/ui/button-items.png" alt="ITEMS" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -803,7 +806,7 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
               onClick={handleFlee}
               disabled={actionUsed}
               className="relative transition-all hover:brightness-110 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
-              style={{ height: '44px' }}
+              style={{ aspectRatio: '400 / 160' }}
             >
               <img src="/sprites/ui/button-run.png" alt="RUN" className="w-full h-full" style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
             </button>
@@ -923,6 +926,8 @@ export function CombatScreenPokemon({ monster, latitude, longitude, onClose, onV
           </div>
         )}
       </div>
+
+      </div>{/* end max-width container */}
 
       {/* Victory/Defeat overlays */}
       {showVictory && <VictoryAnimation experience={victoryRewards.experience} gold={victoryRewards.gold} leveledUp={victoryRewards.leveledUp} newLevel={victoryRewards.newLevel} onComplete={() => onVictory(victoryRewardsRef.current)} />}
