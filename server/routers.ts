@@ -239,46 +239,52 @@ export const appRouter = router({
       }
       if (character) return character;
       
-      // Auto-create a default character when none exists (demo mode)
-      console.log("[Character.get] No character found, auto-creating default for userId:", ctx.user.id);
-      const defaultChar = {
-        id: ctx.user.id,
-        userId: ctx.user.id,
-        name: ctx.user.name || "Aventureiro",
-        characterClass: "fighter" as const,
-        level: 1,
-        experience: 0,
-        experienceToNextLevel: 300, // D&D 5e: 300 XP para nível 2
-        strength: 16,
-        dexterity: 13,
-        constitution: 14,
-        intelligence: 10,
-        wisdom: 12,
-        charisma: 8,
-        maxHealth: calculateMaxHealth("fighter", 1, 14), // Fighter, level 1, CON 14
-        currentHealth: calculateMaxHealth("fighter", 1, 14),
-        maxMana: calculateMaxMana("fighter", 1, 10), // Fighter, level 1, INT 10
-        currentMana: calculateMaxMana("fighter", 1, 10),
-        armorClass: calculateArmorClass(13), // DEX 13
-        gold: 100,
-        lastLatitude: null,
-        lastLongitude: null,
-        availableStatPoints: 0,
-        subclass: null,
-        knownSpells: null,
-        preparedSpells: null,
-        usedSpellSlots: null,
-        isDead: false,
-        deathTimestamp: null,
-        deathCause: null,
-        movesUsedThisHour: 0,
-        lastMoveResetTime: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      (global as any)[demoKey] = defaultChar;
-      console.log("[Character.get] Auto-created default character for", demoKey);
-      return defaultChar;
+      // Only auto-create for guest/dev-login users (openId starts with 'dev-' or 'player-')
+      // For real email users, return null so CharacterCreation screen shows
+      const isGuestUser = ctx.user.openId.startsWith('dev-') || ctx.user.openId.startsWith('player-');
+      if (isGuestUser) {
+        console.log("[Character.get] Guest user, auto-creating default for userId:", ctx.user.id);
+        const defaultChar = {
+          id: ctx.user.id,
+          userId: ctx.user.id,
+          name: ctx.user.name || "Aventureiro",
+          characterClass: "fighter" as const,
+          level: 1,
+          experience: 0,
+          experienceToNextLevel: 300,
+          strength: 16,
+          dexterity: 13,
+          constitution: 14,
+          intelligence: 10,
+          wisdom: 12,
+          charisma: 8,
+          maxHealth: calculateMaxHealth("fighter", 1, 14),
+          currentHealth: calculateMaxHealth("fighter", 1, 14),
+          maxMana: calculateMaxMana("fighter", 1, 10),
+          currentMana: calculateMaxMana("fighter", 1, 10),
+          armorClass: calculateArmorClass(13),
+          gold: 100,
+          lastLatitude: null,
+          lastLongitude: null,
+          availableStatPoints: 0,
+          subclass: null,
+          knownSpells: null,
+          preparedSpells: null,
+          usedSpellSlots: null,
+          isDead: false,
+          deathTimestamp: null,
+          deathCause: null,
+          movesUsedThisHour: 0,
+          lastMoveResetTime: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        (global as any)[demoKey] = defaultChar;
+        return defaultChar;
+      }
+      // Real user (email login) - return null to show CharacterCreation
+      console.log("[Character.get] No character for real user, showing creation screen");
+      return null;
     }),
     
     // Delete dead character to create new one
