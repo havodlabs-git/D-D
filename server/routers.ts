@@ -1228,8 +1228,16 @@ export const appRouter = router({
               newLevel = character.level;
               const classData = CHARACTER_CLASSES[character.class as keyof typeof CHARACTER_CLASSES];
               character.experienceToNextLevel = XP_TABLE_GLOBAL[character.level] || (character.level * 1000);
-              character.maxHealth = calculateMaxHealth(character.level, character.class, character.constitution);
-              character.maxMana = calculateMaxMana(character.level, character.class, character.intelligence);
+              character.maxHealth = calculateMaxHealth(
+                character.class as CharacterClass,
+                character.level,
+                character.constitution
+              );
+              character.maxMana = calculateMaxMana(
+                character.class as CharacterClass,
+                character.level,
+                character.intelligence
+              );
               character.currentHealth = character.maxHealth;
               character.currentMana = character.maxMana;
               character.attributePoints = (character.attributePoints || 0) + 2;

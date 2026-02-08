@@ -170,7 +170,7 @@ export function performAttackRoll(): { roll: number; isCritical: boolean; isCrit
 export function calculateMaxHealth(characterClass: CharacterClass, level: number, constitution: number): number {
   const classData = CHARACTER_CLASSES[characterClass];
   const conMod = getAttributeModifier(constitution);
-  const baseHealth = classData.healthPerLevel * 2; // Starting health
+  const baseHealth = (classData.healthPerLevel * 2) + conMod; // Starting health (includes CON)
   const levelHealth = (classData.healthPerLevel + conMod) * (level - 1);
   return Math.max(1, baseHealth + levelHealth);
 }
